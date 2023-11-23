@@ -221,7 +221,7 @@
 		// child
 		NSLog(@"Child running, calling execlp\n");
 		//execlp("/usr/bin/touch", "/usr/bin/touch", "xxxx", 0);
-		execlp("/Users/lfroen/prog/amule/src/amuled", "/Users/lfroen/prog/amule/src/amuled", 0);
+		execlp("amuled", "amuled", 0);
 		NSLog(@"execlp() failed\n");
 		exit(-1);
 	}
