@@ -3097,47 +3097,46 @@ wxSizer *CoreConnect( wxWindow *parent, bool call_fit, bool set_sizer )
     wxBoxSizer *item1 = new wxBoxSizer( wxHORIZONTAL );
 
     wxStaticText *item2 = new wxStaticText( parent, -1, _("Connect to:"), wxDefaultPosition, wxDefaultSize, 0 );
-    item1->Add( item2, 0, wxALIGN_CENTER|wxALL, 5 );
+    item1->Add( item2, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT, 8 );
 
     CMuleTextCtrl *item3 = new CMuleTextCtrl( parent, ID_REMOTE_HOST, wxT("localhost"), wxDefaultPosition, wxSize(160,-1), 0 );
-    item1->Add( item3, 0, wxALIGN_CENTER|wxALL, 5 );
+    item1->Add( item3, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT, 8 );
 
     wxStaticText *item4 = new wxStaticText( parent, -1, wxT(":"), wxDefaultPosition, wxDefaultSize, 0 );
-    item1->Add( item4, 0, wxALIGN_CENTER|wxALL, 5 );
+    item1->Add( item4, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT, 8 );
 
-    CMuleTextCtrl *item5 = new CMuleTextCtrl( parent, ID_REMOTE_PORT, wxT("4712"), wxDefaultPosition, wxSize(60,-1), 0 );
-    item1->Add( item5, 0, wxALIGN_CENTER|wxALL, 5 );
+    CMuleTextCtrl *item5 = new CMuleTextCtrl( parent, ID_REMOTE_PORT, wxT("4712"), wxDefaultPosition, wxSize(70,-1), 0 );
+    item1->Add( item5, 0, wxALIGN_CENTER_VERTICAL, 0 );
 
-    item0->Add( item1, 0, wxALIGN_CENTER_VERTICAL|wxALL, 5 );
+    item0->Add( item1, 0, wxALIGN_CENTER_VERTICAL|wxALL, 6 );
 
     wxStaticBox *item7 = new wxStaticBox( parent, -1, _("Login to remote amule") );
     wxStaticBoxSizer *item6 = new wxStaticBoxSizer( item7, wxVERTICAL );
 
-    wxFlexGridSizer *item8 = new wxFlexGridSizer( 2, 0, 0 );
+    wxFlexGridSizer *item8 = new wxFlexGridSizer( 2, 2, 6, 10 );
 
     wxStaticText *item9 = new wxStaticText( parent, -1, _("User name"), wxDefaultPosition, wxDefaultSize, 0 );
-    item8->Add( item9, 0, wxALIGN_CENTER_VERTICAL|wxALL, 5 );
+    item8->Add( item9, 0, wxALIGN_CENTER_VERTICAL|wxALL, 4 );
 
-    CMuleTextCtrl *item10 = new CMuleTextCtrl( parent, ID_EC_LOGIN, wxT("amule"), wxDefaultPosition, wxSize(200,-1), 0 );
+    CMuleTextCtrl *item10 = new CMuleTextCtrl( parent, ID_EC_LOGIN, wxT("amule"), wxDefaultPosition, wxSize(210,-1), 0 );
     item10->Enable( false );
-    item8->Add( item10, 0, wxALIGN_CENTER|wxALL, 5 );
+    item8->Add( item10, 0, wxALIGN_CENTER_VERTICAL|wxALL, 4 );
 
     wxStaticText *item11 = new wxStaticText( parent, -1, _("Password"), wxDefaultPosition, wxDefaultSize, 0 );
-    item8->Add( item11, 0, wxALIGN_CENTER_VERTICAL|wxALL, 5 );
+    item8->Add( item11, 0, wxALIGN_CENTER_VERTICAL|wxALL, 4 );
 
-    CMuleTextCtrl *item12 = new CMuleTextCtrl( parent, ID_EC_PASSWD, wxT(""), wxDefaultPosition, wxSize(200,-1), wxTE_PASSWORD );
-    item8->Add( item12, 0, wxALIGN_CENTER|wxALL, 5 );
+    CMuleTextCtrl *item12 = new CMuleTextCtrl( parent, ID_EC_PASSWD, wxT(""), wxDefaultPosition, wxSize(210,-1), wxTE_PASSWORD );
+    item8->Add( item12, 0, wxALIGN_CENTER_VERTICAL|wxALL, 4 );
 
-    item6->Add( item8, 0, wxGROW|wxALIGN_CENTER_VERTICAL|wxALL, 5 );
+    item6->Add( item8, 0, wxGROW|wxALIGN_CENTER_VERTICAL|wxALL, 6 );
 
-    item0->Add( item6, 0, wxGROW|wxALIGN_CENTER_VERTICAL|wxALL, 5 );
+    item0->Add( item6, 0, wxGROW|wxALIGN_CENTER_VERTICAL|wxLEFT|wxRIGHT|wxBOTTOM, 6 );
 
     wxCheckBox *item13 = new wxCheckBox( parent, ID_EC_SAVE, _("Remember those settings"), wxDefaultPosition, wxDefaultSize, 0 );
     item13->SetValue( TRUE );
-    item0->Add( item13, 0, wxALIGN_CENTER_VERTICAL|wxALL, 5 );
+    item0->Add( item13, 0, wxALIGN_CENTER_VERTICAL|wxLEFT|wxRIGHT|wxBOTTOM, 6 );
 
     wxBoxSizer *item14 = new wxBoxSizer( wxHORIZONTAL );
-
     wxButton *item15 = new wxButton( parent, wxID_OK, _("Connect"), wxDefaultPosition, wxDefaultSize, 0 );
     item15->SetDefault();
     item14->Add( item15, 0, wxALIGN_CENTER|wxALL, 5 );

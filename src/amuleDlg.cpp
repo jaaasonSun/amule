@@ -1297,15 +1297,15 @@ void CamuleDlg::Apply_Toolbar_Skin(wxToolBar *wndToolbar)
 
 	// Placeholder. Gets updated by ShowConnectionState
 	wndToolbar->AddTool(ID_BUTTONCONNECT, wxT("..."), m_tblist.GetBitmap(0));
+	wndToolbar->AddSeparator();
 
-	wndToolbar->AddSeparator();
-	wndToolbar->AddTool(ID_BUTTONNETWORKS, _("Networks"), m_tblist.GetBitmap(3), wxNullBitmap, wxITEM_CHECK, _("Networks Window"));
-	wndToolbar->AddTool(ID_BUTTONSEARCH, _("Searches"), m_tblist.GetBitmap(5), wxNullBitmap, wxITEM_CHECK, _("Searches Window"));
-	wndToolbar->AddTool(ID_BUTTONDOWNLOADS, _("Downloads"), m_tblist.GetBitmap(4), wxNullBitmap, wxITEM_CHECK, _("Downloads Window"));
-	wndToolbar->AddTool(ID_BUTTONSHARED, _("Shared files"), m_tblist.GetBitmap(6), wxNullBitmap, wxITEM_CHECK, _("Shared Files Window"));
-	wndToolbar->AddTool(ID_BUTTONMESSAGES, _("Messages"), m_tblist.GetBitmap(7), wxNullBitmap, wxITEM_CHECK, _("Messages Window"));
-	wndToolbar->AddTool(ID_BUTTONSTATISTICS, _("Statistics"), m_tblist.GetBitmap(8), wxNullBitmap, wxITEM_CHECK, _("Statistics Graph Window"));
-	wndToolbar->AddSeparator();
+	// Keep connect/disconnect isolated and treat view tools as one native selection group.
+	wndToolbar->AddTool(ID_BUTTONNETWORKS, _("Networks"), m_tblist.GetBitmap(3), wxNullBitmap, wxITEM_RADIO, _("Networks Window"));
+	wndToolbar->AddTool(ID_BUTTONSEARCH, _("Searches"), m_tblist.GetBitmap(5), wxNullBitmap, wxITEM_RADIO, _("Searches Window"));
+	wndToolbar->AddTool(ID_BUTTONDOWNLOADS, _("Downloads"), m_tblist.GetBitmap(4), wxNullBitmap, wxITEM_RADIO, _("Downloads Window"));
+	wndToolbar->AddTool(ID_BUTTONSHARED, _("Shared files"), m_tblist.GetBitmap(6), wxNullBitmap, wxITEM_RADIO, _("Shared Files Window"));
+	wndToolbar->AddTool(ID_BUTTONMESSAGES, _("Messages"), m_tblist.GetBitmap(7), wxNullBitmap, wxITEM_RADIO, _("Messages Window"));
+	wndToolbar->AddTool(ID_BUTTONSTATISTICS, _("Statistics"), m_tblist.GetBitmap(8), wxNullBitmap, wxITEM_RADIO, _("Statistics Graph Window"));
 	wndToolbar->AddTool(ID_BUTTONNEWPREFERENCES, _("Preferences"), m_tblist.GetBitmap(9), wxNullBitmap, wxITEM_NORMAL, _("Preferences Settings Window"));
 #ifndef CLIENT_GUI
 	wndToolbar->AddTool(ID_BUTTONIMPORT, _("Import"), m_tblist.GetBitmap(10), wxNullBitmap, wxITEM_NORMAL, _("The partfile importer tool"));
@@ -1343,9 +1343,12 @@ void CamuleDlg::Create_Toolbar(bool orientation)
 	}
 
 	if (!m_wndToolbar) {
-		m_wndToolbar = CreateToolBar((orientation ? wxTB_VERTICAL : wxTB_HORIZONTAL) |
-					      wxNO_BORDER | wxTB_TEXT | wxTB_FLAT |
-					      wxCLIP_CHILDREN | wxTB_NODIVIDER);
+		long toolbar_style = (orientation ? wxTB_VERTICAL : wxTB_HORIZONTAL) |
+			wxNO_BORDER | wxTB_FLAT | wxCLIP_CHILDREN | wxTB_NODIVIDER;
+#ifndef __WXMAC__
+		toolbar_style |= wxTB_TEXT;
+#endif
+		m_wndToolbar = CreateToolBar(toolbar_style);
 
 		m_wndToolbar->SetToolBitmapSize(wxSize(32, 32));
 	}

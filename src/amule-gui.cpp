@@ -208,7 +208,8 @@ void CamuleGuiBase::ResetTitle()
 {
 #ifdef SVNDATE
 	#ifdef CLIENT_GUI
-		m_FrameTitle = CFormat(wxT("aMule remote control %s %s")) % wxT( VERSION ) % wxT( SVNDATE );
+		// Keep the remote GUI title release-like on development snapshots.
+		m_FrameTitle = CFormat(wxT("aMule remote control %s")) % wxT( VERSION );
 	#else
 		m_FrameTitle = CFormat(wxT("aMule %s %s")) % wxT( VERSION ) % wxT( SVNDATE );
 	#endif
