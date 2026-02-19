@@ -3,7 +3,7 @@ if (NOT YYENABLE_NLS)
 
 	check_include_file (argz.h HAVE_ARGZ_H)
 
-	if (NOT HAVE_ARGZ_H)
+	if (NOT HAVE_ARGZ_H AND NOT APPLE)
 		set (ENABLE_NLS FALSE)
 	endif()
 

@@ -2,6 +2,7 @@ set (LIBS_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libs")
 set (INCLUDE_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set (SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set (EC_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/libs/ec/cpp")
+set (MACOS_BUNDLE_ICON "${CMAKE_SOURCE_DIR}/platforms/MacOSX/aMule-Xcode/amule.icns")
 
 add_custom_command (
 	OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/pixmaps/flags_xpm/CountryFlags.h
@@ -170,6 +171,13 @@ if (BUILD_ED2K)
 		)
 	endif()
 
+	if (APPLE)
+		target_link_libraries (ed2k
+			PRIVATE "-framework CoreFoundation"
+			PRIVATE "-framework CoreServices"
+		)
+	endif()
+
 	install (TARGETS ed2k
 		RUNTIME DESTINATION bin
 	)
@@ -209,6 +217,29 @@ if (BUILD_MONOLITHIC)
 		)
 	endif()
 
+	if (APPLE)
+		target_sources (amule
+			PRIVATE ${MACOS_BUNDLE_ICON}
+		)
+
+		set_source_files_properties (${MACOS_BUNDLE_ICON} PROPERTIES
+			MACOSX_PACKAGE_LOCATION "Resources"
+		)
+
+		set_target_properties (amule PROPERTIES
+			MACOSX_BUNDLE TRUE
+			MACOSX_BUNDLE_BUNDLE_NAME "aMule"
+			OUTPUT_NAME "aMule"
+			MACOSX_BUNDLE_ICON_FILE "amule.icns"
+		)
+
+		target_link_libraries (amule
+			PRIVATE "-framework CoreFoundation"
+			PRIVATE "-framework CoreServices"
+			PRIVATE "-framework IOKit"
+		)
+	endif()
+
 	if (WIN32)
 		target_link_libraries (amule
 			PRIVATE shlwapi.lib
@@ -220,6 +251,7 @@ if (BUILD_MONOLITHIC)
 	endif()
 
 	install (TARGETS amule
+		BUNDLE DESTINATION "."
 		RUNTIME DESTINATION bin
 	)
 
@@ -272,6 +304,40 @@ if (BUILD_REMOTEGUI)
 		)
 	endif()
 
+	if (APPLE)
+		target_sources (amulegui
+			PRIVATE ${MACOS_BUNDLE_ICON}
+		)
+
+		set_source_files_properties (${MACOS_BUNDLE_ICON} PROPERTIES
+			MACOSX_PACKAGE_LOCATION "Resources"
+		)
+
+		set_target_properties (amulegui PROPERTIES
+			MACOSX_BUNDLE TRUE
+			MACOSX_BUNDLE_BUNDLE_NAME "aMuleGUI"
+			MACOSX_BUNDLE_EXECUTABLE_NAME "amulegui"
+			OUTPUT_NAME "aMuleGUI"
+			MACOSX_BUNDLE_ICON_FILE "amule.icns"
+		)
+
+		target_link_libraries (amulegui
+			PRIVATE "-framework CoreFoundation"
+			PRIVATE "-framework CoreServices"
+			PRIVATE "-framework IOKit"
+		)
+
+		if (ENABLE_NLS)
+			add_custom_command (TARGET amulegui POST_BUILD
+				COMMAND ${CMAKE_COMMAND}
+					-DPO_DIR="${CMAKE_BINARY_DIR}/po"
+					-DBUNDLE_DIR="$<TARGET_BUNDLE_CONTENT_DIR:amulegui>"
+					-P "${CMAKE_SOURCE_DIR}/cmake/copy_bundle_translations.cmake"
+			)
+		endif()
+
+	endif()
+
 	if (WIN32)
 		set_target_properties (amulegui PROPERTIES
 			WIN32_EXECUTABLE TRUE
@@ -279,6 +345,7 @@ if (BUILD_REMOTEGUI)
 	endif()
 
 	install (TARGETS amulegui
+		BUNDLE DESTINATION "."
 		RUNTIME DESTINATION bin
 	)
 endif()
@@ -482,6 +549,10 @@ IF (NEED_LIB_MULESOCKET)
 	)
 
 	if (ENABLE_BOOST)
+		target_include_directories (mulesocket
+			PRIVATE ${Boost_INCLUDE_DIRS}
+		)
+
 		target_link_libraries (mulesocket
 			PRIVATE ${Boost_LIBRARIES}
 			PUBLIC wxWidgets::BASE

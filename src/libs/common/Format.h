@@ -193,6 +193,46 @@ template<> inline CFormat& CFormat::operator%(unsigned long value)	{ return *thi
 template<> inline CFormat& CFormat::operator%(float value)		{ return *this % (double)value; }
 template<> inline CFormat& CFormat::operator%(const wxChar* value)	{ return this->operator%<const wxString&>(wxString(value)); }
 
+inline wxString operator+(const wxString& lhs, const CFormat& rhs)
+{
+	return lhs + rhs.GetString();
+}
+
+inline wxString operator+(const wxChar* lhs, const CFormat& rhs)
+{
+	return wxString(lhs) + rhs.GetString();
+}
+
+inline wxString operator+(const CFormat& lhs, const wxString& rhs)
+{
+	return lhs.GetString() + rhs;
+}
+
+inline wxString operator+(const CFormat& lhs, const wxChar* rhs)
+{
+	return lhs.GetString() + wxString(rhs);
+}
+
+inline bool operator==(const wxString& lhs, const CFormat& rhs)
+{
+	return lhs == rhs.GetString();
+}
+
+inline bool operator==(const wxChar* lhs, const CFormat& rhs)
+{
+	return wxString(lhs) == rhs.GetString();
+}
+
+inline bool operator==(const CFormat& lhs, const wxString& rhs)
+{
+	return lhs.GetString() == rhs;
+}
+
+inline bool operator==(const CFormat& lhs, const wxChar* rhs)
+{
+	return lhs.GetString() == wxString(rhs);
+}
+
 
 #define WXLONGLONGFMTSPEC wxT(wxLongLongFmtSpec)
 

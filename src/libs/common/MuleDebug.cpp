@@ -151,7 +151,7 @@ public:
 #else
 				frame.GetFileName().AfterLast(wxT('/'))
 #endif
-			        + CFormat(wxT(":%u")) % frame.GetLine();
+			        + wxString(CFormat(wxT(":%u")) % frame.GetLine());
 		} else {
 			btLine += wxT(" (Unknown file/line)");
 		}
