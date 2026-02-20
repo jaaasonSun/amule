@@ -66,7 +66,12 @@ enum CommandOutputParser {
                 continue
             }
 
-            guard !pendingHash.isEmpty, line.trimmingCharacters(in: .whitespaces).hasPrefix("[") || line.contains("[") else {
+            guard !pendingHash.isEmpty else {
+                continue
+            }
+
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard trimmed.hasPrefix("[") else {
                 continue
             }
 

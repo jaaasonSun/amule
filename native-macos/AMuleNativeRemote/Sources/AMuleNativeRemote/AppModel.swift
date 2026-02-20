@@ -40,6 +40,7 @@ final class AppModel: ObservableObject {
                 self.appendLog("$ connect\n\(output)")
             }
             await self.refreshStatus()
+            try await self.refreshDownloadsNow()
         }
     }
 
@@ -105,12 +106,7 @@ final class AppModel: ObservableObject {
 
     func refreshDownloads() {
         run(label: "show dl") {
-            let output = try await AMuleCmdClient.runCommand("show dl", config: self.config)
-            let parsed = CommandOutputParser.parseDownloads(output)
-            await MainActor.run {
-                self.downloads = parsed
-                self.appendLog("$ show dl\n\(output)")
-            }
+            try await self.refreshDownloadsNow()
         }
     }
 
@@ -132,6 +128,15 @@ final class AppModel: ObservableObject {
             await MainActor.run {
                 self.isBusy = false
             }
+        }
+    }
+
+    private func refreshDownloadsNow() async throws {
+        let output = try await AMuleCmdClient.runCommand("show dl", config: config)
+        let parsed = CommandOutputParser.parseDownloads(output)
+        await MainActor.run {
+            self.downloads = parsed
+            self.appendLog("$ show dl\n\(output)")
         }
     }
 
