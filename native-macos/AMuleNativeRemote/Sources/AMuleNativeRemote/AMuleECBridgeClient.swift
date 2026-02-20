@@ -88,22 +88,46 @@ struct BridgeStatusPayload: Decodable {
 struct BridgeDownloadPayload: Decodable {
     let hash: String
     let name: String
+    let size: UInt64
+    let done: UInt64
+    let transferred: UInt64
     let progress: Double
     let sourcesCurrent: Int
     let sourcesTotal: Int
+    let sourcesTransferring: Int
+    let sourcesA4AF: Int
     let status: String
     let speed: Int
     let priority: Int
+    let category: Int
+    let partMet: String
+    let lastSeenComplete: UInt64
+    let lastReceived: UInt64
+    let activeSeconds: Int
+    let availableParts: Int
+    let shared: Bool
 
     private enum CodingKeys: String, CodingKey {
         case hash
         case name
+        case size
+        case done
+        case transferred
         case progress
         case sourcesCurrent = "sources_current"
         case sourcesTotal = "sources_total"
+        case sourcesTransferring = "sources_transferring"
+        case sourcesA4AF = "sources_a4af"
         case status
         case speed
         case priority
+        case category
+        case partMet = "part_met"
+        case lastSeenComplete = "last_seen_complete"
+        case lastReceived = "last_received"
+        case activeSeconds = "active_seconds"
+        case availableParts = "available_parts"
+        case shared
     }
 }
 
@@ -125,12 +149,47 @@ struct BridgeSearchPayload: Decodable {
     }
 }
 
+struct BridgeServerPayload: Decodable {
+    let id: Int
+    let name: String
+    let description: String
+    let version: String
+    let address: String
+    let ip: String
+    let port: Int
+    let users: Int
+    let maxUsers: Int
+    let files: Int
+    let ping: Int
+    let failed: Int
+    let priority: Int
+    let isStatic: Bool
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case description
+        case version
+        case address
+        case ip
+        case port
+        case users
+        case maxUsers = "max_users"
+        case files
+        case ping
+        case failed
+        case priority
+        case isStatic = "is_static"
+    }
+}
+
 private struct BridgeEnvelope: Decodable {
     let ok: Bool
     let error: String?
     let message: String?
     let status: BridgeStatusPayload?
     let downloads: [BridgeDownloadPayload]?
+    let servers: [BridgeServerPayload]?
     let progress: Int?
     let results: [BridgeSearchPayload]?
 }
@@ -157,6 +216,11 @@ enum AMuleECBridgeClient {
     static func downloads(config: AMuleConnectionConfig) async throws -> ([BridgeDownloadPayload], String) {
         let (envelope, raw) = try await invoke(op: "downloads", extraArgs: [], config: config)
         return (envelope.downloads ?? [], raw)
+    }
+
+    static func servers(config: AMuleConnectionConfig) async throws -> ([BridgeServerPayload], String) {
+        let (envelope, raw) = try await invoke(op: "servers", extraArgs: [], config: config)
+        return (envelope.servers ?? [], raw)
     }
 
     static func search(
@@ -203,6 +267,38 @@ enum AMuleECBridgeClient {
             config: config
         )
         return (envelope.message ?? "Priority changed", raw)
+    }
+
+    static func serverConnect(ip: String?, port: Int?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        var extraArgs: [String] = []
+        if let ip, !ip.isEmpty, let port {
+            extraArgs = ["--server-ip", ip, "--server-port", String(port)]
+        }
+        let (envelope, raw) = try await invoke(op: "server-connect", extraArgs: extraArgs, config: config)
+        return (envelope.message ?? "Server connect requested", raw)
+    }
+
+    static func serverDisconnect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        let (envelope, raw) = try await invoke(op: "server-disconnect", extraArgs: [], config: config)
+        return (envelope.message ?? "Server disconnect requested", raw)
+    }
+
+    static func serverAdd(address: String, name: String?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        var extraArgs: [String] = ["--server-address", address]
+        if let name, !name.isEmpty {
+            extraArgs += ["--server-name", name]
+        }
+        let (envelope, raw) = try await invoke(op: "server-add", extraArgs: extraArgs, config: config)
+        return (envelope.message ?? "Server add requested", raw)
+    }
+
+    static func serverRemove(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        let (envelope, raw) = try await invoke(
+            op: "server-remove",
+            extraArgs: ["--server-ip", ip, "--server-port", String(port)],
+            config: config
+        )
+        return (envelope.message ?? "Server remove requested", raw)
     }
 
     private static func invoke(

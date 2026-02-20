@@ -8,13 +8,30 @@ struct ContentView: View {
         case log = "Log"
         case downloads = "Raw DL"
         case search = "Raw Search"
+        case servers = "Raw Servers"
     }
 
     @State private var showLoginSheet = false
     @State private var showDiagnosticsSheet = false
     @State private var diagnosticsTab: DiagnosticsTab = .log
+
     @State private var downloadSortOrder = [KeyPathComparator(\DownloadItem.name, order: .forward)]
     @State private var displayedDownloads: [DownloadItem] = []
+    @State private var selectedDownloadID: DownloadItem.ID? = nil
+
+    @State private var serverSortOrder = [KeyPathComparator(\ServerItem.name, order: .forward)]
+    @State private var displayedServers: [ServerItem] = []
+    @State private var selectedServerID: ServerItem.ID? = nil
+
+    private var selectedDownload: DownloadItem? {
+        guard let selectedDownloadID else { return nil }
+        return displayedDownloads.first(where: { $0.id == selectedDownloadID })
+    }
+
+    private var selectedServer: ServerItem? {
+        guard let selectedServerID else { return nil }
+        return displayedServers.first(where: { $0.id == selectedServerID })
+    }
 
     var body: some View {
         VStack(spacing: 10) {
@@ -31,13 +48,15 @@ struct ContentView: View {
             }
         }
         .padding(16)
-        .frame(minWidth: 980, minHeight: 700)
+        .frame(minWidth: 1080, minHeight: 740)
         .task {
             model.ensurePreferredBridgePath()
             model.startAutoRefresh()
             await model.refreshStatus(logOutput: false, suppressErrors: true)
             model.refreshDownloads()
+            model.refreshServers()
             refreshDisplayedDownloads()
+            refreshDisplayedServers()
             showLoginSheet = !model.isSessionConnected
         }
         .onDisappear {
@@ -53,6 +72,12 @@ struct ContentView: View {
         }
         .onChange(of: downloadSortOrder) { _ in
             refreshDisplayedDownloads()
+        }
+        .onChange(of: model.servers) { _ in
+            refreshDisplayedServers()
+        }
+        .onChange(of: serverSortOrder) { _ in
+            refreshDisplayedServers()
         }
         .sheet(isPresented: $showLoginSheet) {
             loginSheet
@@ -103,6 +128,8 @@ struct ContentView: View {
                 .tabItem { Text("Search") }
             downloadsPanel
                 .tabItem { Text("Downloads") }
+            serversPanel
+                .tabItem { Text("Servers") }
         }
         .frame(minHeight: 320)
     }
@@ -169,36 +196,188 @@ struct ContentView: View {
                 .buttonStyle(.bordered)
                 .disabled(model.isBusy)
 
-                Text("Parsed \(model.downloads.count) item(s)")
+                Text("\(model.downloads.count) item(s)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
                 Spacer()
             }
 
-            Table(displayedDownloads, sortOrder: $downloadSortOrder) {
-                TableColumn("Name", value: \.name) { item in
-                    Text(item.name)
-                        .contextMenu { downloadContextMenu(item) }
+            HSplitView {
+                Table(displayedDownloads, selection: $selectedDownloadID, sortOrder: $downloadSortOrder) {
+                    TableColumn("Name", value: \.name) { item in
+                        Text(item.name)
+                            .contextMenu { downloadContextMenu(item) }
+                    }
+                    TableColumn("Progress", value: \.progressValue) { item in
+                        Text(item.progressText)
+                            .contextMenu { downloadContextMenu(item) }
+                    }.width(90)
+                    TableColumn("Done") { item in
+                        Text(item.completionText)
+                            .contextMenu { downloadContextMenu(item) }
+                    }.width(160)
+                    TableColumn("Sources", value: \.sourceCurrent) { item in
+                        Text(item.sourcesText)
+                            .contextMenu { downloadContextMenu(item) }
+                    }.width(90)
+                    TableColumn("Status", value: \.status) { item in
+                        Text(item.status)
+                            .contextMenu { downloadContextMenu(item) }
+                    }
+                    TableColumn("Speed", value: \.speedBytes) { item in
+                        Text(item.speedText)
+                            .contextMenu { downloadContextMenu(item) }
+                    }.width(130)
                 }
-                TableColumn("Progress", value: \.progressValue) { item in
-                    Text(item.progressText)
-                        .contextMenu { downloadContextMenu(item) }
-                }.width(90)
-                TableColumn("Sources", value: \.sourceCurrent) { item in
-                    Text(item.sourcesText)
-                        .contextMenu { downloadContextMenu(item) }
-                }.width(90)
-                TableColumn("Status", value: \.status) { item in
-                    Text(item.status)
-                        .contextMenu { downloadContextMenu(item) }
-                }
-                TableColumn("Speed", value: \.speedBytes) { item in
-                    Text(item.speedText)
-                        .contextMenu { downloadContextMenu(item) }
-                }.width(130)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                downloadDetailsPane
+                    .frame(minWidth: 320, idealWidth: 360)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private var downloadDetailsPane: some View {
+        GroupBox("Download Details") {
+            ScrollView {
+                if let item = selectedDownload {
+                    VStack(alignment: .leading, spacing: 8) {
+                        detailRow("Name", item.name)
+                        detailRow("Hash", item.id)
+                        detailRow("Status", item.status)
+                        detailRow("Progress", item.progressText)
+                        detailRow("Completed", item.completionText)
+                        detailRow("Transferred", item.transferredText)
+                        detailRow("Speed", item.speedText)
+                        detailRow("Sources", item.sourcesText)
+                        detailRow("Transferring", String(item.sourceTransferring))
+                        detailRow("A4AF", String(item.sourceA4AF))
+                        detailRow("Priority", item.priorityText)
+                        detailRow("Category", String(item.category))
+                        detailRow("Part File", item.partMetName.isEmpty ? "-" : item.partMetName)
+                        detailRow("Available Parts", String(item.availableParts))
+                        detailRow("Active Time", item.activeTimeText)
+                        detailRow("Last Seen Complete", item.lastSeenCompleteText)
+                        detailRow("Last Received", item.lastReceivedText)
+                        detailRow("Shared", item.shared ? "Yes" : "No")
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 4)
+                } else {
+                    Text("Select a download item to view details.")
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 4)
+                }
+            }
+        }
+    }
+
+    private var serversPanel: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 8) {
+                TextField("Server address (IP:Port)", text: $model.serverAddressInput)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(minWidth: 260)
+
+                TextField("Name (optional)", text: $model.serverNameInput)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(minWidth: 200)
+
+                Button("Add") {
+                    model.addServer()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(model.isBusy || model.serverAddressInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                Divider()
+                    .frame(height: 18)
+
+                Button("Refresh") {
+                    model.refreshServers()
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.isBusy)
+
+                Button("Connect") {
+                    model.connectServer(selectedServer)
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.isBusy)
+
+                Button("Disconnect") {
+                    model.disconnectServer()
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.isBusy)
+
+                Button("Remove") {
+                    if let selectedServer {
+                        model.removeServer(selectedServer)
+                    }
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.isBusy || selectedServer == nil)
+
+                Spacer()
+
+                Text("\(displayedServers.count) server(s)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Table(displayedServers, selection: $selectedServerID, sortOrder: $serverSortOrder) {
+                TableColumn("Name", value: \.name) { item in
+                    Text(item.name.isEmpty ? "(unnamed)" : item.name)
+                        .contextMenu { serverContextMenu(item) }
+                }
+                TableColumn("Address", value: \.address) { item in
+                    Text(item.address)
+                        .contextMenu { serverContextMenu(item) }
+                }.width(170)
+                TableColumn("Users", value: \.users) { item in
+                    Text(item.usersText)
+                        .contextMenu { serverContextMenu(item) }
+                }.width(95)
+                TableColumn("Files", value: \.files) { item in
+                    Text(String(item.files))
+                        .contextMenu { serverContextMenu(item) }
+                }.width(90)
+                TableColumn("Ping", value: \.ping) { item in
+                    Text(item.ping > 0 ? "\(item.ping) ms" : "-")
+                        .contextMenu { serverContextMenu(item) }
+                }.width(90)
+                TableColumn("Failed", value: \.failed) { item in
+                    Text(String(item.failed))
+                        .contextMenu { serverContextMenu(item) }
+                }.width(75)
+                TableColumn("Version", value: \.version) { item in
+                    Text(item.version)
+                        .contextMenu { serverContextMenu(item) }
+                }.width(90)
+                TableColumn("Prio", value: \.priority) { item in
+                    Text(String(item.priority))
+                        .contextMenu { serverContextMenu(item) }
+                }.width(70)
+                TableColumn("Static") { item in
+                    Text(item.isStatic ? "Yes" : "No")
+                        .contextMenu { serverContextMenu(item) }
+                }.width(70)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            if let selectedServer {
+                HStack(spacing: 8) {
+                    Text("Description:")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(selectedServer.description.isEmpty ? "-" : selectedServer.description)
+                        .font(.caption)
+                    Spacer()
+                }
+            }
         }
     }
 
@@ -211,7 +390,7 @@ struct ContentView: View {
                     }
                 }
                 .pickerStyle(.segmented)
-                .frame(width: 340)
+                .frame(width: 460)
 
                 Spacer()
 
@@ -253,6 +432,8 @@ struct ContentView: View {
             return model.lastDownloadsRawOutput.isEmpty ? "No raw download queue output captured yet." : model.lastDownloadsRawOutput
         case .search:
             return model.lastSearchRawOutput.isEmpty ? "No raw search output captured yet." : model.lastSearchRawOutput
+        case .servers:
+            return model.lastServersRawOutput.isEmpty ? "No raw server-list output captured yet." : model.lastServersRawOutput
         }
     }
 
@@ -359,8 +540,43 @@ struct ContentView: View {
         }
     }
 
+    @ViewBuilder
+    private func serverContextMenu(_ item: ServerItem) -> some View {
+        Button("Connect") {
+            model.connectServer(item)
+        }
+        Button("Remove") {
+            model.removeServer(item)
+        }
+    }
+
+    private func detailRow(_ title: String, _ value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(title + ":")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 130, alignment: .leading)
+            Text(value)
+                .font(.caption)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
     private func refreshDisplayedDownloads() {
         displayedDownloads = model.downloads.sorted(using: downloadSortOrder)
+        if let selectedDownloadID,
+           !displayedDownloads.contains(where: { $0.id == selectedDownloadID }) {
+            self.selectedDownloadID = nil
+        }
+    }
+
+    private func refreshDisplayedServers() {
+        displayedServers = model.servers.sorted(using: serverSortOrder)
+        if let selectedServerID,
+           !displayedServers.contains(where: { $0.id == selectedServerID }) {
+            self.selectedServerID = nil
+        }
     }
 
     private func copyCurrentDiagnostics() {
@@ -371,6 +587,8 @@ struct ContentView: View {
             model.copyDownloadsRawToClipboard()
         case .search:
             model.copySearchRawToClipboard()
+        case .servers:
+            model.copyServersRawToClipboard()
         }
     }
 

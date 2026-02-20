@@ -7,6 +7,7 @@
 #include "libs/common/MD5Sum.h"
 #include "Constants.h"
 #include "GuiEvents.h"
+#include "NetworkFunctions.h"
 
 #include <wx/init.h>
 #include <wx/intl.h>
@@ -35,6 +36,10 @@ struct Options {
 	std::string query;
 	std::string hash;
 	std::string priority = "normal";
+	std::string serverAddress;
+	std::string serverName;
+	std::string serverIP;
+	int serverPort = 0;
 	int polls = 10;
 	int pollIntervalMs = 900;
 };
@@ -42,12 +47,24 @@ struct Options {
 struct DownloadEntry {
 	std::string hash;
 	std::string name;
+	uint64_t size = 0;
+	uint64_t done = 0;
+	uint64_t transferred = 0;
 	double progress = 0.0;
 	int sourceCurrent = 0;
 	int sourceTotal = 0;
+	int sourceTransferring = 0;
+	int sourceA4AF = 0;
 	std::string status;
 	uint32_t speed = 0;
 	int priority = 0;
+	int category = 0;
+	std::string partMetName;
+	uint64_t lastSeenComplete = 0;
+	uint64_t lastReceived = 0;
+	uint32_t activeSeconds = 0;
+	uint32_t availableParts = 0;
+	bool shared = false;
 };
 
 struct SearchEntry {
@@ -56,6 +73,23 @@ struct SearchEntry {
 	uint64_t size = 0;
 	uint32_t sources = 0;
 	bool alreadyHave = false;
+};
+
+struct ServerEntry {
+	uint32_t id = 0;
+	std::string name;
+	std::string description;
+	std::string version;
+	std::string address;
+	std::string ip;
+	uint16_t port = 0;
+	uint32_t users = 0;
+	uint32_t maxUsers = 0;
+	uint32_t files = 0;
+	uint32_t ping = 0;
+	uint32_t failed = 0;
+	uint32_t priority = 0;
+	bool isStatic = false;
 };
 
 std::string ToUtf8(const wxString& value)
@@ -131,6 +165,16 @@ bool ParseArgs(int argc, char** argv, Options& options, std::string& error)
 			if (!needValue(arg, options.hash)) return false;
 		} else if (arg == "--priority") {
 			if (!needValue(arg, options.priority)) return false;
+		} else if (arg == "--server-address") {
+			if (!needValue(arg, options.serverAddress)) return false;
+		} else if (arg == "--server-name") {
+			if (!needValue(arg, options.serverName)) return false;
+		} else if (arg == "--server-ip") {
+			if (!needValue(arg, options.serverIP)) return false;
+		} else if (arg == "--server-port") {
+			std::string serverPort;
+			if (!needValue(arg, serverPort)) return false;
+			options.serverPort = std::atoi(serverPort.c_str());
 		} else if (arg == "--polls") {
 			std::string polls;
 			if (!needValue(arg, polls)) return false;
@@ -141,7 +185,7 @@ bool ParseArgs(int argc, char** argv, Options& options, std::string& error)
 			options.pollIntervalMs = std::atoi(ms.c_str());
 		} else if (arg == "--help") {
 			error =
-				"Usage: amule-ec-bridge --host <ip> --port <port> --password <plain_or_md5> --op <status|downloads|search|download|connect|disconnect|pause|resume|cancel|priority> [op args]";
+				"Usage: amule-ec-bridge --host <ip> --port <port> --password <plain_or_md5> --op <status|downloads|search|download|connect|disconnect|pause|resume|cancel|priority|servers|server-connect|server-disconnect|server-add|server-remove> [op args]";
 			return false;
 		} else {
 			error = "Unknown argument: " + arg;
@@ -205,6 +249,39 @@ bool DecodeHash(const std::string& text, CMD4Hash& out)
 {
 	wxString value = wxString::FromUTF8(text.c_str());
 	return out.Decode(value) && !out.IsEmpty();
+}
+
+bool ParseServerEndpoint(const Options& options, uint32& ip, uint16& port, std::string& error)
+{
+	std::string ipText = options.serverIP;
+	int portValue = options.serverPort;
+
+	if (ipText.empty()) {
+		if (options.serverAddress.empty()) {
+			error = "Missing --server-ip/--server-port or --server-address";
+			return false;
+		}
+		const std::string::size_type split = options.serverAddress.rfind(':');
+		if (split == std::string::npos || split == 0 || split + 1 >= options.serverAddress.size()) {
+			error = "Invalid --server-address format. Use a.b.c.d:port";
+			return false;
+		}
+		ipText = options.serverAddress.substr(0, split);
+		portValue = std::atoi(options.serverAddress.substr(split + 1).c_str());
+	}
+
+	if (portValue <= 0 || portValue > 65535) {
+		error = "Invalid server port";
+		return false;
+	}
+
+	if (!StringIPtoUint32(wxString::FromUTF8(ipText.c_str()), ip) || ip == 0) {
+		error = "Invalid server IP address";
+		return false;
+	}
+
+	port = static_cast<uint16>(portValue);
+	return true;
 }
 
 std::string BuildED2KStatus(const CEC_ConnState_Tag* state)
@@ -286,14 +363,24 @@ bool HandleDownloads(CRemoteConnect& conn, std::string& error)
 		DownloadEntry e;
 		e.hash = ToUtf8(tag->FileHashString());
 		e.name = ToUtf8(tag->FileName());
-		const uint64_t size = tag->SizeFull();
-		const uint64_t done = tag->SizeDone();
-		e.progress = size ? (100.0 * static_cast<double>(done) / static_cast<double>(size)) : 0.0;
+		e.size = tag->SizeFull();
+		e.done = tag->SizeDone();
+		e.transferred = tag->SizeXfer();
+		e.progress = e.size ? (100.0 * static_cast<double>(e.done) / static_cast<double>(e.size)) : 0.0;
 		e.sourceCurrent = static_cast<int>(tag->SourceCount()) - static_cast<int>(tag->SourceNotCurrCount());
 		e.sourceTotal = static_cast<int>(tag->SourceCount());
+		e.sourceTransferring = static_cast<int>(tag->SourceXferCount());
+		e.sourceA4AF = static_cast<int>(tag->SourceCountA4AF());
 		e.status = ToUtf8(tag->GetFileStatusString());
 		e.speed = tag->Speed();
 		e.priority = tag->DownPrio();
+		e.category = tag->FileCat();
+		e.partMetName = ToUtf8(tag->PartMetName());
+		e.lastSeenComplete = static_cast<uint64_t>(tag->LastSeenComplete());
+		e.lastReceived = static_cast<uint64_t>(tag->LastDateChanged());
+		e.activeSeconds = tag->DownloadActiveTime();
+		e.availableParts = tag->AvailablePartCount();
+		e.shared = tag->Shared();
 		entries.push_back(e);
 	}
 
@@ -307,12 +394,24 @@ bool HandleDownloads(CRemoteConnect& conn, std::string& error)
 			<< "{"
 			<< "\"hash\":\"" << JsonEscape(e.hash) << "\"," 
 			<< "\"name\":\"" << JsonEscape(e.name) << "\"," 
+			<< "\"size\":" << e.size << ","
+			<< "\"done\":" << e.done << ","
+			<< "\"transferred\":" << e.transferred << ","
 			<< "\"progress\":" << e.progress << ","
 			<< "\"sources_current\":" << e.sourceCurrent << ","
 			<< "\"sources_total\":" << e.sourceTotal << ","
+			<< "\"sources_transferring\":" << e.sourceTransferring << ","
+			<< "\"sources_a4af\":" << e.sourceA4AF << ","
 			<< "\"status\":\"" << JsonEscape(e.status) << "\"," 
 			<< "\"speed\":" << e.speed << ","
-			<< "\"priority\":" << e.priority
+			<< "\"priority\":" << e.priority << ","
+			<< "\"category\":" << e.category << ","
+			<< "\"part_met\":\"" << JsonEscape(e.partMetName) << "\"," 
+			<< "\"last_seen_complete\":" << e.lastSeenComplete << ","
+			<< "\"last_received\":" << e.lastReceived << ","
+			<< "\"active_seconds\":" << e.activeSeconds << ","
+			<< "\"available_parts\":" << e.availableParts << ","
+			<< "\"shared\":" << (e.shared ? "true" : "false")
 			<< "}";
 	}
 	std::cout << "]}" << std::endl;
@@ -495,6 +594,154 @@ bool HandleConnectDisconnect(CRemoteConnect& conn, const Options& options, std::
 	return true;
 }
 
+bool HandleServers(CRemoteConnect& conn, std::string& error)
+{
+	CECPacket req(EC_OP_GET_SERVER_LIST, EC_DETAIL_FULL);
+	std::unique_ptr<const CECPacket> reply = SendRecvChecked(conn, req, error);
+	if (!reply) {
+		return false;
+	}
+
+	std::vector<ServerEntry> entries;
+	for (CECPacket::const_iterator it = reply->begin(); it != reply->end(); ++it) {
+		const CECTag& tag = *it;
+		ServerEntry e;
+		e.id = static_cast<uint32_t>(tag.GetInt());
+		if (const CECTag* t = tag.GetTagByName(EC_TAG_SERVER_NAME)) e.name = ToUtf8(t->GetStringData());
+		if (const CECTag* t = tag.GetTagByName(EC_TAG_SERVER_DESC)) e.description = ToUtf8(t->GetStringData());
+		if (const CECTag* t = tag.GetTagByName(EC_TAG_SERVER_VERSION)) e.version = ToUtf8(t->GetStringData());
+		if (const CECTag* t = tag.GetTagByName(EC_TAG_SERVER_USERS)) e.users = static_cast<uint32_t>(t->GetInt());
+		if (const CECTag* t = tag.GetTagByName(EC_TAG_SERVER_USERS_MAX)) e.maxUsers = static_cast<uint32_t>(t->GetInt());
+		if (const CECTag* t = tag.GetTagByName(EC_TAG_SERVER_FILES)) e.files = static_cast<uint32_t>(t->GetInt());
+		if (const CECTag* t = tag.GetTagByName(EC_TAG_SERVER_PING)) e.ping = static_cast<uint32_t>(t->GetInt());
+		if (const CECTag* t = tag.GetTagByName(EC_TAG_SERVER_FAILED)) e.failed = static_cast<uint32_t>(t->GetInt());
+		if (const CECTag* t = tag.GetTagByName(EC_TAG_SERVER_PRIO)) e.priority = static_cast<uint32_t>(t->GetInt());
+		if (const CECTag* t = tag.GetTagByName(EC_TAG_SERVER_STATIC)) e.isStatic = t->GetInt() != 0;
+
+		uint32 ipRaw = 0;
+		if (const CECTag* t = tag.GetTagByName(EC_TAG_SERVER_IP)) ipRaw = static_cast<uint32>(t->GetInt());
+		if (const CECTag* t = tag.GetTagByName(EC_TAG_SERVER_PORT)) e.port = static_cast<uint16>(t->GetInt());
+
+		if (ipRaw == 0 || e.port == 0) {
+			const EC_IPv4_t addr = tag.GetIPv4Data();
+			if (ipRaw == 0) {
+				ipRaw = static_cast<uint32>(addr.m_ip[0]) |
+					(static_cast<uint32>(addr.m_ip[1]) << 8) |
+					(static_cast<uint32>(addr.m_ip[2]) << 16) |
+					(static_cast<uint32>(addr.m_ip[3]) << 24);
+			}
+			if (e.port == 0) {
+				e.port = addr.m_port;
+			}
+		}
+
+		if (ipRaw != 0) {
+			e.ip = ToUtf8(Uint32toStringIP(ipRaw));
+		}
+		if (!e.ip.empty() && e.port != 0) {
+			std::ostringstream portText;
+			portText << e.port;
+			e.address = e.ip + ":" + portText.str();
+		} else {
+			e.address = ToUtf8(tag.GetIPv4Data().StringIP(false));
+		}
+
+		entries.push_back(e);
+	}
+
+	std::cout << "{\"ok\":true,\"servers\":[";
+	for (size_t i = 0; i < entries.size(); ++i) {
+		const ServerEntry& e = entries[i];
+		if (i != 0) {
+			std::cout << ",";
+		}
+		std::cout
+			<< "{"
+			<< "\"id\":" << e.id << ","
+			<< "\"name\":\"" << JsonEscape(e.name) << "\"," 
+			<< "\"description\":\"" << JsonEscape(e.description) << "\"," 
+			<< "\"version\":\"" << JsonEscape(e.version) << "\"," 
+			<< "\"address\":\"" << JsonEscape(e.address) << "\"," 
+			<< "\"ip\":\"" << JsonEscape(e.ip) << "\"," 
+			<< "\"port\":" << e.port << ","
+			<< "\"users\":" << e.users << ","
+			<< "\"max_users\":" << e.maxUsers << ","
+			<< "\"files\":" << e.files << ","
+			<< "\"ping\":" << e.ping << ","
+			<< "\"failed\":" << e.failed << ","
+			<< "\"priority\":" << e.priority << ","
+			<< "\"is_static\":" << (e.isStatic ? "true" : "false")
+			<< "}";
+	}
+	std::cout << "]}" << std::endl;
+	return true;
+}
+
+bool HandleServerConnect(CRemoteConnect& conn, const Options& options, std::string& error)
+{
+	CECPacket req(EC_OP_SERVER_CONNECT);
+	if (!options.serverIP.empty() || !options.serverAddress.empty()) {
+		uint32 ip = 0;
+		uint16 port = 0;
+		if (!ParseServerEndpoint(options, ip, port, error)) {
+			return false;
+		}
+		req.AddTag(CECTag(EC_TAG_SERVER, EC_IPv4_t(ip, port)));
+	}
+
+	std::unique_ptr<const CECPacket> reply = SendRecvChecked(conn, req, error);
+	if (!reply) {
+		return false;
+	}
+	PrintJsonMessage("Server connect requested");
+	return true;
+}
+
+bool HandleServerDisconnect(CRemoteConnect& conn, std::string& error)
+{
+	CECPacket req(EC_OP_SERVER_DISCONNECT);
+	std::unique_ptr<const CECPacket> reply = SendRecvChecked(conn, req, error);
+	if (!reply) {
+		return false;
+	}
+	PrintJsonMessage("Server disconnect requested");
+	return true;
+}
+
+bool HandleServerAdd(CRemoteConnect& conn, const Options& options, std::string& error)
+{
+	if (options.serverAddress.empty()) {
+		error = "Missing --server-address";
+		return false;
+	}
+
+	CECPacket req(EC_OP_SERVER_ADD);
+	req.AddTag(CECTag(EC_TAG_SERVER_ADDRESS, wxString::FromUTF8(options.serverAddress.c_str())));
+	if (!options.serverName.empty()) {
+		req.AddTag(CECTag(EC_TAG_SERVER_NAME, wxString::FromUTF8(options.serverName.c_str())));
+	}
+
+	std::unique_ptr<const CECPacket> reply = SendRecvChecked(conn, req, error);
+	if (!reply) {
+		return false;
+	}
+	PrintJsonMessage("Server add requested");
+	return true;
+}
+
+bool HandleServerRemove(CRemoteConnect& conn, const Options& options, std::string& error)
+{
+	uint32 ip = 0;
+	uint16 port = 0;
+	if (!ParseServerEndpoint(options, ip, port, error)) {
+		return false;
+	}
+
+	conn.RemoveServer(ip, port);
+	PrintJsonMessage("Server remove requested");
+	return true;
+}
+
 } // namespace
 
 // Stubs needed for ASIO socket notifications in non-GUI tools.
@@ -544,6 +791,8 @@ int main(int argc, char** argv)
 		ok = HandleStatus(conn, error);
 	} else if (options.op == "downloads") {
 		ok = HandleDownloads(conn, error);
+	} else if (options.op == "servers") {
+		ok = HandleServers(conn, error);
 	} else if (options.op == "search") {
 		ok = HandleSearch(conn, options, error);
 	} else if (options.op == "download") {
@@ -552,6 +801,14 @@ int main(int argc, char** argv)
 		ok = HandleConnectDisconnect(conn, options, error);
 	} else if (options.op == "pause" || options.op == "resume" || options.op == "cancel" || options.op == "priority") {
 		ok = HandlePartFileAction(conn, options, error);
+	} else if (options.op == "server-connect") {
+		ok = HandleServerConnect(conn, options, error);
+	} else if (options.op == "server-disconnect") {
+		ok = HandleServerDisconnect(conn, error);
+	} else if (options.op == "server-add") {
+		ok = HandleServerAdd(conn, options, error);
+	} else if (options.op == "server-remove") {
+		ok = HandleServerRemove(conn, options, error);
 	} else {
 		error = "Unsupported --op value";
 	}

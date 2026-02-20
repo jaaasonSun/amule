@@ -17,9 +17,13 @@ final class AppModel: ObservableObject {
     @Published var searchStatusMessage: String = ""
     @Published var lastSearchRawOutput = ""
     @Published var downloads: [DownloadItem] = []
+    @Published var servers: [ServerItem] = []
+    @Published var serverAddressInput: String = ""
+    @Published var serverNameInput: String = ""
     @Published var isBusy = false
     @Published var outputLog = ""
     @Published var lastDownloadsRawOutput = ""
+    @Published var lastServersRawOutput = ""
     @Published var lastError = ""
 
     private var autoRefreshTask: Task<Void, Never>?
@@ -130,6 +134,79 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func refreshServers() {
+        run(label: "servers") {
+            try await self.refreshServersNow()
+        }
+    }
+
+    func addServer() {
+        let address = serverAddressInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = serverNameInput.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !address.isEmpty else {
+            lastError = "Server address is required (e.g. 1.2.3.4:4661)."
+            return
+        }
+
+        run(label: "server-add") {
+            let (_, raw) = try await AMuleECBridgeClient.serverAdd(
+                address: address,
+                name: name.isEmpty ? nil : name,
+                config: self.config
+            )
+            await MainActor.run {
+                self.appendLog("$ server-add \(address)\n\(raw)")
+                self.serverAddressInput = ""
+                self.serverNameInput = ""
+            }
+            try await self.refreshServersNow(logOutput: false)
+        }
+    }
+
+    func connectServer(_ server: ServerItem?) {
+        run(label: "server-connect") {
+            let ip = server?.ip
+            let port = server?.port
+            let (_, raw) = try await AMuleECBridgeClient.serverConnect(ip: ip, port: port, config: self.config)
+            await MainActor.run {
+                if let server {
+                    self.appendLog("$ server-connect \(server.address)\n\(raw)")
+                } else {
+                    self.appendLog("$ server-connect\n\(raw)")
+                }
+            }
+            await self.refreshStatus(logOutput: false)
+            try await self.refreshServersNow(logOutput: false)
+        }
+    }
+
+    func disconnectServer() {
+        run(label: "server-disconnect") {
+            let (_, raw) = try await AMuleECBridgeClient.serverDisconnect(config: self.config)
+            await MainActor.run {
+                self.appendLog("$ server-disconnect\n\(raw)")
+            }
+            await self.refreshStatus(logOutput: false)
+            try await self.refreshServersNow(logOutput: false)
+        }
+    }
+
+    func removeServer(_ server: ServerItem) {
+        guard !server.ip.isEmpty, server.port > 0 else {
+            lastError = "Selected server has invalid endpoint information."
+            return
+        }
+
+        run(label: "server-remove") {
+            let (_, raw) = try await AMuleECBridgeClient.serverRemove(ip: server.ip, port: server.port, config: self.config)
+            await MainActor.run {
+                self.appendLog("$ server-remove \(server.address)\n\(raw)")
+            }
+            try await self.refreshServersNow(logOutput: false)
+        }
+    }
+
     func resetLog() {
         outputLog = ""
     }
@@ -147,6 +224,11 @@ final class AppModel: ObservableObject {
     func copySearchRawToClipboard() {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(lastSearchRawOutput, forType: .string)
+    }
+
+    func copyServersRawToClipboard() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(lastServersRawOutput, forType: .string)
     }
 
     func pauseDownload(_ item: DownloadItem) {
@@ -176,11 +258,16 @@ final class AppModel: ObservableObject {
     func startAutoRefresh() {
         autoRefreshTask?.cancel()
         autoRefreshTask = Task {
+            var tick: Int = 0
             while !Task.isCancelled {
                 if self.isSessionConnected {
                     await self.refreshStatus(logOutput: false, suppressErrors: true)
                     try? await self.refreshDownloadsNow(logOutput: false, suppressErrors: true)
+                    if tick % 5 == 0 {
+                        try? await self.refreshServersNow(logOutput: false, suppressErrors: true)
+                    }
                 }
+                tick += 1
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
             }
         }
@@ -230,6 +317,27 @@ final class AppModel: ObservableObject {
         }
     }
 
+    private func refreshServersNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
+        do {
+            let (payload, raw) = try await AMuleECBridgeClient.servers(config: config)
+            let parsed = ServerItem.fromBridge(payload)
+            await MainActor.run {
+                self.servers = parsed
+                self.lastServersRawOutput = raw
+                if logOutput {
+                    self.appendLog("$ servers\n\(raw)")
+                }
+            }
+        } catch {
+            await MainActor.run {
+                if !suppressErrors {
+                    self.lastError = error.localizedDescription
+                }
+            }
+            throw error
+        }
+    }
+
     private func connectNow() async throws {
         let (_, raw) = try await AMuleECBridgeClient.connect(config: self.config)
         await MainActor.run {
@@ -238,6 +346,7 @@ final class AppModel: ObservableObject {
         }
         await self.refreshStatus(logOutput: false)
         try await self.refreshDownloadsNow()
+        try await self.refreshServersNow(logOutput: false, suppressErrors: true)
     }
 
     private enum DownloadAction {
