@@ -14,6 +14,7 @@
 #include <wx/string.h>
 
 #include <chrono>
+#include <algorithm>
 #include <cstdio>
 #include <cstdint>
 #include <cstdlib>
@@ -434,10 +435,28 @@ bool HandleDownloads(CRemoteConnect& conn, std::string& error)
 				if (count <= 0 || altName.empty()) {
 					continue;
 				}
+				if (altName == e.name) {
+					continue;
+				}
 				DownloadEntry::AlternativeName alt;
 				alt.name = altName;
 				alt.count = count;
 				e.alternativeNames.push_back(alt);
+			}
+
+			std::sort(
+				e.alternativeNames.begin(),
+				e.alternativeNames.end(),
+				[](const DownloadEntry::AlternativeName& a, const DownloadEntry::AlternativeName& b) {
+					if (a.count != b.count) {
+						return a.count > b.count;
+					}
+					return a.name < b.name;
+				});
+
+			const size_t kMaxAlternativeNames = 12;
+			if (e.alternativeNames.size() > kMaxAlternativeNames) {
+				e.alternativeNames.resize(kMaxAlternativeNames);
 			}
 		}
 		entries.push_back(e);

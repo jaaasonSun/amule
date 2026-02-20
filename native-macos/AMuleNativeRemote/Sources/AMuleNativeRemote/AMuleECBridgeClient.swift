@@ -202,6 +202,23 @@ private struct BridgeEnvelope: Decodable {
 }
 
 enum AMuleECBridgeClient {
+    private final class ThreadSafeDataBuffer: @unchecked Sendable {
+        private let lock = NSLock()
+        private var value = Data()
+
+        func append(_ data: Data) {
+            lock.lock()
+            value.append(data)
+            lock.unlock()
+        }
+
+        func snapshot() -> Data {
+            lock.lock()
+            defer { lock.unlock() }
+            return value
+        }
+    }
+
     static func connect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         let (envelope, raw) = try await invoke(op: "connect", extraArgs: [], config: config)
         return (envelope.message ?? "Connect requested", raw)
@@ -372,8 +389,18 @@ enum AMuleECBridgeClient {
             process.standardOutput = outputPipe
             process.standardError = outputPipe
 
+            let collected = ThreadSafeDataBuffer()
+            outputPipe.fileHandleForReading.readabilityHandler = { handle in
+                let data = handle.availableData
+                guard !data.isEmpty else { return }
+                collected.append(data)
+            }
+
             process.terminationHandler = { process in
-                let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
+                outputPipe.fileHandleForReading.readabilityHandler = nil
+                let tail = outputPipe.fileHandleForReading.readDataToEndOfFile()
+                collected.append(tail)
+                let data = collected.snapshot()
                 let text = String(decoding: data, as: UTF8.self)
                 continuation.resume(returning: ProcessResult(status: process.terminationStatus, output: text))
             }
