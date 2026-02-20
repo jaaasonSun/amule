@@ -249,6 +249,25 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func renameDownload(_ item: DownloadItem, to newName: String) {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            lastError = "File name cannot be empty."
+            return
+        }
+        guard trimmed != item.name else {
+            return
+        }
+
+        run(label: "rename") {
+            let (_, raw) = try await AMuleECBridgeClient.rename(hash: item.id, name: trimmed, config: self.config)
+            await MainActor.run {
+                self.appendLog("$ rename \(item.id) \(trimmed)\n\(raw)")
+            }
+            try await self.refreshDownloadsNow(logOutput: false)
+        }
+    }
+
     func setDownloadPriority(_ item: DownloadItem, _ priority: String) {
         run(label: "priority") {
             try await self.runDownloadAction(.priority(priority), item)

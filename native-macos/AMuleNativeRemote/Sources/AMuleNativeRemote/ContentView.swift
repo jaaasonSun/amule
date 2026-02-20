@@ -18,6 +18,7 @@ struct ContentView: View {
     @State private var downloadSortOrder = [KeyPathComparator(\DownloadItem.name, order: .forward)]
     @State private var displayedDownloads: [DownloadItem] = []
     @State private var selectedDownloadID: DownloadItem.ID? = nil
+    @State private var downloadRenameDraft: String = ""
 
     @State private var serverSortOrder = [KeyPathComparator(\ServerItem.name, order: .forward)]
     @State private var displayedServers: [ServerItem] = []
@@ -72,6 +73,9 @@ struct ContentView: View {
         }
         .onChange(of: downloadSortOrder) { _ in
             refreshDisplayedDownloads()
+        }
+        .onChange(of: selectedDownloadID) { _ in
+            syncSelectedDownloadDraft()
         }
         .onChange(of: model.servers) { _ in
             refreshDisplayedServers()
@@ -244,6 +248,27 @@ struct ContentView: View {
             ScrollView {
                 if let item = selectedDownload {
                     VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Rename")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            HStack(spacing: 8) {
+                                TextField("New file name", text: $downloadRenameDraft)
+                                    .textFieldStyle(.roundedBorder)
+                                Button("Apply") {
+                                    model.renameDownload(item, to: downloadRenameDraft)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .disabled(model.isBusy || downloadRenameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || downloadRenameDraft == item.name)
+                                Button("Reset") {
+                                    downloadRenameDraft = item.name
+                                }
+                                .buttonStyle(.bordered)
+                                .disabled(model.isBusy)
+                            }
+                        }
+                        .padding(.bottom, 4)
+
                         detailRow("Name", item.name)
                         detailRow("Hash", item.id)
                         detailRow("Status", item.status)
@@ -262,6 +287,37 @@ struct ContentView: View {
                         detailRow("Last Seen Complete", item.lastSeenCompleteText)
                         detailRow("Last Received", item.lastReceivedText)
                         detailRow("Shared", item.shared ? "Yes" : "No")
+
+                        Divider()
+                            .padding(.vertical, 4)
+
+                        Text("Alternative Names")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        if item.alternativeNames.isEmpty {
+                            Text("No alternative names available from current sources.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(item.alternativeNames.sorted(by: { $0.count > $1.count })) { alt in
+                                HStack(spacing: 8) {
+                                    Text(alt.name)
+                                        .font(.caption)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                    Spacer()
+                                    Text("x\(alt.count)")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                    Button("Use") {
+                                        downloadRenameDraft = alt.name
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                }
+                            }
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 4)
@@ -568,6 +624,9 @@ struct ContentView: View {
         if let selectedDownloadID,
            !displayedDownloads.contains(where: { $0.id == selectedDownloadID }) {
             self.selectedDownloadID = nil
+            downloadRenameDraft = ""
+        } else if selectedDownload != nil && downloadRenameDraft.isEmpty {
+            syncSelectedDownloadDraft()
         }
     }
 
@@ -602,5 +661,13 @@ struct ContentView: View {
         if panel.runModal() == .OK, let url = panel.url {
             model.bridgePath = url.path
         }
+    }
+
+    private func syncSelectedDownloadDraft() {
+        guard let selectedDownload else {
+            downloadRenameDraft = ""
+            return
+        }
+        downloadRenameDraft = selectedDownload.name
     }
 }

@@ -1,5 +1,12 @@
 import Foundation
 
+struct DownloadAlternativeName: Hashable, Identifiable {
+    let name: String
+    let count: Int
+
+    var id: String { "\(name)|\(count)" }
+}
+
 struct SearchResult: Identifiable, Hashable {
     let index: Int
     let hash: String
@@ -49,6 +56,7 @@ struct DownloadItem: Identifiable, Hashable {
     let activeSeconds: Int
     let availableParts: Int
     let shared: Bool
+    let alternativeNames: [DownloadAlternativeName]
 
     var progressDisplayValue: Double {
         let clamped = max(0, min(progressValue, 100))
@@ -113,7 +121,10 @@ struct DownloadItem: Identifiable, Hashable {
                 lastReceived: $0.lastReceived,
                 activeSeconds: $0.activeSeconds,
                 availableParts: $0.availableParts,
-                shared: $0.shared
+                shared: $0.shared,
+                alternativeNames: $0.alternativeNames.map {
+                    DownloadAlternativeName(name: $0.name, count: $0.count)
+                }
             )
         }
     }

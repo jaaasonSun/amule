@@ -86,6 +86,11 @@ struct BridgeStatusPayload: Decodable {
 }
 
 struct BridgeDownloadPayload: Decodable {
+    struct AlternativeName: Decodable {
+        let name: String
+        let count: Int
+    }
+
     let hash: String
     let name: String
     let size: UInt64
@@ -106,6 +111,7 @@ struct BridgeDownloadPayload: Decodable {
     let activeSeconds: Int
     let availableParts: Int
     let shared: Bool
+    let alternativeNames: [AlternativeName]
 
     private enum CodingKeys: String, CodingKey {
         case hash
@@ -128,6 +134,7 @@ struct BridgeDownloadPayload: Decodable {
         case activeSeconds = "active_seconds"
         case availableParts = "available_parts"
         case shared
+        case alternativeNames = "alternative_names"
     }
 }
 
@@ -243,6 +250,15 @@ enum AMuleECBridgeClient {
     static func download(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         let (envelope, raw) = try await invoke(op: "download", extraArgs: ["--hash", hash], config: config)
         return (envelope.message ?? "Download request accepted", raw)
+    }
+
+    static func rename(hash: String, name: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        let (envelope, raw) = try await invoke(
+            op: "rename",
+            extraArgs: ["--hash", hash, "--name", name],
+            config: config
+        )
+        return (envelope.message ?? "Rename requested", raw)
     }
 
     static func pause(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {

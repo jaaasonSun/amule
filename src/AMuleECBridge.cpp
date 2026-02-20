@@ -35,6 +35,7 @@ struct Options {
 	std::string scope = "kad";
 	std::string query;
 	std::string hash;
+	std::string name;
 	std::string priority = "normal";
 	std::string serverAddress;
 	std::string serverName;
@@ -45,6 +46,11 @@ struct Options {
 };
 
 struct DownloadEntry {
+	struct AlternativeName {
+		std::string name;
+		int count = 0;
+	};
+
 	std::string hash;
 	std::string name;
 	uint64_t size = 0;
@@ -65,6 +71,7 @@ struct DownloadEntry {
 	uint32_t activeSeconds = 0;
 	uint32_t availableParts = 0;
 	bool shared = false;
+	std::vector<AlternativeName> alternativeNames;
 };
 
 struct SearchEntry {
@@ -163,6 +170,8 @@ bool ParseArgs(int argc, char** argv, Options& options, std::string& error)
 			if (!needValue(arg, options.query)) return false;
 		} else if (arg == "--hash") {
 			if (!needValue(arg, options.hash)) return false;
+		} else if (arg == "--name") {
+			if (!needValue(arg, options.name)) return false;
 		} else if (arg == "--priority") {
 			if (!needValue(arg, options.priority)) return false;
 		} else if (arg == "--server-address") {
@@ -185,7 +194,7 @@ bool ParseArgs(int argc, char** argv, Options& options, std::string& error)
 			options.pollIntervalMs = std::atoi(ms.c_str());
 		} else if (arg == "--help") {
 			error =
-				"Usage: amule-ec-bridge --host <ip> --port <port> --password <plain_or_md5> --op <status|downloads|search|download|connect|disconnect|pause|resume|cancel|priority|servers|server-connect|server-disconnect|server-add|server-remove> [op args]";
+				"Usage: amule-ec-bridge --host <ip> --port <port> --password <plain_or_md5> --op <status|downloads|search|download|rename|connect|disconnect|pause|resume|cancel|priority|servers|server-connect|server-disconnect|server-add|server-remove> [op args]";
 			return false;
 		} else {
 			error = "Unknown argument: " + arg;
@@ -281,6 +290,36 @@ bool ParseServerEndpoint(const Options& options, uint32& ip, uint16& port, std::
 	}
 
 	port = static_cast<uint16>(portValue);
+	return true;
+}
+
+bool TagUInt(const CECTag& parent, ec_tagname_t name, uint32& out)
+{
+	const CECTag* tag = parent.GetTagByName(name);
+	if (!tag || !tag->IsInt()) {
+		return false;
+	}
+	out = static_cast<uint32>(tag->GetInt());
+	return true;
+}
+
+bool TagUInt16(const CECTag& parent, ec_tagname_t name, uint16& out)
+{
+	uint32 value = 0;
+	if (!TagUInt(parent, name, value) || value > 65535) {
+		return false;
+	}
+	out = static_cast<uint16>(value);
+	return true;
+}
+
+bool TagString(const CECTag& parent, ec_tagname_t name, std::string& out)
+{
+	const CECTag* tag = parent.GetTagByName(name);
+	if (!tag || !tag->IsString()) {
+		return false;
+	}
+	out = ToUtf8(tag->GetStringData());
 	return true;
 }
 
@@ -381,6 +420,26 @@ bool HandleDownloads(CRemoteConnect& conn, std::string& error)
 		e.activeSeconds = tag->DownloadActiveTime();
 		e.availableParts = tag->AvailablePartCount();
 		e.shared = tag->Shared();
+
+		const CECTag* srcNamesTag = tag->GetTagByName(EC_TAG_PARTFILE_SOURCE_NAMES);
+		if (srcNamesTag) {
+			for (CECTag::const_iterator srcIt = srcNamesTag->begin(); srcIt != srcNamesTag->end(); ++srcIt) {
+				const CECTag* countTag = srcIt->GetTagByName(EC_TAG_PARTFILE_SOURCE_NAMES_COUNTS);
+				const CECTag* nameTag = srcIt->GetTagByName(EC_TAG_PARTFILE_SOURCE_NAMES);
+				if (!countTag || !countTag->IsInt() || !nameTag || !nameTag->IsString()) {
+					continue;
+				}
+				const int count = static_cast<int>(countTag->GetInt());
+				const std::string altName = ToUtf8(nameTag->GetStringData());
+				if (count <= 0 || altName.empty()) {
+					continue;
+				}
+				DownloadEntry::AlternativeName alt;
+				alt.name = altName;
+				alt.count = count;
+				e.alternativeNames.push_back(alt);
+			}
+		}
 		entries.push_back(e);
 	}
 
@@ -411,7 +470,21 @@ bool HandleDownloads(CRemoteConnect& conn, std::string& error)
 			<< "\"last_received\":" << e.lastReceived << ","
 			<< "\"active_seconds\":" << e.activeSeconds << ","
 			<< "\"available_parts\":" << e.availableParts << ","
-			<< "\"shared\":" << (e.shared ? "true" : "false")
+			<< "\"shared\":" << (e.shared ? "true" : "false") << ","
+			<< "\"alternative_names\":[";
+		for (size_t ai = 0; ai < e.alternativeNames.size(); ++ai) {
+			const DownloadEntry::AlternativeName& alt = e.alternativeNames[ai];
+			if (ai != 0) {
+				std::cout << ",";
+			}
+			std::cout
+				<< "{"
+				<< "\"name\":\"" << JsonEscape(alt.name) << "\","
+				<< "\"count\":" << alt.count
+				<< "}";
+		}
+		std::cout
+			<< "]"
 			<< "}";
 	}
 	std::cout << "]}" << std::endl;
@@ -535,6 +608,29 @@ bool HandleDownloadHash(CRemoteConnect& conn, const Options& options, std::strin
 	return true;
 }
 
+bool HandleRename(CRemoteConnect& conn, const Options& options, std::string& error)
+{
+	CMD4Hash hash;
+	if (!DecodeHash(options.hash, hash)) {
+		error = "Invalid --hash value";
+		return false;
+	}
+	if (options.name.empty()) {
+		error = "Missing --name";
+		return false;
+	}
+
+	CECPacket req(EC_OP_RENAME_FILE);
+	req.AddTag(CECTag(EC_TAG_KNOWNFILE, hash));
+	req.AddTag(CECTag(EC_TAG_PARTFILE_NAME, wxString::FromUTF8(options.name.c_str())));
+	std::unique_ptr<const CECPacket> reply = SendRecvChecked(conn, req, error);
+	if (!reply) {
+		return false;
+	}
+	PrintJsonMessage("Rename requested");
+	return true;
+}
+
 bool HandlePartFileAction(CRemoteConnect& conn, const Options& options, std::string& error)
 {
 	CMD4Hash hash;
@@ -606,44 +702,38 @@ bool HandleServers(CRemoteConnect& conn, std::string& error)
 	for (CECPacket::const_iterator it = reply->begin(); it != reply->end(); ++it) {
 		const CECTag& tag = *it;
 		ServerEntry e;
-		e.id = static_cast<uint32_t>(tag.GetInt());
-		if (const CECTag* t = tag.GetTagByName(EC_TAG_SERVER_NAME)) e.name = ToUtf8(t->GetStringData());
-		if (const CECTag* t = tag.GetTagByName(EC_TAG_SERVER_DESC)) e.description = ToUtf8(t->GetStringData());
-		if (const CECTag* t = tag.GetTagByName(EC_TAG_SERVER_VERSION)) e.version = ToUtf8(t->GetStringData());
-		if (const CECTag* t = tag.GetTagByName(EC_TAG_SERVER_USERS)) e.users = static_cast<uint32_t>(t->GetInt());
-		if (const CECTag* t = tag.GetTagByName(EC_TAG_SERVER_USERS_MAX)) e.maxUsers = static_cast<uint32_t>(t->GetInt());
-		if (const CECTag* t = tag.GetTagByName(EC_TAG_SERVER_FILES)) e.files = static_cast<uint32_t>(t->GetInt());
-		if (const CECTag* t = tag.GetTagByName(EC_TAG_SERVER_PING)) e.ping = static_cast<uint32_t>(t->GetInt());
-		if (const CECTag* t = tag.GetTagByName(EC_TAG_SERVER_FAILED)) e.failed = static_cast<uint32_t>(t->GetInt());
-		if (const CECTag* t = tag.GetTagByName(EC_TAG_SERVER_PRIO)) e.priority = static_cast<uint32_t>(t->GetInt());
-		if (const CECTag* t = tag.GetTagByName(EC_TAG_SERVER_STATIC)) e.isStatic = t->GetInt() != 0;
+		e.id = static_cast<uint32_t>(entries.size() + 1);
+
+		TagString(tag, EC_TAG_SERVER_NAME, e.name);
+		TagString(tag, EC_TAG_SERVER_DESC, e.description);
+		TagString(tag, EC_TAG_SERVER_VERSION, e.version);
+		TagString(tag, EC_TAG_SERVER_ADDRESS, e.address);
+		TagUInt(tag, EC_TAG_SERVER_USERS, e.users);
+		TagUInt(tag, EC_TAG_SERVER_USERS_MAX, e.maxUsers);
+		TagUInt(tag, EC_TAG_SERVER_FILES, e.files);
+		TagUInt(tag, EC_TAG_SERVER_PING, e.ping);
+		TagUInt(tag, EC_TAG_SERVER_FAILED, e.failed);
+		TagUInt(tag, EC_TAG_SERVER_PRIO, e.priority);
+
+		uint32 isStatic = 0;
+		if (TagUInt(tag, EC_TAG_SERVER_STATIC, isStatic)) {
+			e.isStatic = isStatic != 0;
+		}
 
 		uint32 ipRaw = 0;
-		if (const CECTag* t = tag.GetTagByName(EC_TAG_SERVER_IP)) ipRaw = static_cast<uint32>(t->GetInt());
-		if (const CECTag* t = tag.GetTagByName(EC_TAG_SERVER_PORT)) e.port = static_cast<uint16>(t->GetInt());
-
-		if (ipRaw == 0 || e.port == 0) {
-			const EC_IPv4_t addr = tag.GetIPv4Data();
-			if (ipRaw == 0) {
-				ipRaw = static_cast<uint32>(addr.m_ip[0]) |
-					(static_cast<uint32>(addr.m_ip[1]) << 8) |
-					(static_cast<uint32>(addr.m_ip[2]) << 16) |
-					(static_cast<uint32>(addr.m_ip[3]) << 24);
-			}
-			if (e.port == 0) {
-				e.port = addr.m_port;
-			}
-		}
-
-		if (ipRaw != 0) {
+		if (TagUInt(tag, EC_TAG_SERVER_IP, ipRaw) && ipRaw != 0) {
 			e.ip = ToUtf8(Uint32toStringIP(ipRaw));
 		}
-		if (!e.ip.empty() && e.port != 0) {
-			std::ostringstream portText;
-			portText << e.port;
-			e.address = e.ip + ":" + portText.str();
-		} else {
-			e.address = ToUtf8(tag.GetIPv4Data().StringIP(false));
+		TagUInt16(tag, EC_TAG_SERVER_PORT, e.port);
+
+		if (e.address.empty()) {
+			if (!e.ip.empty() && e.port != 0) {
+				std::ostringstream portText;
+				portText << e.port;
+				e.address = e.ip + ":" + portText.str();
+			} else if (!e.ip.empty()) {
+				e.address = e.ip;
+			}
 		}
 
 		entries.push_back(e);
@@ -797,6 +887,8 @@ int main(int argc, char** argv)
 		ok = HandleSearch(conn, options, error);
 	} else if (options.op == "download") {
 		ok = HandleDownloadHash(conn, options, error);
+	} else if (options.op == "rename") {
+		ok = HandleRename(conn, options, error);
 	} else if (options.op == "connect" || options.op == "disconnect") {
 		ok = HandleConnectDisconnect(conn, options, error);
 	} else if (options.op == "pause" || options.op == "resume" || options.op == "cancel" || options.op == "priority") {
