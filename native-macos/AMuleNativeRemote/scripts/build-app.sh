@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+REPO_ROOT="$(cd "$ROOT_DIR/../.." && pwd)"
 APP_NAME="aMule Native Remote"
 BUNDLE_ID="org.amule.native.remote"
 BUILD_DIR="$ROOT_DIR/.build/release"
@@ -9,6 +10,10 @@ APP_DIR="$ROOT_DIR/dist/${APP_NAME}.app"
 MACOS_DIR="$APP_DIR/Contents/MacOS"
 RES_DIR="$APP_DIR/Contents/Resources"
 PLIST_PATH="$APP_DIR/Contents/Info.plist"
+DEFAULT_AMULECMD_SRC="$REPO_ROOT/build/src/amulecmd"
+AMULECMD_SRC="${AMULECMD_PATH:-$DEFAULT_AMULECMD_SRC}"
+DEFAULT_ICON_SRC="$REPO_ROOT/build/src/aMuleGUI.app/Contents/Resources/amule.icns"
+ICON_SRC="${AMULE_ICON_PATH:-$DEFAULT_ICON_SRC}"
 
 mkdir -p "$ROOT_DIR/dist"
 swift build -c release --package-path "$ROOT_DIR"
@@ -17,6 +22,14 @@ rm -rf "$APP_DIR"
 mkdir -p "$MACOS_DIR" "$RES_DIR"
 cp "$BUILD_DIR/AMuleNativeRemote" "$MACOS_DIR/$APP_NAME"
 chmod +x "$MACOS_DIR/$APP_NAME"
+
+if [[ ! -x "$AMULECMD_SRC" ]]; then
+  echo "ERROR: amulecmd executable not found at: $AMULECMD_SRC" >&2
+  echo "Build amulecmd first (cmake --build \"$REPO_ROOT/build\" --target amulecmd) or set AMULECMD_PATH." >&2
+  exit 1
+fi
+cp "$AMULECMD_SRC" "$RES_DIR/amulecmd"
+chmod +x "$RES_DIR/amulecmd"
 
 cat > "$PLIST_PATH" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -45,7 +58,6 @@ cat > "$PLIST_PATH" <<PLIST
 </plist>
 PLIST
 
-ICON_SRC="/path/to/amule/build/src/aMuleGUI.app/Contents/Resources/amule.icns"
 if [[ -f "$ICON_SRC" ]]; then
   cp "$ICON_SRC" "$RES_DIR/amule.icns"
   /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string amule.icns" "$PLIST_PATH" 2>/dev/null || \

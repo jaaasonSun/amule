@@ -3,7 +3,7 @@ import SwiftUI
 
 @MainActor
 final class AppModel: ObservableObject {
-    @AppStorage("amule.commandPath") var commandPath: String = AMuleConnectionConfig.fallbackCommandPath
+    @AppStorage("amule.commandPath") var commandPath: String = AMuleConnectionConfig.preferredDefaultPath()
     @AppStorage("amule.host") var host: String = "127.0.0.1"
     @AppStorage("amule.port") var port: Int = 4712
     @AppStorage("amule.password") var password: String = ""
@@ -19,6 +19,18 @@ final class AppModel: ObservableObject {
 
     var config: AMuleConnectionConfig {
         .init(commandPath: commandPath, host: host, port: port, password: password)
+    }
+
+    func ensurePreferredCommandPath() {
+        guard let bundled = AMuleConnectionConfig.bundledCommandPath else {
+            return
+        }
+        let current = commandPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        if current.isEmpty ||
+            current == AMuleConnectionConfig.legacyFallbackCommandPath ||
+            !FileManager.default.isExecutableFile(atPath: current) {
+            commandPath = bundled
+        }
     }
 
     func connectAll() {

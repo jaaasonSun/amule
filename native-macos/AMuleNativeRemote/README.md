@@ -9,11 +9,12 @@ Current feature set:
 - Search result listing with one-click download
 - Download queue display
 - Command log for troubleshooting
+- App bundle ships with a bundled `amulecmd` binary
 
 ## Prerequisites
 - macOS 13+
 - Xcode command line tools (`swift`)
-- a working `amulecmd` binary (from this repo build or installed)
+- a working `amulecmd` binary for packaging (from this repo build or custom path)
 - a running aMule/amuled core with External Connection enabled
 
 ## Run from source
@@ -29,6 +30,12 @@ cd /path/to/amule/native-macos/AMuleNativeRemote
 open "dist/aMule Native Remote.app"
 ```
 
+To use a custom `amulecmd` binary during packaging:
+```bash
+AMULECMD_PATH=/path/to/amulecmd ./scripts/build-app.sh
+```
+
 ## Notes
 - This app currently uses `amulecmd` as the backend transport.
+- When launched from the packaged `.app`, it automatically prefers the bundled `Contents/Resources/amulecmd`.
 - The download action replays the active search before issuing `download <id>` so it can work with `amulecmd`'s per-session search index.

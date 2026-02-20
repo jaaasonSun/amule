@@ -21,6 +21,7 @@ struct ContentView: View {
         .padding(16)
         .frame(minWidth: 980, minHeight: 700)
         .task {
+            model.ensurePreferredCommandPath()
             await model.refreshStatus()
             model.refreshDownloads()
         }

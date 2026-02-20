@@ -6,7 +6,42 @@ struct AMuleConnectionConfig {
     var port: Int
     var password: String
 
-    static let fallbackCommandPath = "/path/to/amule/build/src/amulecmd"
+    static let legacyFallbackCommandPath = "/path/to/amule/build/src/amulecmd"
+
+    static var bundledCommandPath: String? {
+        let fm = FileManager.default
+        if let resource = Bundle.main.resourceURL?.appendingPathComponent("amulecmd").path,
+           fm.isExecutableFile(atPath: resource) {
+            return resource
+        }
+
+        let appBundlePath = Bundle.main.bundleURL
+            .appendingPathComponent("Contents/Resources/amulecmd")
+            .path
+        if fm.isExecutableFile(atPath: appBundlePath) {
+            return appBundlePath
+        }
+
+        return nil
+    }
+
+    static func preferredDefaultPath() -> String {
+        let fm = FileManager.default
+        if let bundled = bundledCommandPath {
+            return bundled
+        }
+
+        let candidates = [
+            legacyFallbackCommandPath,
+            "/opt/homebrew/bin/amulecmd",
+            "/usr/local/bin/amulecmd"
+        ]
+        for candidate in candidates where fm.isExecutableFile(atPath: candidate) {
+            return candidate
+        }
+
+        return legacyFallbackCommandPath
+    }
 }
 
 enum AMuleClientError: LocalizedError {
@@ -42,13 +77,13 @@ enum AMuleCmdClient {
     }
 
     private static func run(arguments: [String], stdin: String?, commandPath: String) async throws -> String {
-        guard FileManager.default.fileExists(atPath: commandPath) else {
+        guard let executablePath = resolveExecutablePath(commandPath) else {
             throw AMuleClientError.missingCommand(commandPath)
         }
 
         return try await withCheckedThrowingContinuation { continuation in
             let process = Process()
-            process.executableURL = URL(fileURLWithPath: commandPath)
+            process.executableURL = URL(fileURLWithPath: executablePath)
             process.arguments = arguments
 
             let outputPipe = Pipe()
@@ -80,5 +115,24 @@ enum AMuleCmdClient {
                 continuation.resume(throwing: error)
             }
         }
+    }
+
+    private static func resolveExecutablePath(_ commandPath: String) -> String? {
+        let fm = FileManager.default
+        let expanded = (commandPath as NSString).expandingTildeInPath
+
+        if expanded.contains("/") {
+            return fm.isExecutableFile(atPath: expanded) ? expanded : nil
+        }
+
+        let envPath = ProcessInfo.processInfo.environment["PATH"] ?? ""
+        for dir in envPath.split(separator: ":") {
+            let fullPath = String(dir) + "/" + expanded
+            if fm.isExecutableFile(atPath: fullPath) {
+                return fullPath
+            }
+        }
+
+        return nil
     }
 }
