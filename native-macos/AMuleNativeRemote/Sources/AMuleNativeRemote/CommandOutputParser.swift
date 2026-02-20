@@ -22,7 +22,7 @@ enum CommandOutputParser {
         var results: [SearchResult] = []
 
         for lineSub in lines {
-            let line = String(lineSub)
+            let line = normalizedPromptLine(String(lineSub))
             guard let id = parseLeadingIndex(line) else { continue }
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             let withoutPrefix = trimmed.replacingOccurrences(of: "\(id).", with: "", options: [.anchored])
@@ -60,7 +60,9 @@ enum CommandOutputParser {
         var pendingName = ""
 
         for line in lines {
-            if let (hash, name) = parseHashHeader(line) {
+            let normalized = normalizedPromptLine(line)
+
+            if let (hash, name) = parseHashHeader(normalized) {
                 pendingHash = hash
                 pendingName = name
                 continue
@@ -70,16 +72,17 @@ enum CommandOutputParser {
                 continue
             }
 
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            let trimmed = normalized.trimmingCharacters(in: .whitespaces)
             guard trimmed.hasPrefix("[") else {
                 continue
             }
 
-            let progress = firstMatch(in: line, pattern: #"\[(\d+\.\d+)%\]"#, group: 1) ?? "0.0"
-            let speed = trailingSpeed(in: line)
-            let parts = line.split(separator: "-").map { $0.trimmingCharacters(in: .whitespaces) }
+            let progress = firstMatch(in: normalized, pattern: #"\[(\d+(?:\.\d+)?)%\]"#, group: 1) ?? "0.0"
+            let speed = trailingSpeed(in: normalized)
+            let parts = normalized.split(separator: "-").map { $0.trimmingCharacters(in: .whitespaces) }
             let status = parts.indices.contains(1) ? parts[1] : ""
-            let sources = firstMatch(in: line, pattern: #"\]\s+([0-9]+/[0-9]+)"#, group: 1) ?? "-"
+            let sourcesRaw = firstMatch(in: normalized, pattern: #"\]\s+([0-9]+\s*/\s*[0-9]+)"#, group: 1) ?? "-"
+            let sources = sourcesRaw.replacingOccurrences(of: " ", with: "")
 
             items.append(.init(
                 id: pendingHash,
@@ -132,5 +135,14 @@ enum CommandOutputParser {
     private static func trailingSpeed(in line: String) -> String {
         let parts = line.split(separator: "-").map { $0.trimmingCharacters(in: .whitespaces) }
         return parts.last(where: { $0.contains("B/s") }) ?? ""
+    }
+
+    private static func normalizedPromptLine(_ line: String) -> String {
+        var text = line.trimmingCharacters(in: .whitespaces)
+        while text.hasPrefix(">") || text.hasPrefix("?") {
+            text.removeFirst()
+            text = text.trimmingCharacters(in: .whitespaces)
+        }
+        return text
     }
 }

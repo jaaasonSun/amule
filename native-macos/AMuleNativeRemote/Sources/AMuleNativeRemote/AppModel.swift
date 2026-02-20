@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import AppKit
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -15,6 +16,7 @@ final class AppModel: ObservableObject {
     @Published var downloads: [DownloadItem] = []
     @Published var isBusy = false
     @Published var outputLog = ""
+    @Published var lastDownloadsRawOutput = ""
     @Published var lastError = ""
 
     var config: AMuleConnectionConfig {
@@ -114,6 +116,16 @@ final class AppModel: ObservableObject {
         outputLog = ""
     }
 
+    func copyLogToClipboard() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(outputLog, forType: .string)
+    }
+
+    func copyDownloadsRawToClipboard() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(lastDownloadsRawOutput, forType: .string)
+    }
+
     private func run(label: String, _ work: @escaping () async throws -> Void) {
         isBusy = true
         lastError = ""
@@ -136,6 +148,7 @@ final class AppModel: ObservableObject {
         let parsed = CommandOutputParser.parseDownloads(output)
         await MainActor.run {
             self.downloads = parsed
+            self.lastDownloadsRawOutput = output
             self.appendLog("$ show dl\n\(output)")
         }
     }

@@ -157,6 +157,16 @@ struct ContentView: View {
                 }
                 .buttonStyle(.bordered)
                 .disabled(model.isBusy)
+
+                Button("Copy Raw DL Output") {
+                    model.copyDownloadsRawToClipboard()
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.lastDownloadsRawOutput.isEmpty)
+
+                Text("Parsed \(model.downloads.count) item(s)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Spacer()
             }
 
@@ -191,6 +201,10 @@ struct ContentView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             HStack {
+                Button("Copy Log") {
+                    model.copyLogToClipboard()
+                }
+                .buttonStyle(.borderless)
                 Spacer()
                 Button("Clear Log") {
                     model.resetLog()
