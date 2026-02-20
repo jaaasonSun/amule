@@ -3,11 +3,18 @@ import AppKit
 
 struct ContentView: View {
     @EnvironmentObject private var model: AppModel
-    @State private var showLogSheet = false
-    @State private var showRawDlSheet = false
-    @State private var showSearchRawSheet = false
+
+    private enum DiagnosticsTab: String, CaseIterable {
+        case log = "Log"
+        case downloads = "Raw DL"
+        case search = "Raw Search"
+    }
+
     @State private var showLoginSheet = false
+    @State private var showDiagnosticsSheet = false
+    @State private var diagnosticsTab: DiagnosticsTab = .log
     @State private var downloadSortOrder = [KeyPathComparator(\DownloadItem.name, order: .forward)]
+    @State private var displayedDownloads: [DownloadItem] = []
 
     var body: some View {
         VStack(spacing: 10) {
@@ -28,9 +35,10 @@ struct ContentView: View {
         .task {
             model.ensurePreferredCommandPath()
             model.startAutoRefresh()
-            await model.refreshStatus(logOutput: false)
+            await model.refreshStatus(logOutput: false, suppressErrors: true)
             model.refreshDownloads()
-            showLoginSheet = true
+            refreshDisplayedDownloads()
+            showLoginSheet = !model.isSessionConnected
         }
         .onDisappear {
             model.stopAutoRefresh()
@@ -40,17 +48,17 @@ struct ContentView: View {
                 showLoginSheet = false
             }
         }
-        .sheet(isPresented: $showLogSheet) {
-            logSheet
+        .onChange(of: model.downloads) { _ in
+            refreshDisplayedDownloads()
         }
-        .sheet(isPresented: $showRawDlSheet) {
-            rawDlSheet
-        }
-        .sheet(isPresented: $showSearchRawSheet) {
-            rawSearchSheet
+        .onChange(of: downloadSortOrder) { _ in
+            refreshDisplayedDownloads()
         }
         .sheet(isPresented: $showLoginSheet) {
             loginSheet
+        }
+        .sheet(isPresented: $showDiagnosticsSheet) {
+            diagnosticsSheet
         }
     }
 
@@ -66,27 +74,15 @@ struct ContentView: View {
             .buttonStyle(.borderedProminent)
             .disabled(model.isBusy)
 
-            Button("Connection...") {
+            Button("Connection…") {
                 showLoginSheet = true
             }
             .buttonStyle(.bordered)
 
-            Button("Copy Log") {
-                model.copyLogToClipboard()
+            Button("Diagnostics…") {
+                showDiagnosticsSheet = true
             }
             .buttonStyle(.bordered)
-            .disabled(model.outputLog.isEmpty)
-
-            Button("Show Log") {
-                showLogSheet = true
-            }
-            .buttonStyle(.bordered)
-
-            Button("Show Raw DL") {
-                showRawDlSheet = true
-            }
-            .buttonStyle(.bordered)
-            .disabled(model.lastDownloadsRawOutput.isEmpty)
 
             Spacer()
 
@@ -108,7 +104,7 @@ struct ContentView: View {
             downloadsPanel
                 .tabItem { Text("Downloads") }
         }
-        .frame(minHeight: 280)
+        .frame(minHeight: 320)
     }
 
     private var searchPanel: some View {
@@ -130,12 +126,6 @@ struct ContentView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(model.isBusy || model.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-
-                Button("Raw Search") {
-                    showSearchRawSheet = true
-                }
-                .buttonStyle(.bordered)
-                .disabled(model.lastSearchRawOutput.isEmpty)
             }
 
             HStack {
@@ -179,85 +169,72 @@ struct ContentView: View {
                 .buttonStyle(.bordered)
                 .disabled(model.isBusy)
 
-                Button("Copy Raw DL Output") {
-                    model.copyDownloadsRawToClipboard()
-                }
-                .buttonStyle(.bordered)
-                .disabled(model.lastDownloadsRawOutput.isEmpty)
-
-                Button("Show Raw DL Output") {
-                    showRawDlSheet = true
-                }
-                .buttonStyle(.bordered)
-                .disabled(model.lastDownloadsRawOutput.isEmpty)
-
                 Text("Parsed \(model.downloads.count) item(s)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
                 Spacer()
             }
 
-            Table(sortedDownloads, sortOrder: $downloadSortOrder) {
+            Table(displayedDownloads, sortOrder: $downloadSortOrder) {
                 TableColumn("Name", value: \.name) { item in
                     Text(item.name)
-                        .contextMenu {
-                            downloadContextMenu(item)
-                        }
+                        .contextMenu { downloadContextMenu(item) }
                 }
                 TableColumn("Progress", value: \.progressValue) { item in
                     Text(item.progress + "%")
-                        .contextMenu {
-                            downloadContextMenu(item)
-                        }
+                        .contextMenu { downloadContextMenu(item) }
                 }.width(90)
                 TableColumn("Sources", value: \.sourceCurrent) { item in
                     Text(item.sources)
-                        .contextMenu {
-                            downloadContextMenu(item)
-                        }
+                        .contextMenu { downloadContextMenu(item) }
                 }.width(90)
                 TableColumn("Status", value: \.status) { item in
                     Text(item.status)
-                        .contextMenu {
-                            downloadContextMenu(item)
-                        }
+                        .contextMenu { downloadContextMenu(item) }
                 }
                 TableColumn("Speed", value: \.speed) { item in
                     Text(item.speed)
-                        .contextMenu {
-                            downloadContextMenu(item)
-                        }
+                        .contextMenu { downloadContextMenu(item) }
                 }.width(130)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
-    private var sortedDownloads: [DownloadItem] {
-        model.downloads.sorted(using: downloadSortOrder)
-    }
+    private var diagnosticsSheet: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 10) {
+                Picker("Diagnostics", selection: $diagnosticsTab) {
+                    ForEach(DiagnosticsTab.allCases, id: \.self) { tab in
+                        Text(tab.rawValue).tag(tab)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 340)
 
-    private var logSheet: some View {
-        VStack(spacing: 10) {
-            HStack {
-                Text("Command Log")
-                    .font(.headline)
                 Spacer()
+
                 Button("Copy") {
-                    model.copyLogToClipboard()
+                    copyCurrentDiagnostics()
                 }
                 .buttonStyle(.bordered)
-                Button("Clear") {
-                    model.resetLog()
+
+                if diagnosticsTab == .log {
+                    Button("Clear Log") {
+                        model.resetLog()
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.bordered)
+
                 Button("Close") {
-                    showLogSheet = false
+                    showDiagnosticsSheet = false
                 }
                 .buttonStyle(.borderedProminent)
             }
+
             ScrollView {
-                Text(model.outputLog.isEmpty ? "No command output yet." : model.outputLog)
+                Text(currentDiagnosticsText)
                     .font(.system(.body, design: .monospaced))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .textSelection(.enabled)
@@ -265,61 +242,18 @@ struct ContentView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .padding(14)
-        .frame(minWidth: 900, minHeight: 520)
+        .frame(minWidth: 920, minHeight: 520)
     }
 
-    private var rawDlSheet: some View {
-        VStack(spacing: 10) {
-            HStack {
-                Text("Raw Download Queue Output")
-                    .font(.headline)
-                Spacer()
-                Button("Copy") {
-                    model.copyDownloadsRawToClipboard()
-                }
-                .buttonStyle(.bordered)
-                Button("Close") {
-                    showRawDlSheet = false
-                }
-                .buttonStyle(.borderedProminent)
-            }
-            ScrollView {
-                Text(model.lastDownloadsRawOutput.isEmpty ? "No raw queue output captured yet." : model.lastDownloadsRawOutput)
-                    .font(.system(.body, design: .monospaced))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .textSelection(.enabled)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    private var currentDiagnosticsText: String {
+        switch diagnosticsTab {
+        case .log:
+            return model.outputLog.isEmpty ? "No command output yet." : model.outputLog
+        case .downloads:
+            return model.lastDownloadsRawOutput.isEmpty ? "No raw download queue output captured yet." : model.lastDownloadsRawOutput
+        case .search:
+            return model.lastSearchRawOutput.isEmpty ? "No raw search output captured yet." : model.lastSearchRawOutput
         }
-        .padding(14)
-        .frame(minWidth: 900, minHeight: 420)
-    }
-
-    private var rawSearchSheet: some View {
-        VStack(spacing: 10) {
-            HStack {
-                Text("Raw Search Output")
-                    .font(.headline)
-                Spacer()
-                Button("Copy") {
-                    model.copySearchRawToClipboard()
-                }
-                .buttonStyle(.bordered)
-                Button("Close") {
-                    showSearchRawSheet = false
-                }
-                .buttonStyle(.borderedProminent)
-            }
-            ScrollView {
-                Text(model.lastSearchRawOutput.isEmpty ? "No search output captured yet." : model.lastSearchRawOutput)
-                    .font(.system(.body, design: .monospaced))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .textSelection(.enabled)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        }
-        .padding(14)
-        .frame(minWidth: 900, minHeight: 420)
     }
 
     private var footerStatusBar: some View {
@@ -422,6 +356,21 @@ struct ContentView: View {
             Button("Normal") { model.setDownloadPriority(item, "normal") }
             Button("High") { model.setDownloadPriority(item, "high") }
             Button("Auto") { model.setDownloadPriority(item, "auto") }
+        }
+    }
+
+    private func refreshDisplayedDownloads() {
+        displayedDownloads = model.downloads.sorted(using: downloadSortOrder)
+    }
+
+    private func copyCurrentDiagnostics() {
+        switch diagnosticsTab {
+        case .log:
+            model.copyLogToClipboard()
+        case .downloads:
+            model.copyDownloadsRawToClipboard()
+        case .search:
+            model.copySearchRawToClipboard()
         }
     }
 

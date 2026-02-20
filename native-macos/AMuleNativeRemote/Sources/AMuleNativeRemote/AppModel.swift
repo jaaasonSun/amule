@@ -191,6 +191,7 @@ final class AppModel: ObservableObject {
             while !Task.isCancelled {
                 if self.isSessionConnected {
                     await self.refreshStatus(logOutput: false, suppressErrors: true)
+                    try? await self.refreshDownloadsNow(logOutput: false, suppressErrors: true)
                 }
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
             }
@@ -219,13 +220,24 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private func refreshDownloadsNow() async throws {
-        let output = try await AMuleCmdClient.runCommand("show dl", config: config)
-        let parsed = CommandOutputParser.parseDownloads(output)
-        await MainActor.run {
-            self.downloads = parsed
-            self.lastDownloadsRawOutput = output
-            self.appendLog("$ show dl\n\(output)")
+    private func refreshDownloadsNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
+        do {
+            let output = try await AMuleCmdClient.runCommand("show dl", config: config)
+            let parsed = CommandOutputParser.parseDownloads(output)
+            await MainActor.run {
+                self.downloads = parsed
+                self.lastDownloadsRawOutput = output
+                if logOutput {
+                    self.appendLog("$ show dl\n\(output)")
+                }
+            }
+        } catch {
+            await MainActor.run {
+                if !suppressErrors {
+                    self.lastError = error.localizedDescription
+                }
+            }
+            throw error
         }
     }
 

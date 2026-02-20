@@ -89,6 +89,7 @@ enum AMuleCmdClient {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: executablePath)
             process.arguments = baseArguments(config)
+            process.environment = utf8ProcessEnvironment()
 
             let outputPipe = Pipe()
             process.standardOutput = outputPipe
@@ -99,7 +100,7 @@ enum AMuleCmdClient {
 
             process.terminationHandler = { process in
                 let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
-                let text = String(decoding: data, as: UTF8.self)
+                let text = decodeOutputData(data)
                 if process.terminationStatus == 0 {
                     continuation.resume(returning: text)
                 } else {
@@ -140,6 +141,7 @@ enum AMuleCmdClient {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: executablePath)
             process.arguments = arguments
+            process.environment = utf8ProcessEnvironment()
 
             let outputPipe = Pipe()
             process.standardOutput = outputPipe
@@ -152,7 +154,7 @@ enum AMuleCmdClient {
 
             process.terminationHandler = { process in
                 let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
-                let text = String(decoding: data, as: UTF8.self)
+                let text = decodeOutputData(data)
                 if process.terminationStatus == 0 {
                     continuation.resume(returning: text)
                 } else {
@@ -189,5 +191,65 @@ enum AMuleCmdClient {
         }
 
         return nil
+    }
+
+    private static func utf8ProcessEnvironment() -> [String: String] {
+        var env = ProcessInfo.processInfo.environment
+        if env["LANG"]?.localizedCaseInsensitiveContains("UTF-8") != true {
+            env["LANG"] = "en_US.UTF-8"
+        }
+        if env["LC_ALL"]?.localizedCaseInsensitiveContains("UTF-8") != true {
+            env["LC_ALL"] = "en_US.UTF-8"
+        }
+        env["LC_CTYPE"] = "UTF-8"
+        return env
+    }
+
+    private static func decodeOutputData(_ data: Data) -> String {
+        let candidates: [String.Encoding] = [
+            .utf8,
+            gb18030Encoding(),
+            big5Encoding(),
+            .shiftJIS,
+            eucKREncoding(),
+            .isoLatin1,
+            .windowsCP1252
+        ]
+
+        var bestText: String?
+        var bestReplacementCount = Int.max
+
+        for encoding in candidates {
+            if let text = String(data: data, encoding: encoding) {
+                let replacementCount = text.filter { $0 == "\u{FFFD}" }.count
+                if replacementCount < bestReplacementCount {
+                    bestReplacementCount = replacementCount
+                    bestText = text
+                    if replacementCount == 0 {
+                        break
+                    }
+                }
+            }
+        }
+
+        return bestText ?? String(decoding: data, as: UTF8.self)
+    }
+
+    private static func gb18030Encoding() -> String.Encoding {
+        let cf = CFStringEncoding(CFStringEncodings.GB_18030_2000.rawValue)
+        let ns = CFStringConvertEncodingToNSStringEncoding(cf)
+        return String.Encoding(rawValue: ns)
+    }
+
+    private static func big5Encoding() -> String.Encoding {
+        let cf = CFStringEncoding(CFStringEncodings.big5.rawValue)
+        let ns = CFStringConvertEncodingToNSStringEncoding(cf)
+        return String.Encoding(rawValue: ns)
+    }
+
+    private static func eucKREncoding() -> String.Encoding {
+        let cf = CFStringEncoding(CFStringEncodings.EUC_KR.rawValue)
+        let ns = CFStringConvertEncodingToNSStringEncoding(cf)
+        return String.Encoding(rawValue: ns)
     }
 }
