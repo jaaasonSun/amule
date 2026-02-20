@@ -11,7 +11,10 @@ struct DownloadItem: Identifiable, Hashable {
     let id: String
     let name: String
     let progress: String
+    let progressValue: Double
     let sources: String
+    let sourceCurrent: Int
+    let sourceTotal: Int
     let status: String
     let speed: String
 }
@@ -83,12 +86,18 @@ enum CommandOutputParser {
             let status = parts.indices.contains(1) ? parts[1] : ""
             let sourcesRaw = firstMatch(in: normalized, pattern: #"\]\s*([0-9]+\s*/\s*[0-9]+)"#, group: 1) ?? "-"
             let sources = sourcesRaw.replacingOccurrences(of: " ", with: "")
+            let sourceParts = sources.split(separator: "/", maxSplits: 1, omittingEmptySubsequences: true)
+            let sourceCurrent = sourceParts.isEmpty ? 0 : Int(sourceParts[0]) ?? 0
+            let sourceTotal = sourceParts.count < 2 ? 0 : Int(sourceParts[1]) ?? 0
 
             items.append(.init(
                 id: pendingHash,
                 name: pendingName,
                 progress: progress,
+                progressValue: Double(progress) ?? 0,
                 sources: sources,
+                sourceCurrent: sourceCurrent,
+                sourceTotal: sourceTotal,
                 status: status,
                 speed: speed
             ))

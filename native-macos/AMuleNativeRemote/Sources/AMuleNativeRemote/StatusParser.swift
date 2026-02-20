@@ -11,29 +11,35 @@ struct StatusSnapshot {
     static func fromOutput(_ output: String) -> StatusSnapshot {
         var snapshot = StatusSnapshot()
         for raw in output.split(separator: "\n", omittingEmptySubsequences: false) {
-            let line = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-            if line.hasPrefix("eD2k:") {
-                snapshot.ed2k = line.replacingOccurrences(of: "eD2k:", with: "").trimmingCharacters(in: .whitespaces)
-            } else if line.hasPrefix("Kad:") {
-                snapshot.kad = line.replacingOccurrences(of: "Kad:", with: "").trimmingCharacters(in: .whitespaces)
-            } else if line.hasPrefix("Download:") {
-                snapshot.downloadSpeed = line.replacingOccurrences(of: "Download:\t", with: "")
-                    .replacingOccurrences(of: "Download:", with: "")
-                    .trimmingCharacters(in: .whitespaces)
-            } else if line.hasPrefix("Upload:") {
-                snapshot.uploadSpeed = line.replacingOccurrences(of: "Upload:\t", with: "")
-                    .replacingOccurrences(of: "Upload:", with: "")
-                    .trimmingCharacters(in: .whitespaces)
-            } else if line.hasPrefix("Clients in queue:") {
-                snapshot.queue = line.replacingOccurrences(of: "Clients in queue:\t", with: "")
-                    .replacingOccurrences(of: "Clients in queue:", with: "")
-                    .trimmingCharacters(in: .whitespaces)
-            } else if line.hasPrefix("Total sources:") {
-                snapshot.sources = line.replacingOccurrences(of: "Total sources:\t", with: "")
-                    .replacingOccurrences(of: "Total sources:", with: "")
-                    .trimmingCharacters(in: .whitespaces)
+            let line = normalizedPromptLine(String(raw))
+            if let value = valueAfterLabel(in: line, label: "eD2k:") {
+                snapshot.ed2k = value
+            } else if let value = valueAfterLabel(in: line, label: "Kad:") {
+                snapshot.kad = value
+            } else if let value = valueAfterLabel(in: line, label: "Download:") {
+                snapshot.downloadSpeed = value
+            } else if let value = valueAfterLabel(in: line, label: "Upload:") {
+                snapshot.uploadSpeed = value
+            } else if let value = valueAfterLabel(in: line, label: "Clients in queue:") {
+                snapshot.queue = value
+            } else if let value = valueAfterLabel(in: line, label: "Total sources:") {
+                snapshot.sources = value
             }
         }
         return snapshot
+    }
+
+    private static func valueAfterLabel(in line: String, label: String) -> String? {
+        guard let range = line.range(of: label) else { return nil }
+        return String(line[range.upperBound...]).trimmingCharacters(in: .whitespaces)
+    }
+
+    private static func normalizedPromptLine(_ line: String) -> String {
+        var text = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        while text.hasPrefix(">") || text.hasPrefix("?") {
+            text.removeFirst()
+            text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return text
     }
 }

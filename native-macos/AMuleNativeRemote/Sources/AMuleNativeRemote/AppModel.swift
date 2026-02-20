@@ -13,6 +13,8 @@ final class AppModel: ObservableObject {
     @Published var searchQuery: String = ""
     @Published var searchScope: String = "kad"
     @Published var searchResults: [SearchResult] = []
+    @Published var searchStatusMessage: String = ""
+    @Published var lastSearchRawOutput = ""
     @Published var downloads: [DownloadItem] = []
     @Published var isBusy = false
     @Published var outputLog = ""
@@ -83,12 +85,37 @@ final class AppModel: ObservableObject {
         guard !query.isEmpty else { return }
 
         run(label: "search") {
+            await MainActor.run {
+                self.searchStatusMessage = "Searching..."
+            }
             let cmd = "search \(self.searchScope) \(query)"
-            let output = try await AMuleCmdClient.runScript([cmd, "results"], config: self.config)
-            let parsed = CommandOutputParser.parseSearchResults(output)
+            var transcript = ""
+
+            let searchOutput = try await AMuleCmdClient.runCommand(cmd, config: self.config)
+            transcript += "$ \(cmd)\n\(searchOutput)\n"
+
+            var parsed: [SearchResult] = []
+            for _ in 0..<8 {
+                try await Task.sleep(nanoseconds: 700_000_000)
+                let resultsOutput = try await AMuleCmdClient.runCommand("results", config: self.config)
+                transcript += "$ results\n\(resultsOutput)\n"
+                parsed = CommandOutputParser.parseSearchResults(resultsOutput)
+                if !parsed.isEmpty {
+                    break
+                }
+            }
+
+            if parsed.isEmpty {
+                if let progressOutput = try? await AMuleCmdClient.runCommand("progress", config: self.config) {
+                    transcript += "$ progress\n\(progressOutput)\n"
+                }
+            }
+
             await MainActor.run {
                 self.searchResults = parsed
-                self.appendLog("$ \(cmd) + results\n\(output)")
+                self.lastSearchRawOutput = transcript
+                self.searchStatusMessage = parsed.isEmpty ? "No results yet. Try again in a few seconds." : "Found \(parsed.count) result(s)."
+                self.appendLog(transcript)
             }
         }
     }
@@ -132,6 +159,11 @@ final class AppModel: ObservableObject {
     func copyDownloadsRawToClipboard() {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(lastDownloadsRawOutput, forType: .string)
+    }
+
+    func copySearchRawToClipboard() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(lastSearchRawOutput, forType: .string)
     }
 
     private func run(label: String, _ work: @escaping () async throws -> Void) {

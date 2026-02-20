@@ -3,6 +3,10 @@ import AppKit
 
 struct ContentView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var showLogSheet = false
+    @State private var showRawDlSheet = false
+    @State private var showSearchRawSheet = false
+    @State private var downloadSortOrder = [KeyPathComparator(\DownloadItem.name, order: .forward)]
 
     var body: some View {
         VStack(spacing: 12) {
@@ -16,7 +20,6 @@ struct ContentView: View {
                     .foregroundStyle(.red)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            logPanel
         }
         .padding(16)
         .frame(minWidth: 980, minHeight: 700)
@@ -24,6 +27,15 @@ struct ContentView: View {
             model.ensurePreferredCommandPath()
             await model.refreshStatus()
             model.refreshDownloads()
+        }
+        .sheet(isPresented: $showLogSheet) {
+            logSheet
+        }
+        .sheet(isPresented: $showRawDlSheet) {
+            rawDlSheet
+        }
+        .sheet(isPresented: $showSearchRawSheet) {
+            rawSearchSheet
         }
     }
 
@@ -90,6 +102,17 @@ struct ContentView: View {
             .buttonStyle(.bordered)
             .disabled(model.outputLog.isEmpty)
 
+            Button("Show Log") {
+                showLogSheet = true
+            }
+            .buttonStyle(.bordered)
+
+            Button("Show Raw DL") {
+                showRawDlSheet = true
+            }
+            .buttonStyle(.bordered)
+            .disabled(model.lastDownloadsRawOutput.isEmpty)
+
             Spacer()
 
             Text("Build \(model.buildCommit)")
@@ -132,6 +155,19 @@ struct ContentView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(model.isBusy || model.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                Button("Raw Search") {
+                    showSearchRawSheet = true
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.lastSearchRawOutput.isEmpty)
+            }
+
+            HStack {
+                Text(model.searchStatusMessage.isEmpty ? "Ready" : model.searchStatusMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
             }
 
             Table(model.searchResults) {
@@ -174,62 +210,122 @@ struct ContentView: View {
                 .buttonStyle(.bordered)
                 .disabled(model.lastDownloadsRawOutput.isEmpty)
 
+                Button("Show Raw DL Output") {
+                    showRawDlSheet = true
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.lastDownloadsRawOutput.isEmpty)
+
                 Text("Parsed \(model.downloads.count) item(s)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
             }
 
-            Table(model.downloads) {
-                TableColumn("Name") { item in
+            Table(model.downloads, sortOrder: $downloadSortOrder) {
+                TableColumn("Name", value: \.name) { item in
                     Text(item.name)
                 }
-                TableColumn("Progress") { item in
+                TableColumn("Progress", value: \.progressValue) { item in
                     Text(item.progress + "%")
                 }.width(90)
-                TableColumn("Sources") { item in
+                TableColumn("Sources", value: \.sourceCurrent) { item in
                     Text(item.sources)
                 }.width(90)
-                TableColumn("Status") { item in
+                TableColumn("Status", value: \.status) { item in
                     Text(item.status)
                 }
-                TableColumn("Speed") { item in
+                TableColumn("Speed", value: \.speed) { item in
                     Text(item.speed)
                 }.width(130)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            if !model.lastDownloadsRawOutput.isEmpty {
-                GroupBox("Raw Queue Output (for diagnostics)") {
-                    ScrollView {
-                        Text(model.lastDownloadsRawOutput)
-                            .font(.system(.caption, design: .monospaced))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .textSelection(.enabled)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 90, maxHeight: 120)
-                }
-            }
         }
     }
 
-    private var logPanel: some View {
-        GroupBox("Command Log") {
+    private var logSheet: some View {
+        VStack(spacing: 10) {
+            HStack {
+                Text("Command Log")
+                    .font(.headline)
+                Spacer()
+                Button("Copy") {
+                    model.copyLogToClipboard()
+                }
+                .buttonStyle(.bordered)
+                Button("Clear") {
+                    model.resetLog()
+                }
+                .buttonStyle(.bordered)
+                Button("Close") {
+                    showLogSheet = false
+                }
+                .buttonStyle(.borderedProminent)
+            }
             ScrollView {
                 Text(model.outputLog.isEmpty ? "No command output yet." : model.outputLog)
                     .font(.system(.body, design: .monospaced))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .textSelection(.enabled)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            HStack {
-                Spacer()
-                Button("Clear Log") {
-                    model.resetLog()
-                }
-                .buttonStyle(.borderless)
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
+        .padding(14)
+        .frame(minWidth: 900, minHeight: 520)
+    }
+
+    private var rawDlSheet: some View {
+        VStack(spacing: 10) {
+            HStack {
+                Text("Raw Download Queue Output")
+                    .font(.headline)
+                Spacer()
+                Button("Copy") {
+                    model.copyDownloadsRawToClipboard()
+                }
+                .buttonStyle(.bordered)
+                Button("Close") {
+                    showRawDlSheet = false
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            ScrollView {
+                Text(model.lastDownloadsRawOutput.isEmpty ? "No raw queue output captured yet." : model.lastDownloadsRawOutput)
+                    .font(.system(.body, design: .monospaced))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .textSelection(.enabled)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .padding(14)
+        .frame(minWidth: 900, minHeight: 420)
+    }
+
+    private var rawSearchSheet: some View {
+        VStack(spacing: 10) {
+            HStack {
+                Text("Raw Search Output")
+                    .font(.headline)
+                Spacer()
+                Button("Copy") {
+                    model.copySearchRawToClipboard()
+                }
+                .buttonStyle(.bordered)
+                Button("Close") {
+                    showSearchRawSheet = false
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            ScrollView {
+                Text(model.lastSearchRawOutput.isEmpty ? "No search output captured yet." : model.lastSearchRawOutput)
+                    .font(.system(.body, design: .monospaced))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .textSelection(.enabled)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .padding(14)
+        .frame(minWidth: 900, minHeight: 420)
     }
 
     private func statusRow(_ title: String, _ value: String) -> some View {
