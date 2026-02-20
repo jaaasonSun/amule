@@ -8,6 +8,7 @@ struct ContentView: View {
             connectionStrip
             statusGrid
             controls
+            mainTabs
             if !model.lastError.isEmpty {
                 Text(model.lastError)
                     .font(.caption)
@@ -17,9 +18,10 @@ struct ContentView: View {
             logPanel
         }
         .padding(16)
-        .frame(minWidth: 880, minHeight: 620)
+        .frame(minWidth: 980, minHeight: 700)
         .task {
             await model.refreshStatus()
+            model.refreshDownloads()
         }
     }
 
@@ -82,6 +84,94 @@ struct ContentView: View {
                 ProgressView()
                     .controlSize(.small)
             }
+        }
+    }
+
+    private var mainTabs: some View {
+        TabView {
+            searchPanel
+                .tabItem { Text("Search") }
+            downloadsPanel
+                .tabItem { Text("Downloads") }
+        }
+        .frame(minHeight: 280)
+    }
+
+    private var searchPanel: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 10) {
+                Picker("Scope", selection: $model.searchScope) {
+                    Text("Kad").tag("kad")
+                    Text("Global").tag("global")
+                    Text("Local").tag("local")
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 260)
+
+                TextField("Search keyword", text: $model.searchQuery)
+                    .textFieldStyle(.roundedBorder)
+
+                Button("Search") {
+                    model.performSearch()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(model.isBusy || model.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+
+            Table(model.searchResults) {
+                TableColumn("ID") { item in
+                    Text(String(item.id))
+                }.width(60)
+                TableColumn("Name") { item in
+                    Text(item.name)
+                }
+                TableColumn("Size (MB)") { item in
+                    Text(item.sizeMB)
+                }.width(90)
+                TableColumn("Sources") { item in
+                    Text(String(item.sources))
+                }.width(80)
+                TableColumn("") { item in
+                    Button("Download") {
+                        model.downloadResult(item)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(model.isBusy)
+                }.width(110)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private var downloadsPanel: some View {
+        VStack(spacing: 10) {
+            HStack {
+                Button("Refresh Queue") {
+                    model.refreshDownloads()
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.isBusy)
+                Spacer()
+            }
+
+            Table(model.downloads) {
+                TableColumn("Name") { item in
+                    Text(item.name)
+                }
+                TableColumn("Progress") { item in
+                    Text(item.progress + "%")
+                }.width(90)
+                TableColumn("Sources") { item in
+                    Text(item.sources)
+                }.width(90)
+                TableColumn("Status") { item in
+                    Text(item.status)
+                }
+                TableColumn("Speed") { item in
+                    Text(item.speed)
+                }.width(130)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 

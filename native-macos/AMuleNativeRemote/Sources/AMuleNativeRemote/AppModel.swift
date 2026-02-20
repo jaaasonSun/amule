@@ -9,6 +9,10 @@ final class AppModel: ObservableObject {
     @AppStorage("amule.password") var password: String = ""
 
     @Published var status: StatusSnapshot = .init()
+    @Published var searchQuery: String = ""
+    @Published var searchScope: String = "kad"
+    @Published var searchResults: [SearchResult] = []
+    @Published var downloads: [DownloadItem] = []
     @Published var isBusy = false
     @Published var outputLog = ""
     @Published var lastError = ""
@@ -47,6 +51,53 @@ final class AppModel: ObservableObject {
         } catch {
             await MainActor.run {
                 self.lastError = error.localizedDescription
+            }
+        }
+    }
+
+    func performSearch() {
+        let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return }
+
+        run(label: "search") {
+            let cmd = "search \(self.searchScope) \(query)"
+            let output = try await AMuleCmdClient.runScript([cmd, "results"], config: self.config)
+            let parsed = CommandOutputParser.parseSearchResults(output)
+            await MainActor.run {
+                self.searchResults = parsed
+                self.appendLog("$ \(cmd) + results\n\(output)")
+            }
+        }
+    }
+
+    func downloadResult(_ result: SearchResult) {
+        let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return }
+
+        run(label: "download") {
+            let commands = [
+                "search \(self.searchScope) \(query)",
+                "results",
+                "download \(result.id)",
+                "show dl"
+            ]
+            let output = try await AMuleCmdClient.runScript(commands, config: self.config)
+            let parsed = CommandOutputParser.parseDownloads(output)
+            await MainActor.run {
+                self.downloads = parsed
+                self.appendLog("$ \(commands.joined(separator: " ; "))\n\(output)")
+            }
+            await self.refreshStatus()
+        }
+    }
+
+    func refreshDownloads() {
+        run(label: "show dl") {
+            let output = try await AMuleCmdClient.runCommand("show dl", config: self.config)
+            let parsed = CommandOutputParser.parseDownloads(output)
+            await MainActor.run {
+                self.downloads = parsed
+                self.appendLog("$ show dl\n\(output)")
             }
         }
     }
