@@ -76,6 +76,61 @@ enum AMuleCmdClient {
         return try await run(arguments: baseArguments(config), stdin: joined, commandPath: config.commandPath)
     }
 
+    static func runScriptWithDelays(
+        _ commands: [String],
+        delayBetweenCommandsNanoseconds: UInt64,
+        config: AMuleConnectionConfig
+    ) async throws -> String {
+        guard let executablePath = resolveExecutablePath(config.commandPath) else {
+            throw AMuleClientError.missingCommand(config.commandPath)
+        }
+
+        return try await withCheckedThrowingContinuation { continuation in
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: executablePath)
+            process.arguments = baseArguments(config)
+
+            let outputPipe = Pipe()
+            process.standardOutput = outputPipe
+            process.standardError = outputPipe
+
+            let inputPipe = Pipe()
+            process.standardInput = inputPipe
+
+            process.terminationHandler = { process in
+                let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
+                let text = String(decoding: data, as: UTF8.self)
+                if process.terminationStatus == 0 {
+                    continuation.resume(returning: text)
+                } else {
+                    continuation.resume(throwing: AMuleClientError.processFailure(process.terminationStatus, text))
+                }
+            }
+
+            do {
+                try process.run()
+            } catch {
+                continuation.resume(throwing: error)
+                return
+            }
+
+            Task.detached {
+                for command in commands {
+                    if let data = (command + "\n").data(using: .utf8) {
+                        inputPipe.fileHandleForWriting.write(data)
+                    }
+                    if delayBetweenCommandsNanoseconds > 0 {
+                        try? await Task.sleep(nanoseconds: delayBetweenCommandsNanoseconds)
+                    }
+                }
+                if let quitData = "quit\n".data(using: .utf8) {
+                    inputPipe.fileHandleForWriting.write(quitData)
+                }
+                try? inputPipe.fileHandleForWriting.close()
+            }
+        }
+    }
+
     private static func run(arguments: [String], stdin: String?, commandPath: String) async throws -> String {
         guard let executablePath = resolveExecutablePath(commandPath) else {
             throw AMuleClientError.missingCommand(commandPath)

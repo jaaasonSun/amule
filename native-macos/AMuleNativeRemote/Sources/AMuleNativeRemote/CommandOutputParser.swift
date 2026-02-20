@@ -22,7 +22,7 @@ struct DownloadItem: Identifiable, Hashable {
 enum CommandOutputParser {
     static func parseSearchResults(_ output: String) -> [SearchResult] {
         let lines = output.split(separator: "\n", omittingEmptySubsequences: false)
-        var results: [SearchResult] = []
+        var resultsByID: [Int: SearchResult] = [:]
 
         for lineSub in lines {
             let line = normalizedPromptLine(String(lineSub))
@@ -50,10 +50,10 @@ enum CommandOutputParser {
                 name = String(body[..<sizeRange.lowerBound]).trimmingCharacters(in: .whitespaces)
             }
 
-            results.append(.init(id: id, name: name, sizeMB: size, sources: sources))
+            resultsByID[id] = .init(id: id, name: name, sizeMB: size, sources: sources)
         }
 
-        return results
+        return resultsByID.values.sorted { $0.id < $1.id }
     }
 
     static func parseDownloads(_ output: String) -> [DownloadItem] {

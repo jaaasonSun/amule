@@ -8,6 +8,13 @@ struct StatusSnapshot {
     var queue: String = "-"
     var sources: String = "-"
 
+    var looksConnected: Bool {
+        let ed2kConnected = ed2k.caseInsensitiveCompare("Unknown") != .orderedSame &&
+            ed2k.caseInsensitiveCompare("Not connected") != .orderedSame
+        let kadConnected = kad.localizedCaseInsensitiveContains("Connected")
+        return ed2kConnected || kadConnected
+    }
+
     static func fromOutput(_ output: String) -> StatusSnapshot {
         var snapshot = StatusSnapshot()
         for raw in output.split(separator: "\n", omittingEmptySubsequences: false) {
