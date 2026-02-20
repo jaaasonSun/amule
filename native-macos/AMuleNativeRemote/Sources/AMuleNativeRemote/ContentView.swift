@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct ContentView: View {
     @EnvironmentObject private var model: AppModel
@@ -30,6 +31,10 @@ struct ContentView: View {
             HStack(spacing: 10) {
                 TextField("amulecmd path", text: $model.commandPath)
                     .textFieldStyle(.roundedBorder)
+                Button("Locate…") {
+                    pickAmuleCmdPath()
+                }
+                .buttonStyle(.bordered)
                 TextField("Host", text: $model.host)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 160)
@@ -204,5 +209,17 @@ struct ContentView: View {
                 .lineLimit(2)
         }
         .frame(width: 120, alignment: .leading)
+    }
+
+    private func pickAmuleCmdPath() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Use amulecmd"
+        panel.title = "Choose amulecmd binary"
+        if panel.runModal() == .OK, let url = panel.url {
+            model.commandPath = url.path
+        }
     }
 }
