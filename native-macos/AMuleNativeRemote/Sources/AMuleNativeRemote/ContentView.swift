@@ -33,7 +33,7 @@ struct ContentView: View {
         .padding(16)
         .frame(minWidth: 980, minHeight: 700)
         .task {
-            model.ensurePreferredCommandPath()
+            model.ensurePreferredBridgePath()
             model.startAutoRefresh()
             await model.refreshStatus(logOutput: false, suppressErrors: true)
             model.refreshDownloads()
@@ -137,14 +137,14 @@ struct ContentView: View {
 
             Table(model.searchResults) {
                 TableColumn("ID") { item in
-                    Text(String(item.id))
+                    Text(String(item.index))
                 }.width(60)
                 TableColumn("Name") { item in
                     Text(item.name)
                 }
-                TableColumn("Size (MB)") { item in
-                    Text(item.sizeMB)
-                }.width(90)
+                TableColumn("Size") { item in
+                    Text(item.sizeDisplay)
+                }.width(110)
                 TableColumn("Sources") { item in
                     Text(String(item.sources))
                 }.width(80)
@@ -182,19 +182,19 @@ struct ContentView: View {
                         .contextMenu { downloadContextMenu(item) }
                 }
                 TableColumn("Progress", value: \.progressValue) { item in
-                    Text(item.progress + "%")
+                    Text(item.progressText)
                         .contextMenu { downloadContextMenu(item) }
                 }.width(90)
                 TableColumn("Sources", value: \.sourceCurrent) { item in
-                    Text(item.sources)
+                    Text(item.sourcesText)
                         .contextMenu { downloadContextMenu(item) }
                 }.width(90)
                 TableColumn("Status", value: \.status) { item in
                     Text(item.status)
                         .contextMenu { downloadContextMenu(item) }
                 }
-                TableColumn("Speed", value: \.speed) { item in
-                    Text(item.speed)
+                TableColumn("Speed", value: \.speedBytes) { item in
+                    Text(item.speedText)
                         .contextMenu { downloadContextMenu(item) }
                 }.width(130)
             }
@@ -295,10 +295,10 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 10) {
-                TextField("amulecmd path", text: $model.commandPath)
+                TextField("amule-ec-bridge path", text: $model.bridgePath)
                     .textFieldStyle(.roundedBorder)
                 Button("Locate…") {
-                    pickAmuleCmdPath()
+                    pickBridgePath()
                 }
                 .buttonStyle(.bordered)
             }
@@ -374,15 +374,15 @@ struct ContentView: View {
         }
     }
 
-    private func pickAmuleCmdPath() {
+    private func pickBridgePath() {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
         panel.allowsMultipleSelection = false
-        panel.prompt = "Use amulecmd"
-        panel.title = "Choose amulecmd binary"
+        panel.prompt = "Use bridge"
+        panel.title = "Choose amule-ec-bridge binary"
         if panel.runModal() == .OK, let url = panel.url {
-            model.commandPath = url.path
+            model.bridgePath = url.path
         }
     }
 }

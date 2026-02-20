@@ -4,7 +4,7 @@ import AppKit
 
 @MainActor
 final class AppModel: ObservableObject {
-    @AppStorage("amule.commandPath") var commandPath: String = AMuleConnectionConfig.preferredDefaultPath()
+    @AppStorage("amule.bridgePath") var bridgePath: String = AMuleConnectionConfig.preferredDefaultPath()
     @AppStorage("amule.host") var host: String = "127.0.0.1"
     @AppStorage("amule.port") var port: Int = 4712
     @AppStorage("amule.password") var password: String = ""
@@ -33,18 +33,15 @@ final class AppModel: ObservableObject {
     }
 
     var config: AMuleConnectionConfig {
-        .init(commandPath: commandPath, host: host, port: port, password: password)
+        .init(bridgePath: bridgePath, host: host, port: port, password: password)
     }
 
-    func ensurePreferredCommandPath() {
-        guard let bundled = AMuleConnectionConfig.bundledCommandPath else {
-            return
-        }
-        let current = commandPath.trimmingCharacters(in: .whitespacesAndNewlines)
+    func ensurePreferredBridgePath() {
+        let current = bridgePath.trimmingCharacters(in: .whitespacesAndNewlines)
         if current.isEmpty ||
-            current == AMuleConnectionConfig.legacyFallbackCommandPath ||
+            current.hasSuffix("/amulecmd") ||
             !FileManager.default.isExecutableFile(atPath: current) {
-            commandPath = bundled
+            bridgePath = AMuleConnectionConfig.preferredDefaultPath()
         }
     }
 
@@ -56,9 +53,9 @@ final class AppModel: ObservableObject {
 
     func disconnectAll() {
         run(label: "disconnect") {
-            let output = try await AMuleCmdClient.runCommand("disconnect", config: self.config)
+            let (_, raw) = try await AMuleECBridgeClient.disconnect(config: self.config)
             await MainActor.run {
-                self.appendLog("$ disconnect\n\(output)")
+                self.appendLog("$ disconnect\n\(raw)")
                 self.isSessionConnected = false
             }
             await self.refreshStatus(logOutput: false)
@@ -67,11 +64,11 @@ final class AppModel: ObservableObject {
 
     func refreshStatus(logOutput: Bool = true, suppressErrors: Bool = false) async {
         do {
-            let output = try await AMuleCmdClient.runCommand("status", config: config)
+            let (bridgeStatus, raw) = try await AMuleECBridgeClient.status(config: config)
             await MainActor.run {
-                self.status = StatusSnapshot.fromOutput(output)
+                self.status = StatusSnapshot.fromBridge(bridgeStatus)
                 if logOutput {
-                    self.appendLog("$ status\n\(output)")
+                    self.appendLog("$ status\n\(raw)")
                 }
                 self.isSessionConnected = self.status.looksConnected
             }
@@ -93,51 +90,42 @@ final class AppModel: ObservableObject {
             await MainActor.run {
                 self.searchStatusMessage = "Searching..."
             }
-            let cmd = "search \(self.searchScope) \(query)"
-            var commands = [cmd]
-            for _ in 0..<10 {
-                commands.append("progress")
-                commands.append("results")
-            }
-            let transcript = try await AMuleCmdClient.runScriptWithDelays(
-                commands,
-                delayBetweenCommandsNanoseconds: 900_000_000,
+
+            let (progress, payload, raw) = try await AMuleECBridgeClient.search(
+                scope: self.searchScope,
+                query: query,
+                polls: 12,
+                pollIntervalMs: 900,
                 config: self.config
             )
-            let parsed = CommandOutputParser.parseSearchResults(transcript)
+            let parsed = SearchResult.fromBridge(payload)
 
             await MainActor.run {
                 self.searchResults = parsed
-                self.lastSearchRawOutput = transcript
-                self.searchStatusMessage = parsed.isEmpty ? "No results yet. Try again in a few seconds." : "Found \(parsed.count) result(s)."
-                self.appendLog(transcript)
+                self.lastSearchRawOutput = raw
+                if parsed.isEmpty {
+                    self.searchStatusMessage = "No results yet (\(progress)% complete)."
+                } else {
+                    self.searchStatusMessage = "Found \(parsed.count) result(s), progress \(progress)%."
+                }
+                self.appendLog("$ search \(self.searchScope) \(query)\n\(raw)")
             }
         }
     }
 
     func downloadResult(_ result: SearchResult) {
-        let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return }
-
         run(label: "download") {
-            let commands = [
-                "search \(self.searchScope) \(query)",
-                "results",
-                "download \(result.id)",
-                "show dl"
-            ]
-            let output = try await AMuleCmdClient.runScript(commands, config: self.config)
-            let parsed = CommandOutputParser.parseDownloads(output)
+            let (_, raw) = try await AMuleECBridgeClient.download(hash: result.hash, config: self.config)
             await MainActor.run {
-                self.downloads = parsed
-                self.appendLog("$ \(commands.joined(separator: " ; "))\n\(output)")
+                self.appendLog("$ download \(result.hash)\n\(raw)")
             }
+            try await self.refreshDownloadsNow()
             await self.refreshStatus(logOutput: false)
         }
     }
 
     func refreshDownloads() {
-        run(label: "show dl") {
+        run(label: "downloads") {
             try await self.refreshDownloadsNow()
         }
     }
@@ -163,25 +151,25 @@ final class AppModel: ObservableObject {
 
     func pauseDownload(_ item: DownloadItem) {
         run(label: "pause") {
-            try await self.runDownloadAction("pause \(item.id)")
+            try await self.runDownloadAction(.pause, item)
         }
     }
 
     func resumeDownload(_ item: DownloadItem) {
         run(label: "resume") {
-            try await self.runDownloadAction("resume \(item.id)")
+            try await self.runDownloadAction(.resume, item)
         }
     }
 
     func removeDownload(_ item: DownloadItem) {
         run(label: "cancel") {
-            try await self.runDownloadAction("cancel \(item.id)")
+            try await self.runDownloadAction(.cancel, item)
         }
     }
 
     func setDownloadPriority(_ item: DownloadItem, _ priority: String) {
         run(label: "priority") {
-            try await self.runDownloadAction("priority \(priority) \(item.id)")
+            try await self.runDownloadAction(.priority(priority), item)
         }
     }
 
@@ -212,6 +200,7 @@ final class AppModel: ObservableObject {
             } catch {
                 await MainActor.run {
                     self.lastError = error.localizedDescription
+                    self.appendLog("! \(label) failed\n\(error.localizedDescription)")
                 }
             }
             await MainActor.run {
@@ -222,13 +211,13 @@ final class AppModel: ObservableObject {
 
     private func refreshDownloadsNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
         do {
-            let output = try await AMuleCmdClient.runCommand("show dl", config: config)
-            let parsed = CommandOutputParser.parseDownloads(output)
+            let (payload, raw) = try await AMuleECBridgeClient.downloads(config: config)
+            let parsed = DownloadItem.fromBridge(payload)
             await MainActor.run {
                 self.downloads = parsed
-                self.lastDownloadsRawOutput = output
+                self.lastDownloadsRawOutput = raw
                 if logOutput {
-                    self.appendLog("$ show dl\n\(output)")
+                    self.appendLog("$ downloads\n\(raw)")
                 }
             }
         } catch {
@@ -242,23 +231,46 @@ final class AppModel: ObservableObject {
     }
 
     private func connectNow() async throws {
-        let output = try await AMuleCmdClient.runCommand("connect", config: self.config)
+        let (_, raw) = try await AMuleECBridgeClient.connect(config: self.config)
         await MainActor.run {
-            self.appendLog("$ connect\n\(output)")
+            self.appendLog("$ connect\n\(raw)")
             self.isSessionConnected = true
         }
         await self.refreshStatus(logOutput: false)
         try await self.refreshDownloadsNow()
     }
 
-    private func runDownloadAction(_ actionCommand: String) async throws {
-        let output = try await AMuleCmdClient.runScript([actionCommand, "show dl"], config: config)
-        let parsed = CommandOutputParser.parseDownloads(output)
-        await MainActor.run {
-            self.downloads = parsed
-            self.lastDownloadsRawOutput = output
-            self.appendLog("$ \(actionCommand) ; show dl\n\(output)")
+    private enum DownloadAction {
+        case pause
+        case resume
+        case cancel
+        case priority(String)
+    }
+
+    private func runDownloadAction(_ action: DownloadAction, _ item: DownloadItem) async throws {
+        let raw: String
+        let commandLabel: String
+
+        switch action {
+        case .pause:
+            raw = try await AMuleECBridgeClient.pause(hash: item.id, config: config).raw
+            commandLabel = "pause \(item.id)"
+        case .resume:
+            raw = try await AMuleECBridgeClient.resume(hash: item.id, config: config).raw
+            commandLabel = "resume \(item.id)"
+        case .cancel:
+            raw = try await AMuleECBridgeClient.cancel(hash: item.id, config: config).raw
+            commandLabel = "cancel \(item.id)"
+        case .priority(let value):
+            raw = try await AMuleECBridgeClient.priority(hash: item.id, value: value, config: config).raw
+            commandLabel = "priority \(value) \(item.id)"
         }
+
+        await MainActor.run {
+            self.appendLog("$ \(commandLabel)\n\(raw)")
+        }
+
+        try await self.refreshDownloadsNow()
         await self.refreshStatus(logOutput: false)
     }
 

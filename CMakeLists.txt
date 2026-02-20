@@ -167,6 +167,7 @@ message (STATUS "
 
 	**** aMule TextClient ****
 	Should aMule Command Line Client be built?			${BUILD_AMULECMD}
+	Should aMule EC bridge client be built?			${BUILD_AMULE_EC_BRIDGE}
 
 	**** aMule WebServer ****
 	Should aMule WebServer be built?				${BUILD_WEBSERVER}

@@ -1,157 +1,84 @@
 import Foundation
 
 struct SearchResult: Identifiable, Hashable {
-    let id: Int
+    let index: Int
+    let hash: String
     let name: String
-    let sizeMB: String
+    let sizeBytes: UInt64
     let sources: Int
+
+    var id: String { hash }
+
+    var sizeDisplay: String {
+        AMuleFormatter.fileSize(sizeBytes)
+    }
+
+    static func fromBridge(_ payload: [BridgeSearchPayload]) -> [SearchResult] {
+        payload
+            .sorted { $0.id < $1.id }
+            .map {
+                SearchResult(
+                    index: $0.id,
+                    hash: $0.hash,
+                    name: $0.name,
+                    sizeBytes: $0.size,
+                    sources: $0.sources
+                )
+            }
+    }
 }
 
 struct DownloadItem: Identifiable, Hashable {
     let id: String
     let name: String
-    let progress: String
     let progressValue: Double
-    let sources: String
     let sourceCurrent: Int
     let sourceTotal: Int
     let status: String
-    let speed: String
+    let speedBytes: Int
+    let priority: Int
+
+    var progressText: String {
+        String(format: "%.1f%%", progressValue)
+    }
+
+    var sourcesText: String {
+        "\(sourceCurrent)/\(sourceTotal)"
+    }
+
+    var speedText: String {
+        AMuleFormatter.speed(bytesPerSecond: speedBytes)
+    }
+
+    static func fromBridge(_ payload: [BridgeDownloadPayload]) -> [DownloadItem] {
+        payload.map {
+            DownloadItem(
+                id: $0.hash,
+                name: $0.name,
+                progressValue: $0.progress,
+                sourceCurrent: $0.sourcesCurrent,
+                sourceTotal: $0.sourcesTotal,
+                status: $0.status,
+                speedBytes: $0.speed,
+                priority: $0.priority
+            )
+        }
+    }
 }
 
-enum CommandOutputParser {
-    static func parseSearchResults(_ output: String) -> [SearchResult] {
-        let lines = output.split(separator: "\n", omittingEmptySubsequences: false)
-        var resultsByID: [Int: SearchResult] = [:]
-
-        for lineSub in lines {
-            let line = normalizedPromptLine(String(lineSub))
-            guard let id = parseLeadingIndex(line) else { continue }
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            let withoutPrefix = trimmed.replacingOccurrences(of: "\(id).", with: "", options: [.anchored])
-                .trimmingCharacters(in: .whitespaces)
-
-            guard let sources = trailingInteger(withoutPrefix) else { continue }
-            var body = withoutPrefix
-            if let range = body.range(of: "\(sources)", options: [.backwards, .anchored]) {
-                body.removeSubrange(range)
-            }
-            body = body.trimmingCharacters(in: .whitespaces)
-
-            let tokens = body.split(whereSeparator: { $0.isWhitespace })
-            guard !tokens.isEmpty else { continue }
-
-            // Size is rendered near the end as e.g. 123.456 (MB.KB)
-            let sizeToken = tokens.last(where: { $0.contains(".") && $0.allSatisfy({ $0.isNumber || $0 == "." }) })
-            let size = sizeToken.map(String.init) ?? "-"
-
-            var name = body
-            if size != "-", let sizeRange = body.range(of: size, options: [.backwards]) {
-                name = String(body[..<sizeRange.lowerBound]).trimmingCharacters(in: .whitespaces)
-            }
-
-            resultsByID[id] = .init(id: id, name: name, sizeMB: size, sources: sources)
+enum AMuleFormatter {
+    static func speed(bytesPerSecond: Int) -> String {
+        guard bytesPerSecond > 0 else {
+            return "-"
         }
-
-        return resultsByID.values.sorted { $0.id < $1.id }
+        let text = ByteCountFormatter.string(fromByteCount: Int64(bytesPerSecond), countStyle: .binary)
+        return "\(text)/s"
     }
 
-    static func parseDownloads(_ output: String) -> [DownloadItem] {
-        let lines = output.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-        var items: [DownloadItem] = []
-        var pendingHash = ""
-        var pendingName = ""
-
-        for line in lines {
-            let normalized = normalizedPromptLine(line)
-
-            if let (hash, name) = parseHashHeader(normalized) {
-                pendingHash = hash
-                pendingName = name
-                continue
-            }
-
-            guard !pendingHash.isEmpty else {
-                continue
-            }
-
-            let trimmed = normalized.trimmingCharacters(in: .whitespaces)
-            guard trimmed.hasPrefix("[") else {
-                continue
-            }
-
-            let progress = firstMatch(in: normalized, pattern: #"\[(\d+(?:\.\d+)?)%\]"#, group: 1) ?? "0.0"
-            let speed = trailingSpeed(in: normalized)
-            let parts = normalized.split(separator: "-").map { $0.trimmingCharacters(in: .whitespaces) }
-            let status = parts.indices.contains(1) ? parts[1] : ""
-            let sourcesRaw = firstMatch(in: normalized, pattern: #"\]\s*([0-9]+\s*/\s*[0-9]+)"#, group: 1) ?? "-"
-            let sources = sourcesRaw.replacingOccurrences(of: " ", with: "")
-            let sourceParts = sources.split(separator: "/", maxSplits: 1, omittingEmptySubsequences: true)
-            let sourceCurrent = sourceParts.isEmpty ? 0 : Int(sourceParts[0]) ?? 0
-            let sourceTotal = sourceParts.count < 2 ? 0 : Int(sourceParts[1]) ?? 0
-
-            items.append(.init(
-                id: pendingHash,
-                name: pendingName,
-                progress: progress,
-                progressValue: Double(progress) ?? 0,
-                sources: sources,
-                sourceCurrent: sourceCurrent,
-                sourceTotal: sourceTotal,
-                status: status,
-                speed: speed
-            ))
-
-            pendingHash = ""
-            pendingName = ""
+    static func fileSize(_ bytes: UInt64) -> String {
+        guard bytes > 0 else {
+            return "-"
         }
-
-        return items
-    }
-
-    private static func parseLeadingIndex(_ line: String) -> Int? {
-        let trimmed = line.trimmingCharacters(in: .whitespaces)
-        guard let dotIndex = trimmed.firstIndex(of: ".") else { return nil }
-        let prefix = trimmed[..<dotIndex]
-        return Int(prefix)
-    }
-
-    private static func trailingInteger(_ text: String) -> Int? {
-        let parts = text.split(whereSeparator: { $0.isWhitespace })
-        guard let last = parts.last else { return nil }
-        return Int(last)
-    }
-
-    private static func parseHashHeader(_ line: String) -> (String, String)? {
-        let trimmed = line.trimmingCharacters(in: .whitespaces)
-        let tokens = trimmed.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
-        guard tokens.count == 2 else { return nil }
-        let hash = String(tokens[0])
-        guard hash.count == 32, hash.allSatisfy({ $0.isHexDigit }) else { return nil }
-        return (hash, String(tokens[1]))
-    }
-
-    private static func firstMatch(in text: String, pattern: String, group: Int) -> String? {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
-        let range = NSRange(text.startIndex..<text.endIndex, in: text)
-        guard let match = regex.firstMatch(in: text, range: range),
-              let foundRange = Range(match.range(at: group), in: text) else {
-            return nil
-        }
-        return String(text[foundRange])
-    }
-
-    private static func trailingSpeed(in line: String) -> String {
-        let parts = line.split(separator: "-").map { $0.trimmingCharacters(in: .whitespaces) }
-        return parts.last(where: { $0.contains("B/s") }) ?? ""
-    }
-
-    private static func normalizedPromptLine(_ line: String) -> String {
-        var text = line.trimmingCharacters(in: .whitespaces)
-        while text.hasPrefix(">") || text.hasPrefix("?") {
-            text.removeFirst()
-            text = text.trimmingCharacters(in: .whitespaces)
-        }
-        return text
+        return ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file)
     }
 }

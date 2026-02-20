@@ -11,8 +11,8 @@ APP_DIR="$ROOT_DIR/dist/${APP_NAME}.app"
 MACOS_DIR="$APP_DIR/Contents/MacOS"
 RES_DIR="$APP_DIR/Contents/Resources"
 PLIST_PATH="$APP_DIR/Contents/Info.plist"
-DEFAULT_AMULECMD_SRC="$REPO_ROOT/build/src/amulecmd"
-AMULECMD_SRC="${AMULECMD_PATH:-$DEFAULT_AMULECMD_SRC}"
+DEFAULT_BRIDGE_SRC="$REPO_ROOT/build/src/amule-ec-bridge"
+BRIDGE_SRC="${AMULE_EC_BRIDGE_PATH:-${AMULECMD_PATH:-$DEFAULT_BRIDGE_SRC}}"
 DEFAULT_ICON_SRC="$REPO_ROOT/build/src/aMuleGUI.app/Contents/Resources/amule.icns"
 ICON_SRC="${AMULE_ICON_PATH:-$DEFAULT_ICON_SRC}"
 
@@ -24,13 +24,13 @@ mkdir -p "$MACOS_DIR" "$RES_DIR"
 cp "$BUILD_DIR/AMuleNativeRemote" "$MACOS_DIR/$APP_NAME"
 chmod +x "$MACOS_DIR/$APP_NAME"
 
-if [[ ! -x "$AMULECMD_SRC" ]]; then
-  echo "ERROR: amulecmd executable not found at: $AMULECMD_SRC" >&2
-  echo "Build amulecmd first (cmake --build \"$REPO_ROOT/build\" --target amulecmd) or set AMULECMD_PATH." >&2
+if [[ ! -x "$BRIDGE_SRC" ]]; then
+  echo "ERROR: amule-ec-bridge executable not found at: $BRIDGE_SRC" >&2
+  echo "Build bridge first (cmake --build \"$REPO_ROOT/build\" --target amule-ec-bridge) or set AMULE_EC_BRIDGE_PATH." >&2
   exit 1
 fi
-cp "$AMULECMD_SRC" "$RES_DIR/amulecmd"
-chmod +x "$RES_DIR/amulecmd"
+cp "$BRIDGE_SRC" "$RES_DIR/amule-ec-bridge"
+chmod +x "$RES_DIR/amule-ec-bridge"
 
 cat > "$PLIST_PATH" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
