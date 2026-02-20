@@ -84,7 +84,17 @@ struct ContentView: View {
             .buttonStyle(.bordered)
             .disabled(model.isBusy)
 
+            Button("Copy Log") {
+                model.copyLogToClipboard()
+            }
+            .buttonStyle(.bordered)
+            .disabled(model.outputLog.isEmpty)
+
             Spacer()
+
+            Text("Build \(model.buildCommit)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             if model.isBusy {
                 ProgressView()
@@ -188,6 +198,18 @@ struct ContentView: View {
                 }.width(130)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            if !model.lastDownloadsRawOutput.isEmpty {
+                GroupBox("Raw Queue Output (for diagnostics)") {
+                    ScrollView {
+                        Text(model.lastDownloadsRawOutput)
+                            .font(.system(.caption, design: .monospaced))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .textSelection(.enabled)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 90, maxHeight: 120)
+                }
+            }
         }
     }
 
@@ -201,10 +223,6 @@ struct ContentView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             HStack {
-                Button("Copy Log") {
-                    model.copyLogToClipboard()
-                }
-                .buttonStyle(.borderless)
                 Spacer()
                 Button("Clear Log") {
                     model.resetLog()

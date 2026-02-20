@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 REPO_ROOT="$(cd "$ROOT_DIR/../.." && pwd)"
 APP_NAME="aMule Native Remote"
 BUNDLE_ID="org.amule.native.remote"
+BUILD_COMMIT="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo dev)"
 BUILD_DIR="$ROOT_DIR/.build/release"
 APP_DIR="$ROOT_DIR/dist/${APP_NAME}.app"
 MACOS_DIR="$APP_DIR/Contents/MacOS"
@@ -46,6 +47,8 @@ cat > "$PLIST_PATH" <<PLIST
   <string>0.1.0</string>
   <key>CFBundleShortVersionString</key>
   <string>0.1.0</string>
+  <key>AMuleBuildCommit</key>
+  <string>${BUILD_COMMIT}</string>
   <key>CFBundleExecutable</key>
   <string>${APP_NAME}</string>
   <key>CFBundlePackageType</key>

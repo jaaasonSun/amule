@@ -19,6 +19,14 @@ final class AppModel: ObservableObject {
     @Published var lastDownloadsRawOutput = ""
     @Published var lastError = ""
 
+    var buildCommit: String {
+        if let value = Bundle.main.object(forInfoDictionaryKey: "AMuleBuildCommit") as? String,
+           !value.isEmpty {
+            return value
+        }
+        return "dev"
+    }
+
     var config: AMuleConnectionConfig {
         .init(commandPath: commandPath, host: host, port: port, password: password)
     }

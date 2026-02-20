@@ -81,7 +81,7 @@ enum CommandOutputParser {
             let speed = trailingSpeed(in: normalized)
             let parts = normalized.split(separator: "-").map { $0.trimmingCharacters(in: .whitespaces) }
             let status = parts.indices.contains(1) ? parts[1] : ""
-            let sourcesRaw = firstMatch(in: normalized, pattern: #"\]\s+([0-9]+\s*/\s*[0-9]+)"#, group: 1) ?? "-"
+            let sourcesRaw = firstMatch(in: normalized, pattern: #"\]\s*([0-9]+\s*/\s*[0-9]+)"#, group: 1) ?? "-"
             let sources = sourcesRaw.replacingOccurrences(of: " ", with: "")
 
             items.append(.init(
