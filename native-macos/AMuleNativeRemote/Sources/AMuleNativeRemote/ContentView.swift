@@ -4,6 +4,12 @@ import AppKit
 struct ContentView: View {
     @EnvironmentObject private var model: AppModel
 
+    private enum MainTab: String, CaseIterable {
+        case search = "Search"
+        case downloads = "Downloads"
+        case servers = "Servers"
+    }
+
     private enum DiagnosticsTab: String, CaseIterable {
         case log = "Log"
         case downloads = "Raw DL"
@@ -11,8 +17,11 @@ struct ContentView: View {
         case servers = "Raw Servers"
     }
 
+    @State private var selectedTab: MainTab = .search
+
     @State private var showLoginSheet = false
     @State private var showDiagnosticsSheet = false
+    @State private var showDownloadDetailsSheet = false
     @State private var diagnosticsTab: DiagnosticsTab = .log
 
     @State private var downloadSortOrder = [KeyPathComparator(\DownloadItem.name, order: .forward)]
@@ -36,9 +45,7 @@ struct ContentView: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            controls
-            Divider()
-            mainTabs
+            mainPanel
             Divider()
             footerStatusBar
             if !model.lastError.isEmpty {
@@ -76,6 +83,9 @@ struct ContentView: View {
         }
         .onChange(of: selectedDownloadID) { _ in
             syncSelectedDownloadDraft()
+            if selectedDownload == nil {
+                showDownloadDetailsSheet = false
+            }
         }
         .onChange(of: model.servers) { _ in
             refreshDisplayedServers()
@@ -89,53 +99,66 @@ struct ContentView: View {
         .sheet(isPresented: $showDiagnosticsSheet) {
             diagnosticsSheet
         }
-    }
+        .sheet(isPresented: $showDownloadDetailsSheet) {
+            downloadDetailsSheet
+        }
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Picker("Section", selection: $selectedTab) {
+                    ForEach(MainTab.allCases, id: \.self) { tab in
+                        Text(tab.rawValue).tag(tab)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 340)
+            }
 
-    private var controls: some View {
-        HStack {
-            Button(model.isSessionConnected ? "Disconnect" : "Connect") {
-                if model.isSessionConnected {
-                    model.disconnectAll()
-                } else {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button {
+                    if model.isSessionConnected {
+                        model.disconnectAll()
+                    } else {
+                        showLoginSheet = true
+                    }
+                } label: {
+                    Image(systemName: model.isSessionConnected ? "link.circle.fill" : "link.circle")
+                }
+                .help(model.isSessionConnected ? "Disconnect" : "Connect")
+                .disabled(model.isBusy)
+
+                Button {
                     showLoginSheet = true
+                } label: {
+                    Image(systemName: "server.rack")
+                }
+                .help("Connection Settings")
+                .disabled(model.isBusy)
+
+                Button {
+                    showDiagnosticsSheet = true
+                } label: {
+                    Image(systemName: "waveform.path.ecg")
+                }
+                .help("Diagnostics")
+
+                if model.isBusy {
+                    ProgressView()
+                        .controlSize(.small)
                 }
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(model.isBusy)
-
-            Button("Connection…") {
-                showLoginSheet = true
-            }
-            .buttonStyle(.bordered)
-
-            Button("Diagnostics…") {
-                showDiagnosticsSheet = true
-            }
-            .buttonStyle(.bordered)
-
-            Spacer()
-
-            Text("Build \(model.buildCommit)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            if model.isBusy {
-                ProgressView()
-                    .controlSize(.small)
-            }
         }
     }
 
-    private var mainTabs: some View {
-        TabView {
+    @ViewBuilder
+    private var mainPanel: some View {
+        switch selectedTab {
+        case .search:
             searchPanel
-                .tabItem { Text("Search") }
+        case .downloads:
             downloadsPanel
-                .tabItem { Text("Downloads") }
+        case .servers:
             serversPanel
-                .tabItem { Text("Servers") }
         }
-        .frame(minHeight: 320)
     }
 
     private var searchPanel: some View {
@@ -200,6 +223,16 @@ struct ContentView: View {
                 .buttonStyle(.bordered)
                 .disabled(model.isBusy)
 
+                Button {
+                    syncSelectedDownloadDraft()
+                    showDownloadDetailsSheet = true
+                } label: {
+                    Image(systemName: "info.circle")
+                }
+                .buttonStyle(.bordered)
+                .disabled(selectedDownload == nil)
+                .help("Show Download Details")
+
                 Text("\(model.downloads.count) item(s)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -207,128 +240,135 @@ struct ContentView: View {
                 Spacer()
             }
 
-            HSplitView {
-                Table(displayedDownloads, selection: $selectedDownloadID, sortOrder: $downloadSortOrder) {
-                    TableColumn("Name", value: \.name) { item in
-                        Text(item.name)
-                            .contextMenu { downloadContextMenu(item) }
-                    }
-                    TableColumn("Progress", value: \.progressValue) { item in
-                        Text(item.progressText)
-                            .contextMenu { downloadContextMenu(item) }
-                    }.width(90)
-                    TableColumn("Done") { item in
-                        Text(item.completionText)
-                            .contextMenu { downloadContextMenu(item) }
-                    }.width(160)
-                    TableColumn("Sources", value: \.sourceCurrent) { item in
-                        Text(item.sourcesText)
-                            .contextMenu { downloadContextMenu(item) }
-                    }.width(90)
-                    TableColumn("Status", value: \.status) { item in
-                        Text(item.status)
-                            .contextMenu { downloadContextMenu(item) }
-                    }
-                    TableColumn("Speed", value: \.speedBytes) { item in
-                        Text(item.speedText)
-                            .contextMenu { downloadContextMenu(item) }
-                    }.width(130)
+            Table(displayedDownloads, selection: $selectedDownloadID, sortOrder: $downloadSortOrder) {
+                TableColumn("Name", value: \.name) { item in
+                    Text(item.name)
+                        .contextMenu { downloadContextMenu(item) }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                downloadDetailsPane
-                    .frame(minWidth: 320, idealWidth: 360)
+                TableColumn("Progress", value: \.progressValue) { item in
+                    Text(item.progressText)
+                        .contextMenu { downloadContextMenu(item) }
+                }.width(90)
+                TableColumn("Done") { item in
+                    Text(item.completionText)
+                        .contextMenu { downloadContextMenu(item) }
+                }.width(160)
+                TableColumn("Sources", value: \.sourceCurrent) { item in
+                    Text(item.sourcesText)
+                        .contextMenu { downloadContextMenu(item) }
+                }.width(90)
+                TableColumn("Status", value: \.status) { item in
+                    Text(item.status)
+                        .contextMenu { downloadContextMenu(item) }
+                }
+                TableColumn("Speed", value: \.speedBytes) { item in
+                    Text(item.speedText)
+                        .contextMenu { downloadContextMenu(item) }
+                }.width(130)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
-    private var downloadDetailsPane: some View {
-        GroupBox("Download Details") {
-            ScrollView {
-                if let item = selectedDownload {
-                    VStack(alignment: .leading, spacing: 8) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Rename")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            HStack(spacing: 8) {
-                                TextField("New file name", text: $downloadRenameDraft)
-                                    .textFieldStyle(.roundedBorder)
-                                Button("Apply") {
-                                    model.renameDownload(item, to: downloadRenameDraft)
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .disabled(model.isBusy || downloadRenameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || downloadRenameDraft == item.name)
-                                Button("Reset") {
-                                    downloadRenameDraft = item.name
-                                }
-                                .buttonStyle(.bordered)
-                                .disabled(model.isBusy)
-                            }
-                        }
-                        .padding(.bottom, 4)
+    private var downloadDetailsSheet: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Text("Download Details")
+                    .font(.headline)
+                Spacer()
+                Button("Close") {
+                    showDownloadDetailsSheet = false
+                }
+                .buttonStyle(.borderedProminent)
+            }
 
-                        detailRow("Name", item.name)
-                        detailRow("Hash", item.id)
-                        detailRow("Status", item.status)
-                        detailRow("Progress", item.progressText)
-                        detailRow("Completed", item.completionText)
-                        detailRow("Transferred", item.transferredText)
-                        detailRow("Speed", item.speedText)
-                        detailRow("Sources", item.sourcesText)
-                        detailRow("Transferring", String(item.sourceTransferring))
-                        detailRow("A4AF", String(item.sourceA4AF))
-                        detailRow("Priority", item.priorityText)
-                        detailRow("Category", String(item.category))
-                        detailRow("Part File", item.partMetName.isEmpty ? "-" : item.partMetName)
-                        detailRow("Available Parts", String(item.availableParts))
-                        detailRow("Active Time", item.activeTimeText)
-                        detailRow("Last Seen Complete", item.lastSeenCompleteText)
-                        detailRow("Last Received", item.lastReceivedText)
-                        detailRow("Shared", item.shared ? "Yes" : "No")
-
-                        Divider()
-                            .padding(.vertical, 4)
-
-                        Text("Alternative Names")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        if item.alternativeNames.isEmpty {
-                            Text("No alternative names available from current sources.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        } else {
-                            ForEach(item.alternativeNames.sorted(by: { $0.count > $1.count })) { alt in
+            if let item = selectedDownload {
+                GroupBox {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 8) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Rename")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                                 HStack(spacing: 8) {
-                                    Text(alt.name)
-                                        .font(.caption)
-                                        .lineLimit(1)
-                                        .truncationMode(.middle)
-                                    Spacer()
-                                    Text("x\(alt.count)")
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                    Button("Use") {
-                                        downloadRenameDraft = alt.name
+                                    TextField("New file name", text: $downloadRenameDraft)
+                                        .textFieldStyle(.roundedBorder)
+                                    Button("Apply") {
+                                        model.renameDownload(item, to: downloadRenameDraft)
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .disabled(model.isBusy || downloadRenameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || downloadRenameDraft == item.name)
+                                    Button("Reset") {
+                                        downloadRenameDraft = item.name
                                     }
                                     .buttonStyle(.bordered)
-                                    .controlSize(.small)
+                                    .disabled(model.isBusy)
+                                }
+                            }
+                            .padding(.bottom, 4)
+
+                            detailRow("Name", item.name)
+                            detailRow("Hash", item.id)
+                            detailRow("Status", item.status)
+                            detailRow("Progress", item.progressText)
+                            detailRow("Completed", item.completionText)
+                            detailRow("Transferred", item.transferredText)
+                            detailRow("Speed", item.speedText)
+                            detailRow("Sources", item.sourcesText)
+                            detailRow("Transferring", String(item.sourceTransferring))
+                            detailRow("A4AF", String(item.sourceA4AF))
+                            detailRow("Priority", item.priorityText)
+                            detailRow("Category", String(item.category))
+                            detailRow("Part File", item.partMetName.isEmpty ? "-" : item.partMetName)
+                            detailRow("Available Parts", String(item.availableParts))
+                            detailRow("Active Time", item.activeTimeText)
+                            detailRow("Last Seen Complete", item.lastSeenCompleteText)
+                            detailRow("Last Received", item.lastReceivedText)
+                            detailRow("Shared", item.shared ? "Yes" : "No")
+
+                            Divider()
+                                .padding(.vertical, 4)
+
+                            Text("Alternative Names From Sources")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            if item.alternativeNames.isEmpty {
+                                Text("No alternative names available from current sources.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                ForEach(item.alternativeNames.sorted(by: { $0.count > $1.count })) { alt in
+                                    HStack(spacing: 8) {
+                                        Text(alt.name)
+                                            .font(.caption)
+                                            .lineLimit(1)
+                                            .truncationMode(.middle)
+                                        Spacer()
+                                        Text("x\(alt.count)")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                        Button("Use") {
+                                            downloadRenameDraft = alt.name
+                                        }
+                                        .buttonStyle(.bordered)
+                                        .controlSize(.small)
+                                    }
                                 }
                             }
                         }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 4)
-                } else {
-                    Text("Select a download item to view details.")
-                        .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, 4)
+                    }
                 }
+            } else {
+                Text("Select a download item in Downloads tab first.")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
+        .padding(14)
+        .frame(minWidth: 760, minHeight: 620)
     }
 
     private var serversPanel: some View {
@@ -574,6 +614,12 @@ struct ContentView: View {
 
     @ViewBuilder
     private func downloadContextMenu(_ item: DownloadItem) -> some View {
+        Button("Details…") {
+            selectedDownloadID = item.id
+            syncSelectedDownloadDraft()
+            showDownloadDetailsSheet = true
+        }
+        Divider()
         Button("Pause") {
             model.pauseDownload(item)
         }
@@ -625,6 +671,7 @@ struct ContentView: View {
            !displayedDownloads.contains(where: { $0.id == selectedDownloadID }) {
             self.selectedDownloadID = nil
             downloadRenameDraft = ""
+            showDownloadDetailsSheet = false
         } else if selectedDownload != nil && downloadRenameDraft.isEmpty {
             syncSelectedDownloadDraft()
         }
