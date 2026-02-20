@@ -105,12 +105,13 @@ struct ContentView: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Picker("Section", selection: $selectedTab) {
-                    ForEach(MainTab.allCases, id: \.self) { tab in
-                        Text(tab.rawValue).tag(tab)
-                    }
+                    Label("Search", systemImage: "magnifyingglass").labelStyle(.iconOnly).tag(MainTab.search)
+                    Label("Downloads", systemImage: "arrow.down.circle").labelStyle(.iconOnly).tag(MainTab.downloads)
+                    Label("Servers", systemImage: "network").labelStyle(.iconOnly).tag(MainTab.servers)
                 }
                 .pickerStyle(.segmented)
-                .frame(width: 340)
+                .labelsHidden()
+                .frame(width: 180)
             }
 
             ToolbarItemGroup(placement: .primaryAction) {
@@ -274,7 +275,8 @@ struct ContentView: View {
         VStack(spacing: 12) {
             HStack {
                 Text("Download Details")
-                    .font(.headline)
+                    .font(.title3)
+                    .fontWeight(.semibold)
                 Spacer()
                 Button("Close") {
                     showDownloadDetailsSheet = false
@@ -283,92 +285,105 @@ struct ContentView: View {
             }
 
             if let item = selectedDownload {
-                GroupBox {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 8) {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Rename")
-                                    .font(.caption)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        GroupBox("Overview") {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text(item.name)
+                                    .font(.title3)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                Text(item.id)
+                                    .font(.callout.monospaced())
                                     .foregroundStyle(.secondary)
-                                HStack(spacing: 8) {
-                                    TextField("New file name", text: $downloadRenameDraft)
-                                        .textFieldStyle(.roundedBorder)
-                                    Button("Apply") {
-                                        model.renameDownload(item, to: downloadRenameDraft)
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .disabled(model.isBusy || downloadRenameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || downloadRenameDraft == item.name)
-                                    Button("Reset") {
-                                        downloadRenameDraft = item.name
-                                    }
-                                    .buttonStyle(.bordered)
-                                    .disabled(model.isBusy)
+
+                                HStack(spacing: 10) {
+                                    statPill("Progress", item.progressText)
+                                    statPill("Speed", item.speedText)
+                                    statPill("Sources", item.sourcesText)
+                                    statPill("Status", item.status)
                                 }
                             }
-                            .padding(.bottom, 4)
+                        }
 
-                            detailRow("Name", item.name)
-                            detailRow("Hash", item.id)
-                            detailRow("Status", item.status)
-                            detailRow("Progress", item.progressText)
-                            detailRow("Completed", item.completionText)
-                            detailRow("Transferred", item.transferredText)
-                            detailRow("Speed", item.speedText)
-                            detailRow("Sources", item.sourcesText)
-                            detailRow("Transferring", String(item.sourceTransferring))
-                            detailRow("A4AF", String(item.sourceA4AF))
-                            detailRow("Priority", item.priorityText)
-                            detailRow("Category", String(item.category))
-                            detailRow("Part File", item.partMetName.isEmpty ? "-" : item.partMetName)
-                            detailRow("Available Parts", String(item.availableParts))
-                            detailRow("Active Time", item.activeTimeText)
-                            detailRow("Last Seen Complete", item.lastSeenCompleteText)
-                            detailRow("Last Received", item.lastReceivedText)
-                            detailRow("Shared", item.shared ? "Yes" : "No")
+                        GroupBox("Rename") {
+                            HStack(spacing: 8) {
+                                TextField("New file name", text: $downloadRenameDraft)
+                                    .textFieldStyle(.roundedBorder)
+                                Button("Apply") {
+                                    model.renameDownload(item, to: downloadRenameDraft)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .disabled(model.isBusy || downloadRenameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || downloadRenameDraft == item.name)
+                                Button("Reset") {
+                                    downloadRenameDraft = item.name
+                                }
+                                .buttonStyle(.bordered)
+                                .disabled(model.isBusy)
+                            }
+                        }
 
-                            Divider()
-                                .padding(.vertical, 4)
+                        HStack(alignment: .top, spacing: 12) {
+                            GroupBox("Transfer") {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    detailRowLarge("Completed", item.completionText)
+                                    detailRowLarge("Transferred", item.transferredText)
+                                    detailRowLarge("Priority", item.priorityText)
+                                    detailRowLarge("Category", String(item.category))
+                                    detailRowLarge("Part File", item.partMetName.isEmpty ? "-" : item.partMetName)
+                                }
+                            }
+                            GroupBox("Source and Timing") {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    detailRowLarge("Transferring", String(item.sourceTransferring))
+                                    detailRowLarge("A4AF", String(item.sourceA4AF))
+                                    detailRowLarge("Available Parts", String(item.availableParts))
+                                    detailRowLarge("Active Time", item.activeTimeText)
+                                    detailRowLarge("Last Seen Complete", item.lastSeenCompleteText)
+                                    detailRowLarge("Last Received", item.lastReceivedText)
+                                    detailRowLarge("Shared", item.shared ? "Yes" : "No")
+                                }
+                            }
+                        }
 
-                            Text("Alternative Names From Sources")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-
+                        GroupBox("Alternative Names From Sources") {
                             if item.alternativeNames.isEmpty {
                                 Text("No alternative names available from current sources.")
-                                    .font(.caption)
+                                    .font(.body)
                                     .foregroundStyle(.secondary)
                             } else {
-                                ForEach(item.alternativeNames.sorted(by: { $0.count > $1.count })) { alt in
-                                    HStack(spacing: 8) {
-                                        Text(alt.name)
-                                            .font(.caption)
-                                            .lineLimit(1)
-                                            .truncationMode(.middle)
-                                        Spacer()
-                                        Text("x\(alt.count)")
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
-                                        Button("Use") {
-                                            downloadRenameDraft = alt.name
+                                VStack(spacing: 8) {
+                                    ForEach(item.alternativeNames.sorted(by: { $0.count > $1.count })) { alt in
+                                        HStack(spacing: 10) {
+                                            Text(alt.name)
+                                                .font(.body)
+                                                .lineLimit(1)
+                                                .truncationMode(.middle)
+                                            Spacer()
+                                            Text("x\(alt.count)")
+                                                .font(.body.weight(.semibold))
+                                                .foregroundStyle(.secondary)
+                                            Button("Use") {
+                                                downloadRenameDraft = alt.name
+                                            }
+                                            .buttonStyle(.bordered)
                                         }
-                                        .buttonStyle(.bordered)
-                                        .controlSize(.small)
                                     }
                                 }
                             }
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 4)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             } else {
                 Text("Select a download item in Downloads tab first.")
+                    .font(.body)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
         .padding(14)
-        .frame(minWidth: 760, minHeight: 620)
+        .frame(minWidth: 920, minHeight: 700)
     }
 
     private var serversPanel: some View {
@@ -572,15 +587,6 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 10) {
-                TextField("amule-ec-bridge path", text: $model.bridgePath)
-                    .textFieldStyle(.roundedBorder)
-                Button("Locate…") {
-                    pickBridgePath()
-                }
-                .buttonStyle(.bordered)
-            }
-
-            HStack(spacing: 10) {
                 TextField("Host", text: $model.host)
                     .textFieldStyle(.roundedBorder)
                 TextField("Port", value: $model.port, format: .number)
@@ -590,6 +596,14 @@ struct ContentView: View {
 
             SecureField("Password", text: $model.password)
                 .textFieldStyle(.roundedBorder)
+
+            HStack(spacing: 8) {
+                Image(systemName: "shippingbox.fill")
+                Text("Using bundled EC bridge binary in the app.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
 
             HStack {
                 if model.isBusy {
@@ -652,17 +666,31 @@ struct ContentView: View {
         }
     }
 
-    private func detailRow(_ title: String, _ value: String) -> some View {
+    private func detailRowLarge(_ title: String, _ value: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(title + ":")
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
-                .frame(width: 130, alignment: .leading)
+                .frame(width: 140, alignment: .leading)
             Text(value)
-                .font(.caption)
+                .font(.body)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    private func statPill(_ title: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10))
     }
 
     private func refreshDisplayedDownloads() {
@@ -695,18 +723,6 @@ struct ContentView: View {
             model.copySearchRawToClipboard()
         case .servers:
             model.copyServersRawToClipboard()
-        }
-    }
-
-    private func pickBridgePath() {
-        let panel = NSOpenPanel()
-        panel.canChooseDirectories = false
-        panel.canChooseFiles = true
-        panel.allowsMultipleSelection = false
-        panel.prompt = "Use bridge"
-        panel.title = "Choose amule-ec-bridge binary"
-        if panel.runModal() == .OK, let url = panel.url {
-            model.bridgePath = url.path
         }
     }
 
