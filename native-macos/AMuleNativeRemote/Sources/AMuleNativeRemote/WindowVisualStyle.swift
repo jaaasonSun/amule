@@ -148,9 +148,7 @@ struct WindowAppearanceConfigurator: NSViewRepresentable {
         if let toolbarStyle {
             window.toolbarStyle = toolbarStyle
         }
-        if let showsToolbarBaselineSeparator {
-            window.toolbar?.showsBaselineSeparator = showsToolbarBaselineSeparator
-        }
+        _ = showsToolbarBaselineSeparator
         if allowsToolbarCustomization {
             window.toolbar?.allowsUserCustomization = true
         }
@@ -161,7 +159,6 @@ struct WindowAppearanceConfigurator: NSViewRepresentable {
         if transparentTitlebar && ensureToolbarWhenTransparentTitlebar && window.toolbar == nil {
             let toolbar = NSToolbar(identifier: "GlassToolbar")
             toolbar.displayMode = .iconOnly
-            toolbar.showsBaselineSeparator = false
             toolbar.allowsUserCustomization = false
             window.toolbar = toolbar
         } else if transparentTitlebar && !ensureToolbarWhenTransparentTitlebar,
@@ -190,7 +187,6 @@ struct WindowAppearanceConfigurator: NSViewRepresentable {
         window.titlebarAppearsTransparent = transparentTitlebar
 
         if transparentTitlebar {
-            window.toolbar?.showsBaselineSeparator = false
             window.titlebarSeparatorStyle = .none
             if let themeFrame = window.contentView?.superview {
                 themeFrame.wantsLayer = true

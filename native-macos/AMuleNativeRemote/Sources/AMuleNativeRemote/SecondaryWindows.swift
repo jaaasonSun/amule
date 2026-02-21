@@ -87,10 +87,10 @@ struct SearchWindowView: View {
         .task {
             refreshDisplayedSearchResults()
         }
-        .onChange(of: model.searchResults) { _ in
+        .onChange(of: model.searchResults) {
             refreshDisplayedSearchResults()
         }
-        .onChange(of: searchSortOrder) { _ in
+        .onChange(of: searchSortOrder) {
             refreshDisplayedSearchResults()
         }
     }
@@ -310,10 +310,10 @@ struct ServersWindowView: View {
             refreshDisplayedServers()
             model.refreshServers()
         }
-        .onChange(of: model.servers) { _ in
+        .onChange(of: model.servers) {
             refreshDisplayedServers()
         }
-        .onChange(of: serverSortOrder) { _ in
+        .onChange(of: serverSortOrder) {
             refreshDisplayedServers()
         }
     }

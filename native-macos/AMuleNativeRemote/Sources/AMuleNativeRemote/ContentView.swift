@@ -11,38 +11,6 @@ struct ContentView: View {
         case servers = "Servers"
     }
 
-    private enum DownloadSortPreset: String, CaseIterable {
-        case nameAZ = "Name (A-Z)"
-        case nameZA = "Name (Z-A)"
-        case progressHigh = "Progress (High-Low)"
-        case progressLow = "Progress (Low-High)"
-        case sizeLarge = "Size (Large-Small)"
-        case downloadedLarge = "Downloaded (Large-Small)"
-        case speedFast = "Speed (Fast-Slow)"
-        case sourcesMany = "Sources (Most-Least)"
-
-        var comparators: [KeyPathComparator<DownloadItem>] {
-            switch self {
-            case .nameAZ:
-                return [KeyPathComparator(\DownloadItem.name, order: .forward)]
-            case .nameZA:
-                return [KeyPathComparator(\DownloadItem.name, order: .reverse)]
-            case .progressHigh:
-                return [KeyPathComparator(\DownloadItem.progressValue, order: .reverse)]
-            case .progressLow:
-                return [KeyPathComparator(\DownloadItem.progressValue, order: .forward)]
-            case .sizeLarge:
-                return [KeyPathComparator(\DownloadItem.sizeBytes, order: .reverse)]
-            case .downloadedLarge:
-                return [KeyPathComparator(\DownloadItem.doneBytes, order: .reverse)]
-            case .speedFast:
-                return [KeyPathComparator(\DownloadItem.speedBytes, order: .reverse)]
-            case .sourcesMany:
-                return [KeyPathComparator(\DownloadItem.sourceTotal, order: .reverse)]
-            }
-        }
-    }
-
     private enum DiagnosticsTab: String, CaseIterable {
         case log = "Log"
         case downloads = "Raw DL"
@@ -73,7 +41,6 @@ struct ContentView: View {
     @State private var displayedSearchResults: [SearchResult] = []
 
     @State private var downloadSortOrder = [KeyPathComparator(\DownloadItem.name, order: .forward)]
-    @State private var downloadSortPreset: DownloadSortPreset = .nameAZ
     @State private var displayedDownloads: [DownloadItem] = []
     @State private var sourceSortOrder = [KeyPathComparator(\DownloadSourceItem.clientName, order: .forward)]
     @State private var selectedDownloadIDs: Set<DownloadItem.ID> = []
@@ -194,27 +161,24 @@ struct ContentView: View {
 
     private var observedBody: some View {
         lifecycleBody
-            .onChange(of: model.isSessionConnected) { connected in
+            .onChange(of: model.isSessionConnected) { _, connected in
                 if connected {
                     showLoginSheet = false
                 }
             }
-            .onChange(of: model.downloads) { _ in
+            .onChange(of: model.downloads) {
                 refreshDisplayedDownloads()
             }
-            .onChange(of: model.searchResults) { _ in
+            .onChange(of: model.searchResults) {
                 refreshDisplayedSearchResults()
             }
-            .onChange(of: searchSortOrder) { _ in
+            .onChange(of: searchSortOrder) {
                 refreshDisplayedSearchResults()
             }
-            .onChange(of: downloadSortOrder) { _ in
+            .onChange(of: downloadSortOrder) {
                 refreshDisplayedDownloads()
             }
-            .onChange(of: downloadSortPreset) { preset in
-                downloadSortOrder = preset.comparators
-            }
-            .onChange(of: selectedDownloadIDs) { _ in
+            .onChange(of: selectedDownloadIDs) {
                 syncSelectedDownloadDraft()
                 isEditingDownloadName = false
                 if selectedDownload == nil {
@@ -223,13 +187,13 @@ struct ContentView: View {
                     model.refreshDownloadSources(for: selectedDownload)
                 }
             }
-            .onChange(of: model.servers) { _ in
+            .onChange(of: model.servers) {
                 refreshDisplayedServers()
             }
-            .onChange(of: serverSortOrder) { _ in
+            .onChange(of: serverSortOrder) {
                 refreshDisplayedServers()
             }
-            .onChange(of: model.addLinksPanelRequestID) { _ in
+            .onChange(of: model.addLinksPanelRequestID) {
                 showAddLinksSheet = true
             }
     }
@@ -321,27 +285,6 @@ struct ContentView: View {
                 .disabled(selectedDownloads.isEmpty || model.isBusy)
             }
             .controlGroupStyle(.navigation)
-        }
-
-        ToolbarItem(placement: .navigation) {
-            ControlGroup {
-                Menu {
-                    ForEach(DownloadSortPreset.allCases, id: \.self) { preset in
-                        Button {
-                            downloadSortPreset = preset
-                        } label: {
-                            if preset == downloadSortPreset {
-                                Label(preset.rawValue, systemImage: "checkmark")
-                            } else {
-                                Text(preset.rawValue)
-                            }
-                        }
-                    }
-                } label: {
-                    Label("Reorder", systemImage: "arrow.up.arrow.down")
-                }
-                .help("Reorder Downloads")
-            }
         }
 
         ToolbarSpacer(.flexible, placement: .automatic)
@@ -461,68 +404,60 @@ struct ContentView: View {
     }
 
     private var downloadsPanel: some View {
-        List(selection: $selectedDownloadIDs) {
-            ForEach(displayedDownloads) { item in
-                HStack(spacing: 8) {
-                    let statusSymbol = downloadStatusSymbol(for: item.status)
-                    Image(systemName: statusSymbol)
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 12)
-
-                    Text(item.name)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .layoutPriority(1)
-
-                    Spacer(minLength: 6)
-
-                    let stats = downloadRowStats(for: item)
-                    HStack(spacing: 6) {
-                        ForEach(stats.indices, id: \.self) { idx in
-                            if idx > 0 {
-                                Text("•")
-                                    .foregroundStyle(.tertiary)
-                            }
-                            Text(stats[idx])
-                                .lineLimit(1)
-                                .truncationMode(.head)
-                        }
+        Table(displayedDownloads, selection: $selectedDownloadIDs, sortOrder: $downloadSortOrder) {
+            TableColumn("Name", sortUsing: KeyPathComparator(\DownloadItem.name, order: .forward)) { item in
+                downloadTableCell(item, showsProgressBackground: false) {
+                    HStack(spacing: 8) {
+                        Image(systemName: downloadStatusSymbol(for: item.status))
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 12)
+                        Text(item.name)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
                     }
-                    .font(.caption2.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: true, vertical: false)
                 }
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .background(
-                    GeometryReader { rowGeo in
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(Color.primary.opacity(0.02))
-                            DownloadRowSegmentBackground(
-                                colors: item.progressColors,
-                                fallbackProgress: item.progressDisplayValue / 100.0
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
-                            .opacity(0.28)
-                        }
-                    }
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .contentShape(Rectangle())
-                .tag(item.id)
-                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
                 .contextMenu { downloadContextMenu(item) }
             }
+            .width(min: 320, ideal: 560)
+
+            TableColumn("Progress", sortUsing: KeyPathComparator(\DownloadItem.doneBytes, order: .reverse)) { item in
+                downloadTableCell(item, alignment: .trailing, showsProgressBackground: true) {
+                    Text(item.completionText)
+                        .lineLimit(1)
+                        .truncationMode(.head)
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                .contextMenu { downloadContextMenu(item) }
+            }
+            .width(132)
+
+            TableColumn("Speed", sortUsing: KeyPathComparator(\DownloadItem.speedBytes, order: .reverse)) { item in
+                downloadTableCell(item, alignment: .trailing, showsProgressBackground: false) {
+                    Text(item.speedBytes > 0 ? item.speedText : "")
+                        .lineLimit(1)
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                .contextMenu { downloadContextMenu(item) }
+            }
+            .width(74)
+
+            TableColumn("Src", sortUsing: KeyPathComparator(\DownloadItem.sourceTotal, order: .reverse)) { item in
+                downloadTableCell(item, alignment: .trailing, showsProgressBackground: false) {
+                    Text(item.sourcesText)
+                        .lineLimit(1)
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                .contextMenu { downloadContextMenu(item) }
+            }
+            .width(52)
         }
-        .listStyle(.plain)
-        .environment(\.defaultMinListRowHeight, 26)
-        .scrollContentBackground(.hidden)
         .padding(.horizontal, 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .scrollContentBackground(.hidden)
     }
 
     private var downloadDetailsSheet: some View {
@@ -1018,7 +953,7 @@ struct ContentView: View {
                     .padding(.leading, 4)
                 }
             }
-            .onChange(of: isNarrow) { narrow in
+            .onChange(of: isNarrow) { _, narrow in
                 if narrow {
                     footerDetailsExpanded = false
                 }
@@ -1098,7 +1033,7 @@ struct ContentView: View {
         }
 
         if hasAny(lowercase, ["error", "erroneous", "failed", "corrupt"]) || hasAny(raw, ["错误", "故障", "失败"]) {
-            return "xmark.octagon"
+            return "xmark"
         }
         if hasAny(lowercase, ["complete", "completed"]) || hasAny(raw, ["完成", "已完成"]) {
             return "checkmark"
@@ -1107,7 +1042,7 @@ struct ContentView: View {
             return "pause"
         }
         if hasAny(lowercase, ["hashing", "allocat", "completing"]) || hasAny(raw, ["哈希", "分配", "完成中"]) {
-            return "gearshape.2"
+            return "progress.indicator"
         }
         if hasAny(lowercase, ["downloading"]) || hasAny(raw, ["下载"]) {
             return "arrow.down"
@@ -1118,25 +1053,29 @@ struct ContentView: View {
         return "questionmark"
     }
 
-    private func isActivelyDownloading(_ item: DownloadItem) -> Bool {
-        let lower = item.status.lowercased()
-        let raw = item.status
-        if lower.contains("download") || lower.contains("transfer") {
-            return true
-        }
-        if raw.contains("下载") || raw.contains("传输") {
-            return true
-        }
-        return item.speedBytes > 0
-    }
-
-    private func downloadRowStats(for item: DownloadItem) -> [String] {
-        var stats: [String] = [item.completionText]
-        if isActivelyDownloading(item) {
-            stats.append(item.speedText)
-        }
-        stats.append(item.sourcesText + " src")
-        return stats
+    private func downloadTableCell<Content: View>(
+        _ item: DownloadItem,
+        alignment: Alignment = .leading,
+        showsProgressBackground: Bool,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        content()
+            .frame(maxWidth: .infinity, alignment: alignment)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background {
+                if showsProgressBackground {
+                    ZStack {
+                        Rectangle()
+                            .fill(Color.primary.opacity(0.02))
+                        DownloadRowSegmentBackground(
+                            colors: item.progressColors,
+                            fallbackProgress: item.progressDisplayValue / 100.0
+                        )
+                        .opacity(0.28)
+                    }
+                }
+            }
     }
 
     private var loginSheet: some View {
@@ -1353,24 +1292,7 @@ struct ContentView: View {
     }
 
     private func refreshDisplayedDownloads() {
-        if downloadSortPreset == .speedFast {
-            displayedDownloads = model.downloads.sorted { lhs, rhs in
-                let lhsCompleted = isCompletedDownload(lhs)
-                let rhsCompleted = isCompletedDownload(rhs)
-                if lhsCompleted != rhsCompleted {
-                    return lhsCompleted && !rhsCompleted
-                }
-                if lhs.speedBytes != rhs.speedBytes {
-                    return lhs.speedBytes > rhs.speedBytes
-                }
-                if lhs.progressValue != rhs.progressValue {
-                    return lhs.progressValue > rhs.progressValue
-                }
-                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-            }
-        } else {
-            displayedDownloads = model.downloads.sorted(using: downloadSortOrder)
-        }
+        displayedDownloads = model.downloads.sorted(using: downloadSortOrder)
         selectedDownloadIDs = selectedDownloadIDs.filter { id in
             displayedDownloads.contains(where: { $0.id == id })
         }

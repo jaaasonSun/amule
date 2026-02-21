@@ -295,6 +295,8 @@ enum AMuleFormatter {
             return "-"
         }
         let text = ByteCountFormatter.string(fromByteCount: Int64(bytesPerSecond), countStyle: .binary)
+            .replacingOccurrences(of: " bytes", with: " B")
+            .replacingOccurrences(of: " byte", with: " B")
         return "\(text)/s"
     }
 
