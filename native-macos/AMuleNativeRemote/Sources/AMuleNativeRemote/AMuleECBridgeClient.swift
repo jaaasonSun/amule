@@ -91,6 +91,7 @@ struct BridgeDownloadPayload: Decodable {
         let count: Int
     }
 
+    let ecid: Int
     let hash: String
     let name: String
     let size: UInt64
@@ -101,6 +102,8 @@ struct BridgeDownloadPayload: Decodable {
     let sourcesTotal: Int
     let sourcesTransferring: Int
     let sourcesA4AF: Int
+    let statusCode: Int
+    let isCompleted: Bool
     let status: String
     let speed: Int
     let priority: Int
@@ -112,8 +115,10 @@ struct BridgeDownloadPayload: Decodable {
     let availableParts: Int
     let shared: Bool
     let alternativeNames: [AlternativeName]
+    let progressColors: [UInt32]?
 
     private enum CodingKeys: String, CodingKey {
+        case ecid
         case hash
         case name
         case size
@@ -124,6 +129,8 @@ struct BridgeDownloadPayload: Decodable {
         case sourcesTotal = "sources_total"
         case sourcesTransferring = "sources_transferring"
         case sourcesA4AF = "sources_a4af"
+        case statusCode = "status_code"
+        case isCompleted = "is_completed"
         case status
         case speed
         case priority
@@ -135,6 +142,53 @@ struct BridgeDownloadPayload: Decodable {
         case availableParts = "available_parts"
         case shared
         case alternativeNames = "alternative_names"
+        case progressColors = "progress_colors"
+    }
+}
+
+struct BridgeDownloadSourcePayload: Decodable {
+    let clientID: Int
+    let requestFileID: Int
+    let clientName: String
+    let userIP: String
+    let userPort: Int
+    let serverName: String
+    let serverIP: String
+    let serverPort: Int
+    let software: String
+    let softwareVersion: String
+    let downloadState: Int
+    let downloadStateText: String
+    let sourceFrom: Int
+    let sourceFromText: String
+    let downSpeedKBps: Double
+    let availableParts: Int
+    let remoteQueueRank: Int
+    let obfuscationStatus: Int
+    let extendedProtocol: Bool
+    let remoteFilename: String
+
+    private enum CodingKeys: String, CodingKey {
+        case clientID = "client_id"
+        case requestFileID = "request_file_id"
+        case clientName = "client_name"
+        case userIP = "user_ip"
+        case userPort = "user_port"
+        case serverName = "server_name"
+        case serverIP = "server_ip"
+        case serverPort = "server_port"
+        case software
+        case softwareVersion = "software_version"
+        case downloadState = "download_state"
+        case downloadStateText = "download_state_text"
+        case sourceFrom = "source_from"
+        case sourceFromText = "source_from_text"
+        case downSpeedKBps = "down_speed_kbps"
+        case availableParts = "available_parts"
+        case remoteQueueRank = "remote_queue_rank"
+        case obfuscationStatus = "obfuscation_status"
+        case extendedProtocol = "extended_protocol"
+        case remoteFilename = "remote_filename"
     }
 }
 
@@ -196,6 +250,7 @@ private struct BridgeEnvelope: Decodable {
     let message: String?
     let status: BridgeStatusPayload?
     let downloads: [BridgeDownloadPayload]?
+    let sources: [BridgeDownloadSourcePayload]?
     let servers: [BridgeServerPayload]?
     let progress: Int?
     let results: [BridgeSearchPayload]?
@@ -242,6 +297,11 @@ enum AMuleECBridgeClient {
         return (envelope.downloads ?? [], raw)
     }
 
+    static func sources(hash: String, config: AMuleConnectionConfig) async throws -> ([BridgeDownloadSourcePayload], String) {
+        let (envelope, raw) = try await invoke(op: "sources", extraArgs: ["--hash", hash], config: config)
+        return (envelope.sources ?? [], raw)
+    }
+
     static func servers(config: AMuleConnectionConfig) async throws -> ([BridgeServerPayload], String) {
         let (envelope, raw) = try await invoke(op: "servers", extraArgs: [], config: config)
         return (envelope.servers ?? [], raw)
@@ -267,6 +327,11 @@ enum AMuleECBridgeClient {
     static func download(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         let (envelope, raw) = try await invoke(op: "download", extraArgs: ["--hash", hash], config: config)
         return (envelope.message ?? "Download request accepted", raw)
+    }
+
+    static func addLink(link: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        let (envelope, raw) = try await invoke(op: "add-link", extraArgs: ["--link", link], config: config)
+        return (envelope.message ?? "Link add request accepted", raw)
     }
 
     static func rename(hash: String, name: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
@@ -300,6 +365,15 @@ enum AMuleECBridgeClient {
             config: config
         )
         return (envelope.message ?? "Priority changed", raw)
+    }
+
+    static func clearCompleted(ecids: [Int], config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        var extraArgs: [String] = []
+        for ecid in ecids where ecid > 0 {
+            extraArgs.append(contentsOf: ["--ecid", String(ecid)])
+        }
+        let (envelope, raw) = try await invoke(op: "clear-completed", extraArgs: extraArgs, config: config)
+        return (envelope.message ?? "Completed downloads cleared", raw)
     }
 
     static func serverConnect(ip: String?, port: Int?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {

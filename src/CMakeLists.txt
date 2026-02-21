@@ -106,6 +106,7 @@ if (BUILD_AMULE_EC_BRIDGE)
 		LoggerConsole.cpp
 		NetworkFunctions.cpp
 		OtherFunctions.cpp
+		RLE.cpp
 	)
 
 	target_compile_definitions (amule-ec-bridge

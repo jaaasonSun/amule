@@ -8,6 +8,9 @@
 #include "Constants.h"
 #include "GuiEvents.h"
 #include "NetworkFunctions.h"
+#include "RLE.h"
+#include <protocol/ed2k/Constants.h>
+#include <protocol/ed2k/ClientSoftware.h>
 
 #include <wx/init.h>
 #include <wx/intl.h>
@@ -36,6 +39,7 @@ struct Options {
 	std::string scope = "kad";
 	std::string query;
 	std::string hash;
+	std::string link;
 	std::string name;
 	std::string priority = "normal";
 	std::string serverAddress;
@@ -44,6 +48,7 @@ struct Options {
 	int serverPort = 0;
 	int polls = 10;
 	int pollIntervalMs = 900;
+	std::vector<uint32_t> ecids;
 };
 
 struct DownloadEntry {
@@ -52,6 +57,7 @@ struct DownloadEntry {
 		int count = 0;
 	};
 
+	uint32_t ecid = 0;
 	std::string hash;
 	std::string name;
 	uint64_t size = 0;
@@ -66,6 +72,8 @@ struct DownloadEntry {
 	uint32_t speed = 0;
 	int priority = 0;
 	int category = 0;
+	uint32_t statusCode = 0;
+	bool isCompleted = false;
 	std::string partMetName;
 	uint64_t lastSeenComplete = 0;
 	uint64_t lastReceived = 0;
@@ -73,6 +81,30 @@ struct DownloadEntry {
 	uint32_t availableParts = 0;
 	bool shared = false;
 	std::vector<AlternativeName> alternativeNames;
+	std::vector<uint32_t> progressColors;
+};
+
+struct SourceEntry {
+	uint32_t clientID = 0;
+	uint32_t requestFileID = 0;
+	std::string clientName;
+	std::string userIP;
+	uint16_t userPort = 0;
+	std::string serverName;
+	std::string serverIP;
+	uint16_t serverPort = 0;
+	std::string software;
+	std::string softwareVersion;
+	uint32_t downloadState = 0;
+	std::string downloadStateText;
+	uint32_t sourceFrom = 0;
+	std::string sourceFromText;
+	double downSpeedKBps = 0.0;
+	uint32_t availableParts = 0;
+	uint32_t remoteQueueRank = 0;
+	uint32_t obfuscationStatus = 0;
+	bool extendedProtocol = false;
+	std::string remoteFilename;
 };
 
 struct SearchEntry {
@@ -132,6 +164,144 @@ std::string JsonEscape(const std::string& in)
 	return out.str();
 }
 
+uint32_t PackColor(int r, int g, int b)
+{
+	return ((static_cast<uint32_t>(b) & 0xff) << 16)
+		| ((static_cast<uint32_t>(g) & 0xff) << 8)
+		| (static_cast<uint32_t>(r) & 0xff);
+}
+
+struct ColoredRange {
+	uint64_t start = 0;
+	uint64_t end = 0;
+	uint32_t color = 0;
+};
+
+std::vector<uint32_t> BuildProgressSegments(const CEC_PartFile_Tag& tag)
+{
+	static const uint32_t kSegmentCount = 64;
+	const uint32_t kDownloadedColor = PackColor(104, 104, 104);
+	const uint32_t kRequestedColor = PackColor(255, 208, 0);
+	std::vector<uint32_t> colorLine(kSegmentCount, kDownloadedColor);
+
+	const uint64_t fileSize = tag.SizeFull();
+	if (fileSize == 0) {
+		return colorLine;
+	}
+
+	PartFileEncoderData encoder;
+	ArrayOfUInts64 gaps;
+	ArrayOfUInts16 partInfo;
+	ArrayOfUInts64 reqs;
+
+	const CECTag* gapTag = tag.GetTagByName(EC_TAG_PARTFILE_GAP_STATUS);
+	const CECTag* partTag = tag.GetTagByName(EC_TAG_PARTFILE_PART_STATUS);
+	const CECTag* reqTag = tag.GetTagByName(EC_TAG_PARTFILE_REQ_STATUS);
+
+	if (gapTag) {
+		encoder.DecodeGaps(gapTag, gaps);
+	}
+	if (partTag) {
+		encoder.DecodeParts(partTag, partInfo);
+	}
+	if (reqTag) {
+		encoder.DecodeReqs(reqTag, reqs);
+	}
+
+	std::vector<ColoredRange> gapRanges;
+	const size_t gapPairs = gaps.size() / 2;
+	for (size_t gapIndex = 0; gapIndex < gapPairs; ++gapIndex) {
+		const uint64_t gapStart = gaps[2 * gapIndex];
+		const uint64_t gapEnd = gaps[2 * gapIndex + 1];
+		if (gapEnd <= gapStart) {
+			continue;
+		}
+
+		const uint32_t startPart = static_cast<uint32_t>(gapStart / PARTSIZE);
+		const uint32_t endPart = static_cast<uint32_t>((gapEnd / PARTSIZE) + 1);
+		for (uint32_t part = startPart; part < endPart; ++part) {
+			uint32_t color = PackColor(255, 0, 0);
+			if (part < partInfo.size() && partInfo[part] > 0) {
+				int green = 210 - (22 * (static_cast<int>(partInfo[part]) - 1));
+				if (green < 0) {
+					green = 0;
+				}
+				color = PackColor(0, green, 255);
+			}
+
+			const uint64_t fillStart = (part == startPart) ? gapStart : (static_cast<uint64_t>(PARTSIZE) * part);
+			const uint64_t fillEnd = (part == (endPart - 1)) ? gapEnd : (static_cast<uint64_t>(PARTSIZE) * (part + 1));
+			if (fillEnd <= fillStart) {
+				continue;
+			}
+
+			if (!gapRanges.empty() && gapRanges.back().end == fillStart && gapRanges.back().color == color) {
+				gapRanges.back().end = fillEnd;
+			} else {
+				ColoredRange range;
+				range.start = fillStart;
+				range.end = fillEnd;
+				range.color = color;
+				gapRanges.push_back(range);
+			}
+		}
+	}
+
+	std::vector<ColoredRange> reqRanges;
+	const size_t reqPairs = reqs.size() / 2;
+	reqRanges.reserve(reqPairs);
+	for (size_t reqIndex = 0; reqIndex < reqPairs; ++reqIndex) {
+		const uint64_t reqStart = reqs[2 * reqIndex];
+		const uint64_t reqEnd = reqs[2 * reqIndex + 1];
+		if (reqEnd <= reqStart) {
+			continue;
+		}
+		ColoredRange range;
+		range.start = reqStart;
+		range.end = reqEnd;
+		range.color = kRequestedColor;
+		reqRanges.push_back(range);
+	}
+
+	if (fileSize < kSegmentCount) {
+		if (!reqRanges.empty()) {
+			std::fill(colorLine.begin(), colorLine.end(), kRequestedColor);
+		} else if (!gapRanges.empty()) {
+			std::fill(colorLine.begin(), colorLine.end(), gapRanges.front().color);
+		}
+		return colorLine;
+	}
+
+	const uint64_t factor = fileSize / kSegmentCount;
+	if (factor == 0) {
+		return colorLine;
+	}
+
+	auto paintRanges = [&](const std::vector<ColoredRange>& ranges) {
+		for (size_t rangeIndex = 0; rangeIndex < ranges.size(); ++rangeIndex) {
+			uint32_t start = static_cast<uint32_t>(ranges[rangeIndex].start / factor);
+			uint32_t end = static_cast<uint32_t>(ranges[rangeIndex].end / factor);
+
+			if (start >= kSegmentCount) {
+				continue;
+			}
+			if (end > kSegmentCount) {
+				end = kSegmentCount;
+			}
+			if (end <= start) {
+				end = std::min(kSegmentCount, start + 1);
+			}
+			for (uint32_t pos = start; pos < end; ++pos) {
+				colorLine[pos] = ranges[rangeIndex].color;
+			}
+		}
+	};
+
+	paintRanges(gapRanges);
+	paintRanges(reqRanges);
+	return colorLine;
+}
+
 void PrintJsonError(const std::string& message)
 {
 	std::cout << "{\"ok\":false,\"error\":\"" << JsonEscape(message) << "\"}" << std::endl;
@@ -171,6 +341,8 @@ bool ParseArgs(int argc, char** argv, Options& options, std::string& error)
 			if (!needValue(arg, options.query)) return false;
 		} else if (arg == "--hash") {
 			if (!needValue(arg, options.hash)) return false;
+		} else if (arg == "--link") {
+			if (!needValue(arg, options.link)) return false;
 		} else if (arg == "--name") {
 			if (!needValue(arg, options.name)) return false;
 		} else if (arg == "--priority") {
@@ -193,9 +365,18 @@ bool ParseArgs(int argc, char** argv, Options& options, std::string& error)
 			std::string ms;
 			if (!needValue(arg, ms)) return false;
 			options.pollIntervalMs = std::atoi(ms.c_str());
+		} else if (arg == "--ecid") {
+			std::string ecidStr;
+			if (!needValue(arg, ecidStr)) return false;
+			const int ecid = std::atoi(ecidStr.c_str());
+			if (ecid <= 0) {
+				error = "Invalid --ecid value";
+				return false;
+			}
+			options.ecids.push_back(static_cast<uint32_t>(ecid));
 		} else if (arg == "--help") {
 			error =
-				"Usage: amule-ec-bridge --host <ip> --port <port> --password <plain_or_md5> --op <status|downloads|search|download|rename|connect|disconnect|pause|resume|cancel|priority|servers|server-connect|server-disconnect|server-add|server-remove> [op args]";
+				"Usage: amule-ec-bridge --host <ip> --port <port> --password <plain_or_md5> --op <status|downloads|sources|search|download|add-link|rename|connect|disconnect|pause|resume|cancel|priority|clear-completed|servers|server-connect|server-disconnect|server-add|server-remove> [op args]";
 			return false;
 		} else {
 			error = "Unknown argument: " + arg;
@@ -324,6 +505,94 @@ bool TagString(const CECTag& parent, ec_tagname_t name, std::string& out)
 	return true;
 }
 
+bool TagDoubleValue(const CECTag& parent, ec_tagname_t name, double& out)
+{
+	const CECTag* tag = parent.GetTagByName(name);
+	if (!tag) {
+		return false;
+	}
+	out = tag->GetDoubleData();
+	return true;
+}
+
+std::string SoftwareCodeToText(uint32_t code)
+{
+	switch (code) {
+		case SO_OLDEMULE:
+		case SO_EMULE:
+			return "eMule";
+		case SO_CDONKEY:
+			return "cDonkey";
+		case SO_LXMULE:
+			return "(l/x)Mule";
+		case SO_AMULE:
+			return "aMule";
+		case SO_SHAREAZA:
+		case SO_NEW_SHAREAZA:
+		case SO_NEW2_SHAREAZA:
+			return "Shareaza";
+		case SO_EMULEPLUS:
+			return "eMule+";
+		case SO_HYDRANODE:
+			return "HydraNode";
+		case SO_MLDONKEY:
+		case SO_NEW_MLDONKEY:
+		case SO_NEW2_MLDONKEY:
+			return "MLDonkey";
+		case SO_LPHANT:
+			return "lphant";
+		case SO_EDONKEYHYBRID:
+			return "eDonkeyHybrid";
+		case SO_EDONKEY:
+			return "eDonkey";
+		case SO_COMPAT_UNK:
+			return "eMule Compatible";
+		case SO_UNKNOWN:
+		default:
+			return "Unknown";
+	}
+}
+
+std::string DownloadStateToText(uint32_t state, bool queueFull)
+{
+	switch (state) {
+		case DS_CONNECTING: return "Connecting";
+		case DS_CONNECTED: return "Asking";
+		case DS_WAITCALLBACK: return "Connecting via server";
+		case DS_ONQUEUE: return queueFull ? "Queue Full" : "On Queue";
+		case DS_DOWNLOADING: return "Downloading";
+		case DS_REQHASHSET: return "Receiving hashset";
+		case DS_NONEEDEDPARTS: return "No needed parts";
+		case DS_LOWTOLOWIP: return "Cannot connect LowID to LowID";
+		case DS_TOOMANYCONNS: return "Too many connections";
+		case DS_WAITCALLBACKKAD: return "Connecting via Kad";
+		case DS_TOOMANYCONNSKAD: return "Too many Kad connections";
+		case DS_BANNED: return "Banned";
+		case DS_ERROR: return "Connection Error";
+		case DS_REMOTEQUEUEFULL: return "Remote Queue Full";
+		case DS_NONE:
+		default:
+			return "Unknown";
+	}
+}
+
+std::string SourceFromToText(uint32_t sourceFrom)
+{
+	switch (sourceFrom) {
+		case SF_LOCAL_SERVER: return "Local Server";
+		case SF_REMOTE_SERVER: return "Remote Server";
+		case SF_KADEMLIA: return "Kad";
+		case SF_SOURCE_EXCHANGE: return "Source Exchange";
+		case SF_PASSIVE: return "Passive";
+		case SF_LINK: return "Link";
+		case SF_SOURCE_SEEDS: return "Source Seeds";
+		case SF_SEARCH_RESULT: return "Search Result";
+		case SF_NONE:
+		default:
+			return "Unknown";
+	}
+}
+
 std::string BuildED2KStatus(const CEC_ConnState_Tag* state)
 {
 	if (!state) return "Unknown";
@@ -391,7 +660,9 @@ bool HandleStatus(CRemoteConnect& conn, std::string& error)
 
 bool HandleDownloads(CRemoteConnect& conn, std::string& error)
 {
-	CECPacket req(EC_OP_GET_DLOAD_QUEUE, EC_DETAIL_FULL);
+	// Use incremental update feed so completed downloads kept by core are included,
+	// matching what amulegui/amule-remote-gui consume.
+	CECPacket req(EC_OP_GET_UPDATE, EC_DETAIL_INC_UPDATE);
 	std::unique_ptr<const CECPacket> reply = SendRecvChecked(conn, req, error);
 	if (!reply) {
 		return false;
@@ -399,8 +670,18 @@ bool HandleDownloads(CRemoteConnect& conn, std::string& error)
 
 	std::vector<DownloadEntry> entries;
 	for (CECPacket::const_iterator it = reply->begin(); it != reply->end(); ++it) {
-		const CEC_PartFile_Tag* tag = static_cast<const CEC_PartFile_Tag*>(&*it);
+		const CECTag& top = *it;
+		// Skip grouped update branches.
+		if (top.GetTagName() == EC_TAG_CLIENT || top.GetTagName() == EC_TAG_SERVER || top.GetTagName() == EC_TAG_FRIEND) {
+			continue;
+		}
+		// Keep only partfile-like entries (shared known files don't carry partfile status).
+		if (!top.GetTagByName(EC_TAG_PARTFILE_STATUS) || !top.GetTagByName(EC_TAG_PARTFILE_HASH)) {
+			continue;
+		}
+		const CEC_PartFile_Tag* tag = static_cast<const CEC_PartFile_Tag*>(&top);
 		DownloadEntry e;
+		e.ecid = tag->ID();
 		e.hash = ToUtf8(tag->FileHashString());
 		e.name = ToUtf8(tag->FileName());
 		e.size = tag->SizeFull();
@@ -411,6 +692,8 @@ bool HandleDownloads(CRemoteConnect& conn, std::string& error)
 		e.sourceTotal = static_cast<int>(tag->SourceCount());
 		e.sourceTransferring = static_cast<int>(tag->SourceXferCount());
 		e.sourceA4AF = static_cast<int>(tag->SourceCountA4AF());
+		e.statusCode = static_cast<uint32_t>(tag->FileStatus());
+		e.isCompleted = (e.statusCode == PS_COMPLETE);
 		e.status = ToUtf8(tag->GetFileStatusString());
 		e.speed = tag->Speed();
 		e.priority = tag->DownPrio();
@@ -421,6 +704,7 @@ bool HandleDownloads(CRemoteConnect& conn, std::string& error)
 		e.activeSeconds = tag->DownloadActiveTime();
 		e.availableParts = tag->AvailablePartCount();
 		e.shared = tag->Shared();
+		e.progressColors = BuildProgressSegments(*tag);
 
 		const CECTag* srcNamesTag = tag->GetTagByName(EC_TAG_PARTFILE_SOURCE_NAMES);
 		if (srcNamesTag) {
@@ -470,6 +754,7 @@ bool HandleDownloads(CRemoteConnect& conn, std::string& error)
 		}
 		std::cout
 			<< "{"
+			<< "\"ecid\":" << e.ecid << ","
 			<< "\"hash\":\"" << JsonEscape(e.hash) << "\"," 
 			<< "\"name\":\"" << JsonEscape(e.name) << "\"," 
 			<< "\"size\":" << e.size << ","
@@ -480,6 +765,8 @@ bool HandleDownloads(CRemoteConnect& conn, std::string& error)
 			<< "\"sources_total\":" << e.sourceTotal << ","
 			<< "\"sources_transferring\":" << e.sourceTransferring << ","
 			<< "\"sources_a4af\":" << e.sourceA4AF << ","
+			<< "\"status_code\":" << e.statusCode << ","
+			<< "\"is_completed\":" << (e.isCompleted ? "true" : "false") << ","
 			<< "\"status\":\"" << JsonEscape(e.status) << "\"," 
 			<< "\"speed\":" << e.speed << ","
 			<< "\"priority\":" << e.priority << ","
@@ -503,7 +790,188 @@ bool HandleDownloads(CRemoteConnect& conn, std::string& error)
 				<< "}";
 		}
 		std::cout
+			<< "],"
+			<< "\"progress_colors\":[";
+		for (size_t ci = 0; ci < e.progressColors.size(); ++ci) {
+			if (ci != 0) {
+				std::cout << ",";
+			}
+			std::cout << e.progressColors[ci];
+		}
+		std::cout
 			<< "]"
+			<< "}";
+	}
+	std::cout << "]}" << std::endl;
+	return true;
+}
+
+bool HandleSources(CRemoteConnect& conn, const Options& options, std::string& error)
+{
+	if (options.hash.empty()) {
+		error = "Missing --hash";
+		return false;
+	}
+
+	CMD4Hash hash;
+	if (!DecodeHash(options.hash, hash)) {
+		error = "Invalid --hash value";
+		return false;
+	}
+
+	uint32_t partFileID = 0;
+	{
+		CECPacket queueReq(EC_OP_GET_DLOAD_QUEUE, EC_DETAIL_CMD);
+		std::unique_ptr<const CECPacket> queueReply = SendRecvChecked(conn, queueReq, error);
+		if (!queueReply) {
+			return false;
+		}
+
+		for (CECPacket::const_iterator it = queueReply->begin(); it != queueReply->end(); ++it) {
+			const CEC_PartFile_Tag* fileTag = static_cast<const CEC_PartFile_Tag*>(&*it);
+			if (fileTag->FileHash() == hash) {
+				partFileID = fileTag->ID();
+				break;
+			}
+		}
+	}
+
+	if (partFileID == 0) {
+		error = "File not found in download queue";
+		return false;
+	}
+
+	CECPacket updateReq(EC_OP_GET_UPDATE, EC_DETAIL_INC_UPDATE);
+	std::unique_ptr<const CECPacket> updateReply = SendRecvChecked(conn, updateReq, error);
+	if (!updateReply) {
+		return false;
+	}
+
+	std::vector<SourceEntry> entries;
+	auto processClientTag = [&](const CECTag& clientTag) {
+		uint32_t requestFileID = 0;
+		if (!TagUInt(clientTag, EC_TAG_CLIENT_REQUEST_FILE, requestFileID) || requestFileID != partFileID) {
+			return;
+		}
+
+		SourceEntry entry;
+		entry.clientID = static_cast<uint32_t>(clientTag.GetInt());
+		entry.requestFileID = requestFileID;
+		TagString(clientTag, EC_TAG_CLIENT_NAME, entry.clientName);
+		TagString(clientTag, EC_TAG_CLIENT_REMOTE_FILENAME, entry.remoteFilename);
+		TagString(clientTag, EC_TAG_CLIENT_SERVER_NAME, entry.serverName);
+		TagString(clientTag, EC_TAG_CLIENT_SOFT_VER_STR, entry.softwareVersion);
+		TagUInt16(clientTag, EC_TAG_CLIENT_USER_PORT, entry.userPort);
+		TagUInt16(clientTag, EC_TAG_CLIENT_SERVER_PORT, entry.serverPort);
+		TagUInt(clientTag, EC_TAG_CLIENT_AVAILABLE_PARTS, entry.availableParts);
+		TagUInt(clientTag, EC_TAG_CLIENT_REMOTE_QUEUE_RANK, entry.remoteQueueRank);
+		TagUInt(clientTag, EC_TAG_CLIENT_OBFUSCATION_STATUS, entry.obfuscationStatus);
+
+		uint32_t userIP = 0;
+		if (TagUInt(clientTag, EC_TAG_CLIENT_USER_IP, userIP) && userIP != 0) {
+			entry.userIP = ToUtf8(Uint32toStringIP(userIP));
+		}
+
+		uint32_t serverIP = 0;
+		if (TagUInt(clientTag, EC_TAG_CLIENT_SERVER_IP, serverIP) && serverIP != 0) {
+			entry.serverIP = ToUtf8(Uint32toStringIP(serverIP));
+		}
+
+		uint32_t softwareCode = SO_UNKNOWN;
+		if (TagUInt(clientTag, EC_TAG_CLIENT_SOFTWARE, softwareCode)) {
+			entry.software = SoftwareCodeToText(softwareCode);
+		} else {
+			entry.software = "Unknown";
+		}
+
+		uint32_t sourceFrom = SF_NONE;
+		if (TagUInt(clientTag, EC_TAG_CLIENT_FROM, sourceFrom)) {
+			entry.sourceFrom = sourceFrom;
+		}
+		entry.sourceFromText = SourceFromToText(entry.sourceFrom);
+
+		uint32_t downloadState = DS_NONE;
+		if (TagUInt(clientTag, EC_TAG_CLIENT_DOWNLOAD_STATE, downloadState)) {
+			entry.downloadState = downloadState;
+		}
+		const bool queueFull = entry.remoteQueueRank == 0xffff || entry.downloadState == DS_REMOTEQUEUEFULL;
+		entry.downloadStateText = DownloadStateToText(entry.downloadState, queueFull);
+
+		double downSpeedKBps = 0.0;
+		if (TagDoubleValue(clientTag, EC_TAG_CLIENT_DOWN_SPEED, downSpeedKBps)) {
+			entry.downSpeedKBps = downSpeedKBps;
+		}
+
+		uint32_t extProtocol = 0;
+		if (TagUInt(clientTag, EC_TAG_CLIENT_EXT_PROTOCOL, extProtocol)) {
+			entry.extendedProtocol = extProtocol != 0;
+		}
+
+		entries.push_back(entry);
+	};
+
+	for (CECPacket::const_iterator it = updateReply->begin(); it != updateReply->end(); ++it) {
+		const CECTag& topTag = *it;
+		if (topTag.GetTagName() != EC_TAG_CLIENT) {
+			continue;
+		}
+
+		if (topTag.HasChildTags()) {
+			for (CECTag::const_iterator clientIt = topTag.begin(); clientIt != topTag.end(); ++clientIt) {
+				if (clientIt->GetTagName() != EC_TAG_CLIENT) {
+					continue;
+				}
+				processClientTag(*clientIt);
+			}
+		} else {
+			processClientTag(topTag);
+		}
+	}
+
+	std::sort(
+		entries.begin(),
+		entries.end(),
+		[](const SourceEntry& a, const SourceEntry& b) {
+			if (a.downloadState != b.downloadState) {
+				return a.downloadState < b.downloadState;
+			}
+			if (a.downSpeedKBps != b.downSpeedKBps) {
+				return a.downSpeedKBps > b.downSpeedKBps;
+			}
+			if (a.clientName != b.clientName) {
+				return a.clientName < b.clientName;
+			}
+			return a.clientID < b.clientID;
+		});
+
+	std::cout << "{\"ok\":true,\"sources\":[";
+	for (size_t i = 0; i < entries.size(); ++i) {
+		const SourceEntry& e = entries[i];
+		if (i != 0) {
+			std::cout << ",";
+		}
+		std::cout
+			<< "{"
+			<< "\"client_id\":" << e.clientID << ","
+			<< "\"request_file_id\":" << e.requestFileID << ","
+			<< "\"client_name\":\"" << JsonEscape(e.clientName) << "\","
+			<< "\"user_ip\":\"" << JsonEscape(e.userIP) << "\","
+			<< "\"user_port\":" << e.userPort << ","
+			<< "\"server_name\":\"" << JsonEscape(e.serverName) << "\","
+			<< "\"server_ip\":\"" << JsonEscape(e.serverIP) << "\","
+			<< "\"server_port\":" << e.serverPort << ","
+			<< "\"software\":\"" << JsonEscape(e.software) << "\","
+			<< "\"software_version\":\"" << JsonEscape(e.softwareVersion) << "\","
+			<< "\"download_state\":" << e.downloadState << ","
+			<< "\"download_state_text\":\"" << JsonEscape(e.downloadStateText) << "\","
+			<< "\"source_from\":" << e.sourceFrom << ","
+			<< "\"source_from_text\":\"" << JsonEscape(e.sourceFromText) << "\","
+			<< "\"down_speed_kbps\":" << e.downSpeedKBps << ","
+			<< "\"available_parts\":" << e.availableParts << ","
+			<< "\"remote_queue_rank\":" << e.remoteQueueRank << ","
+			<< "\"obfuscation_status\":" << e.obfuscationStatus << ","
+			<< "\"extended_protocol\":" << (e.extendedProtocol ? "true" : "false") << ","
+			<< "\"remote_filename\":\"" << JsonEscape(e.remoteFilename) << "\""
 			<< "}";
 	}
 	std::cout << "]}" << std::endl;
@@ -627,6 +1095,33 @@ bool HandleDownloadHash(CRemoteConnect& conn, const Options& options, std::strin
 	return true;
 }
 
+bool HandleAddLink(CRemoteConnect& conn, const Options& options, std::string& error)
+{
+	if (options.link.empty()) {
+		error = "Missing --link value";
+		return false;
+	}
+
+	wxString link = wxString::FromUTF8(options.link.c_str());
+	if (link.StartsWith(wxT("ed2k://"))) {
+		if (link.Find(wxT("|h=")) > -1 && link.Find(wxT("|/|h=")) == -1) {
+			link.Replace(wxT("|h="), wxT("|/|h="));
+		}
+		if (link.StartsWith(wxT("ed2k://%7C"))) {
+			link.Replace(wxT("%7C"), wxT("|"));
+		}
+	}
+
+	CECPacket req(EC_OP_ADD_LINK);
+	req.AddTag(CECTag(EC_TAG_STRING, link));
+	std::unique_ptr<const CECPacket> reply = SendRecvChecked(conn, req, error);
+	if (!reply) {
+		return false;
+	}
+	PrintJsonMessage("Link add request accepted");
+	return true;
+}
+
 bool HandleRename(CRemoteConnect& conn, const Options& options, std::string& error)
 {
 	CMD4Hash hash;
@@ -695,6 +1190,42 @@ bool HandlePartFileAction(CRemoteConnect& conn, const Options& options, std::str
 
 	error = "Unsupported action op";
 	return false;
+}
+
+bool HandleClearCompleted(CRemoteConnect& conn, const Options& options, std::string& error)
+{
+	std::vector<uint32_t> toClear = options.ecids;
+	if (toClear.empty()) {
+		CECPacket queueReq(EC_OP_GET_DLOAD_QUEUE, EC_DETAIL_CMD);
+		std::unique_ptr<const CECPacket> queueReply = SendRecvChecked(conn, queueReq, error);
+		if (!queueReply) {
+			return false;
+		}
+
+		for (CECPacket::const_iterator it = queueReply->begin(); it != queueReply->end(); ++it) {
+			const CEC_PartFile_Tag* tag = static_cast<const CEC_PartFile_Tag*>(&*it);
+			if (tag->FileStatus() == PS_COMPLETE) {
+				toClear.push_back(tag->ID());
+			}
+		}
+	}
+
+	if (toClear.empty()) {
+		PrintJsonMessage("No completed downloads to clear");
+		return true;
+	}
+
+	CECPacket req(EC_OP_CLEAR_COMPLETED);
+	for (std::vector<uint32_t>::const_iterator it = toClear.begin(); it != toClear.end(); ++it) {
+		req.AddTag(CECTag(EC_TAG_ECID, *it));
+	}
+
+	std::unique_ptr<const CECPacket> reply = SendRecvChecked(conn, req, error);
+	if (!reply) {
+		return false;
+	}
+	PrintJsonMessage("Completed downloads cleared");
+	return true;
 }
 
 bool HandleConnectDisconnect(CRemoteConnect& conn, const Options& options, std::string& error)
@@ -900,18 +1431,24 @@ int main(int argc, char** argv)
 		ok = HandleStatus(conn, error);
 	} else if (options.op == "downloads") {
 		ok = HandleDownloads(conn, error);
+	} else if (options.op == "sources") {
+		ok = HandleSources(conn, options, error);
 	} else if (options.op == "servers") {
 		ok = HandleServers(conn, error);
 	} else if (options.op == "search") {
 		ok = HandleSearch(conn, options, error);
 	} else if (options.op == "download") {
 		ok = HandleDownloadHash(conn, options, error);
+	} else if (options.op == "add-link") {
+		ok = HandleAddLink(conn, options, error);
 	} else if (options.op == "rename") {
 		ok = HandleRename(conn, options, error);
 	} else if (options.op == "connect" || options.op == "disconnect") {
 		ok = HandleConnectDisconnect(conn, options, error);
 	} else if (options.op == "pause" || options.op == "resume" || options.op == "cancel" || options.op == "priority") {
 		ok = HandlePartFileAction(conn, options, error);
+	} else if (options.op == "clear-completed") {
+		ok = HandleClearCompleted(conn, options, error);
 	} else if (options.op == "server-connect") {
 		ok = HandleServerConnect(conn, options, error);
 	} else if (options.op == "server-disconnect") {

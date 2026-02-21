@@ -17,16 +17,24 @@ final class AppModel: ObservableObject {
     @Published var searchStatusMessage: String = ""
     @Published var lastSearchRawOutput = ""
     @Published var downloads: [DownloadItem] = []
+    @Published var downloadSourcesByHash: [String: [DownloadSourceItem]] = [:]
     @Published var servers: [ServerItem] = []
     @Published var serverAddressInput: String = ""
     @Published var serverNameInput: String = ""
     @Published var isBusy = false
     @Published var outputLog = ""
     @Published var lastDownloadsRawOutput = ""
+    @Published var lastSourcesRawOutput = ""
     @Published var lastServersRawOutput = ""
     @Published var lastError = ""
+    @Published var isRefreshingSources = false
+    @Published var shouldAutoRefreshDownloads = false
+    @Published var addLinksPanelRequestID: Int = 0
+    @Published var hudMessage: String = ""
+    @Published var showHUD = false
 
     private var autoRefreshTask: Task<Void, Never>?
+    private var hudDismissTask: Task<Void, Never>?
 
     var buildCommit: String {
         if let value = Bundle.main.object(forInfoDictionaryKey: "AMuleBuildCommit") as? String,
@@ -47,6 +55,10 @@ final class AppModel: ObservableObject {
             !FileManager.default.isExecutableFile(atPath: current) {
             bridgePath = AMuleConnectionConfig.preferredDefaultPath()
         }
+    }
+
+    func requestAddLinksPanel() {
+        addLinksPanelRequestID &+= 1
     }
 
     func connectAll() {
@@ -128,10 +140,94 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func addLinks(_ rawInput: String) {
+        let links = parseLinks(from: rawInput)
+        guard !links.isEmpty else {
+            lastError = "No valid links found."
+            return
+        }
+
+        run(label: "add-link") {
+            let normalizedLinks = links.map { self.normalizeLink($0) }
+            let requestedHashes = Set(normalizedLinks.compactMap { self.extractEd2kHash(from: $0) })
+            let beforeHashes = Set(self.downloads.map { $0.id.uppercased() })
+
+            var successCount = 0
+            var failureCount = 0
+
+            for (index, link) in links.enumerated() {
+                do {
+                    let normalized = normalizedLinks[index]
+                    let (_, raw) = try await AMuleECBridgeClient.addLink(link: normalized, config: self.config)
+                    await MainActor.run {
+                        self.appendLog("$ add-link \(normalized)\n\(raw)")
+                    }
+                    successCount += 1
+                } catch {
+                    failureCount += 1
+                    await MainActor.run {
+                        self.appendLog("! add-link \(link)\n\(error.localizedDescription)")
+                    }
+                }
+            }
+
+            var actualAddedCount = 0
+            if successCount > 0 {
+                try await self.refreshDownloadsNow(logOutput: false)
+                let afterHashes = Set(self.downloads.map { $0.id.uppercased() })
+
+                if requestedHashes.isEmpty {
+                    actualAddedCount = max(0, afterHashes.count - beforeHashes.count)
+                } else {
+                    actualAddedCount = requestedHashes.reduce(into: 0) { total, hash in
+                        if !beforeHashes.contains(hash) && afterHashes.contains(hash) {
+                            total += 1
+                        }
+                    }
+                }
+
+                await self.refreshStatus(logOutput: false, suppressErrors: true)
+            }
+
+            await MainActor.run {
+                self.presentHUD(message: "Added \(actualAddedCount) link(s)")
+            }
+
+            if failureCount > 0 {
+                await MainActor.run {
+                    self.lastError = "Added \(actualAddedCount) link(s), failed \(failureCount)."
+                }
+            }
+        }
+    }
+
     func refreshDownloads() {
         run(label: "downloads") {
             try await self.refreshDownloadsNow()
         }
+    }
+
+    func refreshDownloadSources(for item: DownloadItem) {
+        isRefreshingSources = true
+        lastError = ""
+        Task {
+            do {
+                try await self.refreshDownloadSourcesNow(for: item)
+            } catch {
+                await MainActor.run {
+                    self.lastError = error.localizedDescription
+                    self.appendLog("! sources failed\n\(error.localizedDescription)")
+                }
+            }
+            await MainActor.run {
+                self.isRefreshingSources = false
+            }
+        }
+    }
+
+    func sources(for item: DownloadItem?) -> [DownloadSourceItem] {
+        guard let item else { return [] }
+        return downloadSourcesByHash[item.id] ?? []
     }
 
     func refreshServers() {
@@ -231,9 +327,39 @@ final class AppModel: ObservableObject {
         NSPasteboard.general.setString(lastServersRawOutput, forType: .string)
     }
 
+    func copySourcesRawToClipboard() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(lastSourcesRawOutput, forType: .string)
+    }
+
+    func copyDownloadLinkToClipboard(_ item: DownloadItem) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(item.ed2kLink, forType: .string)
+    }
+
+    func clearCompletedDownloads(_ items: [DownloadItem]) {
+        let ecids = items.map(\.ecid)
+        guard !ecids.isEmpty else { return }
+
+        run(label: "clear-completed") {
+            let (_, raw) = try await AMuleECBridgeClient.clearCompleted(ecids: ecids, config: self.config)
+            await MainActor.run {
+                self.appendLog("$ clear-completed (\(ecids.count))\n\(raw)")
+            }
+            try await self.refreshDownloadsNow(logOutput: false)
+            await self.refreshStatus(logOutput: false)
+        }
+    }
+
     func pauseDownload(_ item: DownloadItem) {
         run(label: "pause") {
             try await self.runDownloadAction(.pause, item)
+        }
+    }
+
+    func pauseDownloads(_ items: [DownloadItem]) {
+        run(label: "pause") {
+            try await self.runDownloadActions(.pause, items)
         }
     }
 
@@ -243,9 +369,21 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func resumeDownloads(_ items: [DownloadItem]) {
+        run(label: "resume") {
+            try await self.runDownloadActions(.resume, items)
+        }
+    }
+
     func removeDownload(_ item: DownloadItem) {
         run(label: "cancel") {
             try await self.runDownloadAction(.cancel, item)
+        }
+    }
+
+    func removeDownloads(_ items: [DownloadItem]) {
+        run(label: "cancel") {
+            try await self.runDownloadActions(.cancel, items)
         }
     }
 
@@ -281,7 +419,9 @@ final class AppModel: ObservableObject {
             while !Task.isCancelled {
                 if self.isSessionConnected {
                     await self.refreshStatus(logOutput: false, suppressErrors: true)
-                    try? await self.refreshDownloadsNow(logOutput: false, suppressErrors: true)
+                    if self.shouldAutoRefreshDownloads {
+                        try? await self.refreshDownloadsNow(logOutput: false, suppressErrors: true)
+                    }
                     if tick % 5 == 0 {
                         try? await self.refreshServersNow(logOutput: false, suppressErrors: true)
                     }
@@ -295,6 +435,10 @@ final class AppModel: ObservableObject {
     func stopAutoRefresh() {
         autoRefreshTask?.cancel()
         autoRefreshTask = nil
+    }
+
+    func setDownloadAutoRefreshEnabled(_ enabled: Bool) {
+        shouldAutoRefreshDownloads = enabled
     }
 
     private func run(label: String, _ work: @escaping () async throws -> Void) {
@@ -333,6 +477,18 @@ final class AppModel: ObservableObject {
                 }
             }
             throw error
+        }
+    }
+
+    private func refreshDownloadSourcesNow(for item: DownloadItem, logOutput: Bool = true) async throws {
+        let (payload, raw) = try await AMuleECBridgeClient.sources(hash: item.id, config: config)
+        let parsed = DownloadSourceItem.fromBridge(payload)
+        await MainActor.run {
+            self.downloadSourcesByHash[item.id] = parsed
+            self.lastSourcesRawOutput = raw
+            if logOutput {
+                self.appendLog("$ sources \(item.id)\n\(raw)")
+            }
         }
     }
 
@@ -376,6 +532,29 @@ final class AppModel: ObservableObject {
     }
 
     private func runDownloadAction(_ action: DownloadAction, _ item: DownloadItem) async throws {
+        let (commandLabel, raw) = try await invokeDownloadAction(action, item)
+
+        await MainActor.run {
+            self.appendLog("$ \(commandLabel)\n\(raw)")
+        }
+
+        try await self.refreshDownloadsNow()
+        await self.refreshStatus(logOutput: false)
+    }
+
+    private func runDownloadActions(_ action: DownloadAction, _ items: [DownloadItem]) async throws {
+        guard !items.isEmpty else { return }
+        for item in items {
+            let (commandLabel, raw) = try await invokeDownloadAction(action, item)
+            await MainActor.run {
+                self.appendLog("$ \(commandLabel)\n\(raw)")
+            }
+        }
+        try await self.refreshDownloadsNow()
+        await self.refreshStatus(logOutput: false)
+    }
+
+    private func invokeDownloadAction(_ action: DownloadAction, _ item: DownloadItem) async throws -> (String, String) {
         let raw: String
         let commandLabel: String
 
@@ -393,17 +572,107 @@ final class AppModel: ObservableObject {
             raw = try await AMuleECBridgeClient.priority(hash: item.id, value: value, config: config).raw
             commandLabel = "priority \(value) \(item.id)"
         }
-
-        await MainActor.run {
-            self.appendLog("$ \(commandLabel)\n\(raw)")
-        }
-
-        try await self.refreshDownloadsNow()
-        await self.refreshStatus(logOutput: false)
+        return (commandLabel, raw)
     }
 
     private func appendLog(_ message: String) {
         let stamp = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
         outputLog = "[\(stamp)]\n\(message)\n\n" + outputLog
+    }
+
+    private func parseLinks(from text: String) -> [String] {
+        var unique = Set<String>()
+        var ordered: [String] = []
+
+        for rawLine in text.components(separatedBy: .newlines) {
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !line.isEmpty else { continue }
+            guard line.lowercased().hasPrefix("ed2k://") || line.lowercased().hasPrefix("magnet:?") else { continue }
+            if !unique.contains(line) {
+                unique.insert(line)
+                ordered.append(line)
+            }
+        }
+
+        return ordered
+    }
+
+    private func normalizeLink(_ link: String) -> String {
+        var normalized = link
+        let lower = normalized.lowercased()
+
+        if lower.hasPrefix("ed2k://%7c") {
+            normalized = normalized.replacingOccurrences(of: "%7C", with: "|", options: .caseInsensitive)
+        }
+
+        if lower.hasPrefix("ed2k://"),
+           normalized.contains("|h="),
+           !normalized.contains("|/|h=") {
+            normalized = normalized.replacingOccurrences(of: "|h=", with: "|/|h=")
+        }
+
+        return normalized
+    }
+
+    private func extractEd2kHash(from link: String) -> String? {
+        let normalized = link.trimmingCharacters(in: .whitespacesAndNewlines)
+        if normalized.isEmpty {
+            return nil
+        }
+
+        if normalized.lowercased().hasPrefix("magnet:?"),
+           let components = URLComponents(string: normalized) {
+            for item in components.queryItems ?? [] where item.name.lowercased() == "xt" {
+                guard let value = item.value else { continue }
+                let lower = value.lowercased()
+                if lower.hasPrefix("urn:ed2k:") {
+                    let hash = String(value.dropFirst("urn:ed2k:".count))
+                    if isValidEd2kHash(hash) {
+                        return hash.uppercased()
+                    }
+                }
+            }
+        }
+
+        let decoded = normalized.removingPercentEncoding ?? normalized
+        if let range = decoded.range(of: #"[0-9A-Fa-f]{32}"#, options: .regularExpression) {
+            let hash = String(decoded[range])
+            if isValidEd2kHash(hash) {
+                return hash.uppercased()
+            }
+        }
+
+        return nil
+    }
+
+    private func isValidEd2kHash(_ hash: String) -> Bool {
+        guard hash.count == 32 else { return false }
+        return hash.unicodeScalars.allSatisfy { scalar in
+            switch scalar.value {
+            case 48...57, 65...70, 97...102:
+                return true
+            default:
+                return false
+            }
+        }
+    }
+
+    private func presentHUD(message: String) {
+        hudDismissTask?.cancel()
+        hudMessage = message
+        withAnimation(.easeOut(duration: 0.15)) {
+            showHUD = true
+        }
+
+        hudDismissTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                guard let self else { return }
+                withAnimation(.easeIn(duration: 0.18)) {
+                    self.showHUD = false
+                }
+            }
+        }
     }
 }

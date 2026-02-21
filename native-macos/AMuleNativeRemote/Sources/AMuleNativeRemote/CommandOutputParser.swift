@@ -36,6 +36,7 @@ struct SearchResult: Identifiable, Hashable {
 }
 
 struct DownloadItem: Identifiable, Hashable {
+    let ecid: Int
     let id: String
     let name: String
     let sizeBytes: UInt64
@@ -46,6 +47,8 @@ struct DownloadItem: Identifiable, Hashable {
     let sourceTotal: Int
     let sourceTransferring: Int
     let sourceA4AF: Int
+    let statusCode: Int
+    let isCompleted: Bool
     let status: String
     let speedBytes: Int
     let priority: Int
@@ -57,6 +60,7 @@ struct DownloadItem: Identifiable, Hashable {
     let availableParts: Int
     let shared: Bool
     let alternativeNames: [DownloadAlternativeName]
+    let progressColors: [UInt32]
 
     var progressDisplayValue: Double {
         let clamped = max(0, min(progressValue, 100))
@@ -99,9 +103,19 @@ struct DownloadItem: Identifiable, Hashable {
         AMuleFormatter.priority(priority)
     }
 
+    var ed2kLink: String {
+        let sanitizedName = name
+            .replacingOccurrences(of: "|", with: "_")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "\\", with: "_")
+        let encodedName = sanitizedName.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? sanitizedName
+        return "ed2k://|file|\(encodedName)|\(sizeBytes)|\(id)|/"
+    }
+
     static func fromBridge(_ payload: [BridgeDownloadPayload]) -> [DownloadItem] {
         payload.map {
             DownloadItem(
+                ecid: $0.ecid,
                 id: $0.hash,
                 name: $0.name,
                 sizeBytes: $0.size,
@@ -112,6 +126,8 @@ struct DownloadItem: Identifiable, Hashable {
                 sourceTotal: $0.sourcesTotal,
                 sourceTransferring: $0.sourcesTransferring,
                 sourceA4AF: $0.sourcesA4AF,
+                statusCode: $0.statusCode,
+                isCompleted: $0.isCompleted,
                 status: $0.status,
                 speedBytes: $0.speed,
                 priority: $0.priority,
@@ -124,7 +140,105 @@ struct DownloadItem: Identifiable, Hashable {
                 shared: $0.shared,
                 alternativeNames: $0.alternativeNames.map {
                     DownloadAlternativeName(name: $0.name, count: $0.count)
-                }
+                },
+                progressColors: $0.progressColors ?? []
+            )
+        }
+    }
+}
+
+struct DownloadSourceItem: Identifiable, Hashable {
+    let id: Int
+    let requestFileID: Int
+    let clientName: String
+    let userIP: String
+    let userPort: Int
+    let serverName: String
+    let serverIP: String
+    let serverPort: Int
+    let software: String
+    let softwareVersion: String
+    let downloadState: Int
+    let downloadStateText: String
+    let sourceFrom: Int
+    let sourceFromText: String
+    let downSpeedKBps: Double
+    let availableParts: Int
+    let remoteQueueRank: Int
+    let obfuscationStatus: Int
+    let extendedProtocol: Bool
+    let remoteFilename: String
+
+    var clientDisplayName: String {
+        clientName.isEmpty ? "(unknown client)" : clientName
+    }
+
+    var endpoint: String {
+        if !userIP.isEmpty, userPort > 0 {
+            return "\(userIP):\(userPort)"
+        }
+        if !userIP.isEmpty {
+            return userIP
+        }
+        return "-"
+    }
+
+    var serverEndpoint: String {
+        let endpoint: String
+        if !serverIP.isEmpty, serverPort > 0 {
+            endpoint = "\(serverIP):\(serverPort)"
+        } else if !serverIP.isEmpty {
+            endpoint = serverIP
+        } else {
+            endpoint = "-"
+        }
+
+        if serverName.isEmpty {
+            return endpoint
+        }
+        return serverName + (endpoint == "-" ? "" : " (\(endpoint))")
+    }
+
+    var softwareDisplay: String {
+        if softwareVersion.isEmpty {
+            return software
+        }
+        return "\(software) \(softwareVersion)"
+    }
+
+    var speedText: String {
+        guard downSpeedKBps > 0 else { return "-" }
+        let bytesPerSecond = Int((downSpeedKBps * 1024.0).rounded())
+        return AMuleFormatter.speed(bytesPerSecond: bytesPerSecond)
+    }
+
+    var queueRankText: String {
+        remoteQueueRank == 0xffff ? "Full" : String(remoteQueueRank)
+    }
+
+    static func fromBridge(_ payload: [BridgeDownloadSourcePayload]) -> [DownloadSourceItem] {
+        payload.map {
+            DownloadSourceItem(
+                id: $0.clientID,
+                requestFileID: $0.requestFileID,
+                clientName: $0.clientName,
+                userIP: $0.userIP,
+                userPort: $0.userPort,
+                serverName: $0.serverName,
+                serverIP: $0.serverIP,
+                serverPort: $0.serverPort,
+                software: $0.software,
+                softwareVersion: $0.softwareVersion,
+                downloadState: $0.downloadState,
+                downloadStateText: $0.downloadStateText,
+                sourceFrom: $0.sourceFrom,
+                sourceFromText: $0.sourceFromText,
+                downSpeedKBps: $0.downSpeedKBps,
+                availableParts: $0.availableParts,
+                remoteQueueRank: $0.remoteQueueRank,
+                obfuscationStatus: $0.obfuscationStatus,
+                extendedProtocol: $0.extendedProtocol,
+                remoteFilename: $0.remoteFilename
             )
         }
     }
