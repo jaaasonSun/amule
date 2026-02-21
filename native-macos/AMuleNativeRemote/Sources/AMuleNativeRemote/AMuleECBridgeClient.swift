@@ -198,6 +198,10 @@ struct BridgeSearchPayload: Decodable {
     let name: String
     let size: UInt64
     let sources: Int
+    let completeSources: Int
+    let statusCode: Int
+    let status: String
+    let parentID: Int
     let alreadyHave: Bool
 
     private enum CodingKeys: String, CodingKey {
@@ -206,6 +210,10 @@ struct BridgeSearchPayload: Decodable {
         case name
         case size
         case sources
+        case completeSources = "complete_sources"
+        case statusCode = "status_code"
+        case status
+        case parentID = "parent_id"
         case alreadyHave = "already_have"
     }
 }
@@ -322,6 +330,11 @@ enum AMuleECBridgeClient {
         ]
         let (envelope, raw) = try await invoke(op: "search", extraArgs: extra, config: config)
         return (envelope.progress ?? 0, envelope.results ?? [], raw)
+    }
+
+    static func searchStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        let (envelope, raw) = try await invoke(op: "search-stop", extraArgs: [], config: config)
+        return (envelope.message ?? "Search stop requested", raw)
     }
 
     static func download(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {

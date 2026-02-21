@@ -3,8 +3,12 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 REPO_ROOT="$(cd "$ROOT_DIR/../.." && pwd)"
-APP_NAME="aMule Native Remote"
-BUNDLE_ID="org.amule.native.remote"
+APP_NAME="${AMULE_APP_NAME:-aMule Native Remote}"
+BUNDLE_ID="${AMULE_BUNDLE_ID:-org.amule.native.remote}"
+APP_VERSION="${AMULE_APP_VERSION:-0.1.0}"
+BUILD_NUMBER="${AMULE_BUILD_NUMBER:-$APP_VERSION}"
+MIN_MACOS_VERSION="${AMULE_MIN_MACOS:-13.0}"
+LS_UI_ELEMENT="${AMULE_LSUIELEMENT:-false}"
 BUILD_COMMIT="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo dev)"
 BUILD_DIR="$ROOT_DIR/.build/release"
 APP_DIR="$ROOT_DIR/dist/${APP_NAME}.app"
@@ -15,6 +19,17 @@ DEFAULT_BRIDGE_SRC="$REPO_ROOT/build/src/amule-ec-bridge"
 BRIDGE_SRC="${AMULE_EC_BRIDGE_PATH:-${AMULECMD_PATH:-$DEFAULT_BRIDGE_SRC}}"
 DEFAULT_ICON_SRC="$REPO_ROOT/build/src/aMuleGUI.app/Contents/Resources/amule.icns"
 ICON_SRC="${AMULE_ICON_PATH:-$DEFAULT_ICON_SRC}"
+
+LS_UI_ELEMENT_NORMALIZED="$(printf '%s' "$LS_UI_ELEMENT" | tr '[:upper:]' '[:lower:]')"
+
+case "$LS_UI_ELEMENT_NORMALIZED" in
+  1|true|yes|on) LS_UI_ELEMENT_PLIST="<true/>" ;;
+  0|false|no|off) LS_UI_ELEMENT_PLIST="<false/>" ;;
+  *)
+    echo "ERROR: invalid AMULE_LSUIELEMENT value: $LS_UI_ELEMENT (expected true/false)" >&2
+    exit 1
+    ;;
+esac
 
 mkdir -p "$ROOT_DIR/dist"
 swift build -c release --package-path "$ROOT_DIR"
@@ -44,19 +59,21 @@ cat > "$PLIST_PATH" <<PLIST
   <key>CFBundleIdentifier</key>
   <string>${BUNDLE_ID}</string>
   <key>CFBundleVersion</key>
-  <string>0.1.0</string>
+  <string>${BUILD_NUMBER}</string>
   <key>CFBundleShortVersionString</key>
-  <string>0.1.0</string>
+  <string>${APP_VERSION}</string>
   <key>AMuleBuildCommit</key>
   <string>${BUILD_COMMIT}</string>
   <key>CFBundleExecutable</key>
   <string>${APP_NAME}</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
   <key>LSMinimumSystemVersion</key>
-  <string>13.0</string>
+  <string>${MIN_MACOS_VERSION}</string>
   <key>LSUIElement</key>
-  <true/>
+  ${LS_UI_ELEMENT_PLIST}
   <key>NSHighResolutionCapable</key>
   <true/>
 </dict>

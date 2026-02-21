@@ -13,11 +13,24 @@ struct SearchResult: Identifiable, Hashable {
     let name: String
     let sizeBytes: UInt64
     let sources: Int
+    let completeSources: Int
+    let statusCode: Int
+    let status: String
+    let parentID: Int
+    let alreadyHave: Bool
 
-    var id: String { hash }
+    var id: String { "\(index)" }
 
     var sizeDisplay: String {
         AMuleFormatter.fileSize(sizeBytes)
+    }
+
+    var alreadyHaveText: String {
+        alreadyHave ? "Yes" : "No"
+    }
+
+    var haveSortValue: Int {
+        alreadyHave ? 1 : 0
     }
 
     static func fromBridge(_ payload: [BridgeSearchPayload]) -> [SearchResult] {
@@ -29,7 +42,12 @@ struct SearchResult: Identifiable, Hashable {
                     hash: $0.hash,
                     name: $0.name,
                     sizeBytes: $0.size,
-                    sources: $0.sources
+                    sources: $0.sources,
+                    completeSources: $0.completeSources,
+                    statusCode: $0.statusCode,
+                    status: $0.status,
+                    parentID: $0.parentID,
+                    alreadyHave: $0.alreadyHave
                 )
             }
     }
@@ -65,6 +83,34 @@ struct DownloadItem: Identifiable, Hashable {
     var progressDisplayValue: Double {
         let clamped = max(0, min(progressValue, 100))
         return floor(clamped * 10.0) / 10.0
+    }
+
+    var progressSortValue: Double {
+        max(0, min(progressValue, 100))
+    }
+
+    var isCompletedLike: Bool {
+        if isCompleted || statusCode == 9 {
+            return true
+        }
+        if sizeBytes > 0 && doneBytes >= sizeBytes {
+            return true
+        }
+        return false
+    }
+
+    var speedSortValue: Int {
+        if speedBytes > 0 {
+            // Sort priority for descending speed:
+            // 1) actively downloading (with speed),
+            // 2) completed (no speed),
+            // 3) non-completed idle items.
+            return 2_000_000_000 + max(0, speedBytes)
+        }
+        if isCompletedLike {
+            return 1_000_000_000
+        }
+        return 0
     }
 
     var progressText: String {
@@ -259,6 +305,16 @@ struct ServerItem: Identifiable, Hashable {
     let failed: Int
     let priority: Int
     let isStatic: Bool
+
+    var endpointText: String {
+        if !address.isEmpty {
+            return address
+        }
+        if !ip.isEmpty {
+            return port > 0 ? "\(ip):\(port)" : ip
+        }
+        return "-"
+    }
 
     var usersText: String {
         if maxUsers > 0 {

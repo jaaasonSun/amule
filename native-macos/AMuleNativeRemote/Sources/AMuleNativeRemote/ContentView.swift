@@ -5,20 +5,6 @@ struct ContentView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.openWindow) private var openWindow
 
-    private enum MainTab: String, CaseIterable {
-        case search = "Search"
-        case downloads = "Downloads"
-        case servers = "Servers"
-    }
-
-    private enum DiagnosticsTab: String, CaseIterable {
-        case log = "Log"
-        case downloads = "Raw DL"
-        case sources = "Raw Src"
-        case search = "Raw Search"
-        case servers = "Raw Servers"
-    }
-
     private static let plainPortFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
         formatter.numberStyle = .none
@@ -27,32 +13,18 @@ struct ContentView: View {
         return formatter
     }()
 
-    @State private var selectedTab: MainTab = .downloads
-
     @State private var showLoginSheet = false
-    @State private var showDiagnosticsSheet = false
-    @State private var showDownloadDetailsSheet = false
     @State private var showAddLinksSheet = false
     @State private var showCompletedDownloadsSheet = false
-    @State private var diagnosticsTab: DiagnosticsTab = .log
     @State private var addLinksDraft: String = ""
-
-    @State private var searchSortOrder = [KeyPathComparator(\SearchResult.index, order: .forward)]
-    @State private var displayedSearchResults: [SearchResult] = []
 
     @State private var downloadSortOrder = [KeyPathComparator(\DownloadItem.name, order: .forward)]
     @State private var displayedDownloads: [DownloadItem] = []
-    @State private var sourceSortOrder = [KeyPathComparator(\DownloadSourceItem.clientName, order: .forward)]
     @State private var selectedDownloadIDs: Set<DownloadItem.ID> = []
-    @State private var downloadRenameDraft: String = ""
-    @State private var isEditingDownloadName = false
     @State private var footerDetailsExpanded = false
     @State private var showEd2kStatusPopover = false
     @State private var showRemoveConfirmation = false
     @State private var pendingRemoveDownloadIDs: Set<DownloadItem.ID> = []
-    @State private var serverSortOrder = [KeyPathComparator(\ServerItem.name, order: .forward)]
-    @State private var displayedServers: [ServerItem] = []
-    @State private var selectedServerID: ServerItem.ID? = nil
 
     private var selectedDownload: DownloadItem? {
         displayedDownloads.first(where: { selectedDownloadIDs.contains($0.id) })
@@ -60,15 +32,6 @@ struct ContentView: View {
 
     private var selectedDownloads: [DownloadItem] {
         displayedDownloads.filter { selectedDownloadIDs.contains($0.id) }
-    }
-
-    private var selectedServer: ServerItem? {
-        guard let selectedServerID else { return nil }
-        return displayedServers.first(where: { $0.id == selectedServerID })
-    }
-
-    private var selectedDownloadSources: [DownloadSourceItem] {
-        model.sources(for: selectedDownload).sorted(using: sourceSortOrder)
     }
 
     private var completedDownloads: [DownloadItem] {
@@ -132,8 +95,7 @@ struct ContentView: View {
                     allowsToolbarCustomization: false,
                     autosavesToolbarConfiguration: false,
                     makeWindowTransparent: true,
-                    ensureToolbarWhenTransparentTitlebar: false,
-                    toolbarTopGradientOpacity: 0.52
+                    ensureToolbarWhenTransparentTitlebar: false
                 )
             )
     }
@@ -152,9 +114,7 @@ struct ContentView: View {
                 await model.refreshStatus(logOutput: false, suppressErrors: true)
                 model.refreshDownloads()
                 model.refreshServers()
-                refreshDisplayedSearchResults()
                 refreshDisplayedDownloads()
-                refreshDisplayedServers()
                 showLoginSheet = !model.isSessionConnected
             }
     }
@@ -169,29 +129,14 @@ struct ContentView: View {
             .onChange(of: model.downloads) {
                 refreshDisplayedDownloads()
             }
-            .onChange(of: model.searchResults) {
-                refreshDisplayedSearchResults()
-            }
-            .onChange(of: searchSortOrder) {
-                refreshDisplayedSearchResults()
-            }
             .onChange(of: downloadSortOrder) {
                 refreshDisplayedDownloads()
             }
             .onChange(of: selectedDownloadIDs) {
-                syncSelectedDownloadDraft()
-                isEditingDownloadName = false
-                if selectedDownload == nil {
-                    showDownloadDetailsSheet = false
-                } else if showDownloadDetailsSheet, let selectedDownload {
+                model.selectedDownloadID = selectedDownload?.id
+                if let selectedDownload {
                     model.refreshDownloadSources(for: selectedDownload)
                 }
-            }
-            .onChange(of: model.servers) {
-                refreshDisplayedServers()
-            }
-            .onChange(of: serverSortOrder) {
-                refreshDisplayedServers()
             }
             .onChange(of: model.addLinksPanelRequestID) {
                 showAddLinksSheet = true
@@ -206,14 +151,6 @@ struct ContentView: View {
                         .presentationBackground(.clear)
                 } else {
                     loginSheet
-                }
-            }
-            .sheet(isPresented: $showDownloadDetailsSheet) {
-                if #available(macOS 13.3, *) {
-                    downloadDetailsSheet
-                        .presentationBackground(.clear)
-                } else {
-                    downloadDetailsSheet
                 }
             }
             .sheet(isPresented: $showAddLinksSheet) {
@@ -247,8 +184,7 @@ struct ContentView: View {
         ToolbarItem(placement: .navigation) {
             ControlGroup {
                 Button {
-                    syncSelectedDownloadDraft()
-                    showDownloadDetailsSheet = true
+                    presentSelectedDownloadDetails()
                 } label: {
                     Label("Details", systemImage: "info.circle")
                 }
@@ -289,124 +225,52 @@ struct ContentView: View {
 
         ToolbarSpacer(.flexible, placement: .automatic)
 
-        ToolbarItem(placement: .primaryAction) {
-            ControlGroup {
-                Button {
-                    showAddLinksSheet = true
-                } label: {
-                    Label("Add Links", systemImage: "plus")
-                }
-                .help("Show Add Links Panel")
-                .disabled(model.isBusy)
+        ToolbarItemGroup(placement: .primaryAction) {
+            Button {
+                showAddLinksSheet = true
+            } label: {
+                Label("Add Links", systemImage: "plus")
             }
-        }
+            .help("Show Add Links Panel")
+            .disabled(model.isBusy)
 
-        ToolbarItem(placement: .primaryAction) {
-            ControlGroup {
-                Button {
-                    showCompletedDownloadsSheet.toggle()
-                } label: {
-                    Label("Completed", systemImage: "checkmark")
-                }
-                .help("Show Completed Downloads")
-                .popover(isPresented: $showCompletedDownloadsSheet, arrowEdge: .bottom) {
-                    completedDownloadsSheet
+            Button {
+                showCompletedDownloadsSheet.toggle()
+            } label: {
+                Label {
+                    Text("Completed")
+                } icon: {
+                    completedToolbarIcon(count: completedDownloads.count)
                 }
             }
-        }
-
-        ToolbarItem(placement: .primaryAction) {
-            ControlGroup {
-                Button {
-                    openWindow(id: "search-window")
-                } label: {
-                    Label("Search", systemImage: "magnifyingglass")
-                }
-                .help("Open Search Window")
-            }
-        }
-
-        ToolbarItem(placement: .primaryAction) {
-            ControlGroup {
-                Button {
-                    openWindow(id: "servers-window")
-                } label: {
-                    Label("Servers", systemImage: "server.rack")
-                }
-                .help("Open Servers Window")
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var mainPanel: some View {
-        switch selectedTab {
-        case .search:
-            searchPanel
-        case .downloads:
-            downloadsPanel
-        case .servers:
-            serversPanel
-        }
-    }
-
-    private var searchPanel: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 10) {
-                Picker("Scope", selection: $model.searchScope) {
-                    Text("Kad").tag("kad")
-                    Text("Global").tag("global")
-                    Text("Local").tag("local")
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 260)
-
-                TextField("Search keyword", text: $model.searchQuery)
-                    .textFieldStyle(.roundedBorder)
-
-                Button("Search") {
-                    model.performSearch()
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(model.isBusy || model.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .help("Show Completed Downloads")
+            .popover(isPresented: $showCompletedDownloadsSheet, arrowEdge: .bottom) {
+                completedDownloadsSheet
             }
 
-            HStack {
-                Text(model.searchStatusMessage.isEmpty ? "Ready" : model.searchStatusMessage)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
+            Button {
+                openWindow(id: "search-window")
+            } label: {
+                Label("Search", systemImage: "magnifyingglass")
             }
+            .help("Open Search Window")
 
-            Table(displayedSearchResults, sortOrder: $searchSortOrder) {
-                TableColumn("ID", value: \SearchResult.index) { item in
-                    Text(String(item.index))
-                }.width(60)
-                TableColumn("Name", value: \SearchResult.name) { item in
-                    Text(item.name)
-                }
-                TableColumn("Size", value: \SearchResult.sizeBytes) { item in
-                    Text(item.sizeDisplay)
-                }.width(110)
-                TableColumn("Sources", value: \SearchResult.sources) { item in
-                    Text(String(item.sources))
-                }.width(80)
-                TableColumn("") { item in
-                    Button("Download") {
-                        model.downloadResult(item)
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(model.isBusy)
-                }.width(110)
+            Button {
+                openWindow(id: "servers-window")
+            } label: {
+                Label("Servers", systemImage: "server.rack")
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .help("Open Servers Window")
         }
     }
 
     private var downloadsPanel: some View {
         Table(displayedDownloads, selection: $selectedDownloadIDs, sortOrder: $downloadSortOrder) {
             TableColumn("Name", sortUsing: KeyPathComparator(\DownloadItem.name, order: .forward)) { item in
-                downloadTableCell(item, showsProgressBackground: false) {
+                downloadTableCell(
+                    item,
+                    showsProgressBackground: false
+                ) {
                     HStack(spacing: 8) {
                         Image(systemName: downloadStatusSymbol(for: item.status))
                             .font(.caption2.weight(.semibold))
@@ -421,8 +285,12 @@ struct ContentView: View {
             }
             .width(min: 320, ideal: 560)
 
-            TableColumn("Progress", sortUsing: KeyPathComparator(\DownloadItem.doneBytes, order: .reverse)) { item in
-                downloadTableCell(item, alignment: .trailing, showsProgressBackground: true) {
+            TableColumn("Progress", sortUsing: KeyPathComparator(\DownloadItem.progressSortValue, order: .reverse)) { item in
+                downloadTableCell(
+                    item,
+                    alignment: .trailing,
+                    showsProgressBackground: true
+                ) {
                     Text(item.completionText)
                         .lineLimit(1)
                         .truncationMode(.head)
@@ -431,10 +299,14 @@ struct ContentView: View {
                 }
                 .contextMenu { downloadContextMenu(item) }
             }
-            .width(132)
+            .width(128)
 
-            TableColumn("Speed", sortUsing: KeyPathComparator(\DownloadItem.speedBytes, order: .reverse)) { item in
-                downloadTableCell(item, alignment: .trailing, showsProgressBackground: false) {
+            TableColumn("Speed", sortUsing: KeyPathComparator(\DownloadItem.speedSortValue, order: .reverse)) { item in
+                downloadTableCell(
+                    item,
+                    alignment: .trailing,
+                    showsProgressBackground: false
+                ) {
                     Text(item.speedBytes > 0 ? item.speedText : "")
                         .lineLimit(1)
                         .font(.caption.monospacedDigit())
@@ -442,10 +314,14 @@ struct ContentView: View {
                 }
                 .contextMenu { downloadContextMenu(item) }
             }
-            .width(74)
+            .width(64)
 
             TableColumn("Src", sortUsing: KeyPathComparator(\DownloadItem.sourceTotal, order: .reverse)) { item in
-                downloadTableCell(item, alignment: .trailing, showsProgressBackground: false) {
+                downloadTableCell(
+                    item,
+                    alignment: .trailing,
+                    showsProgressBackground: false
+                ) {
                     Text(item.sourcesText)
                         .lineLimit(1)
                         .font(.caption.monospacedDigit())
@@ -453,425 +329,21 @@ struct ContentView: View {
                 }
                 .contextMenu { downloadContextMenu(item) }
             }
-            .width(52)
+            .width(48)
         }
         .padding(.horizontal, 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .scrollContentBackground(.hidden)
-    }
-
-    private var downloadDetailsSheet: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Text("Download Details")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                Spacer()
-                Button {
-                    isEditingDownloadName = false
-                    showDownloadDetailsSheet = false
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 11, weight: .semibold))
-                        .frame(width: 24, height: 24)
-                        .background(.thinMaterial, in: Circle())
-                }
-                .buttonStyle(.plain)
-                .help("Close")
-            }
-
-            if let item = selectedDownload {
-                VStack(alignment: .leading, spacing: 12) {
-                        if isEditingDownloadName {
-                            HStack(spacing: 8) {
-                                TextField("New file name", text: $downloadRenameDraft)
-                                    .textFieldStyle(.roundedBorder)
-                                Button("Apply") {
-                                    model.renameDownload(item, to: downloadRenameDraft)
-                                    isEditingDownloadName = false
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .disabled(
-                                    model.isBusy ||
-                                    downloadRenameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                                    downloadRenameDraft == item.name
-                                )
-                                Button("Cancel") {
-                                    downloadRenameDraft = item.name
-                                    isEditingDownloadName = false
-                                }
-                                .buttonStyle(.bordered)
-                                .disabled(model.isBusy)
-                            }
-                        } else {
-                            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                Text(item.name)
-                                    .font(.title3)
-                                    .lineLimit(2)
-                                    .truncationMode(.middle)
-                                Spacer()
-                                Button("Edit") {
-                                    downloadRenameDraft = item.name
-                                    isEditingDownloadName = true
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                                .disabled(model.isBusy)
-                            }
-                        }
-
-                        Text(item.id)
-                            .font(.callout.monospaced())
-                            .foregroundStyle(.secondary)
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            DownloadSegmentedProgressBar(
-                                colors: item.progressColors,
-                                fallbackProgress: item.progressDisplayValue / 100.0
-                            )
-                            Text("Progress: \(item.progressText)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        Divider()
-
-                        HStack(spacing: 10) {
-                            Text(item.ed2kLink)
-                                .font(.callout.monospaced())
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                                .textSelection(.enabled)
-                            Button("Copy") {
-                                model.copyDownloadLinkToClipboard(item)
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                        }
-
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(alignment: .top, spacing: 22) {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    detailRowLarge("Completed", item.completionText)
-                                    detailRowLarge("Transferred", item.transferredText)
-                                    detailRowLarge("Sources", item.sourcesText)
-                                    detailRowLarge("Priority", item.priorityText)
-                                    detailRowLarge("Category", String(item.category))
-                                    detailRowLarge("Part File", item.partMetName.isEmpty ? "-" : item.partMetName)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-
-                                VStack(alignment: .leading, spacing: 8) {
-                                    detailRowLarge("Transferring", String(item.sourceTransferring))
-                                    detailRowLarge("A4AF", String(item.sourceA4AF))
-                                    detailRowLarge("Available Parts", String(item.availableParts))
-                                    detailRowLarge("Active Time", item.activeTimeText)
-                                    detailRowLarge("Last Seen Complete", item.lastSeenCompleteText)
-                                    detailRowLarge("Last Received", item.lastReceivedText)
-                                    detailRowLarge("Shared", item.shared ? "Yes" : "No")
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-
-                            if !item.alternativeNames.isEmpty {
-                                Divider()
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("Alternative Names")
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                    ForEach(item.alternativeNames.sorted(by: { $0.count > $1.count })) { alt in
-                                        HStack(spacing: 10) {
-                                            Text(alt.name)
-                                                .font(.body)
-                                                .lineLimit(1)
-                                                .truncationMode(.middle)
-                                            Spacer()
-                                            Text("x\(alt.count)")
-                                                .font(.body)
-                                                .foregroundStyle(.secondary)
-                                            Button("Use") {
-                                                downloadRenameDraft = alt.name
-                                                isEditingDownloadName = true
-                                            }
-                                            .buttonStyle(.bordered)
-                                        }
-                                    }
-                                }
-                            }
-
-                            Divider()
-
-                            HStack {
-                                Text("Sources")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                Spacer()
-                                if model.isRefreshingSources {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                }
-                                Button("Refresh") {
-                                    model.refreshDownloadSources(for: item)
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                                .disabled(model.isRefreshingSources)
-                            }
-
-                            if selectedDownloadSources.isEmpty {
-                                Text("No sources available yet.")
-                                    .font(.body)
-                                    .foregroundStyle(.secondary)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.vertical, 4)
-                            } else {
-                                Table(selectedDownloadSources, sortOrder: $sourceSortOrder) {
-                                    TableColumn("Client", value: \.clientName) { source in
-                                        Text(source.clientDisplayName)
-                                    }
-                                    .width(min: 160, ideal: 220, max: 360)
-
-                                    TableColumn("Endpoint", value: \.userIP) { source in
-                                        Text(source.endpoint)
-                                            .font(.system(.body, design: .monospaced))
-                                    }
-                                    .width(min: 130, ideal: 160, max: 250)
-
-                                    TableColumn("Software", value: \.softwareVersion) { source in
-                                        Text(source.softwareDisplay)
-                                            .lineLimit(1)
-                                    }
-                                    .width(min: 120, ideal: 170, max: 260)
-
-                                    TableColumn("State", value: \.downloadStateText) { source in
-                                        Text(source.downloadStateText)
-                                    }
-                                    .width(min: 130, ideal: 160, max: 260)
-
-                                    TableColumn("Speed", value: \.downSpeedKBps) { source in
-                                        Text(source.speedText)
-                                    }
-                                    .width(min: 90, ideal: 110, max: 180)
-
-                                    TableColumn("Avail", value: \.availableParts) { source in
-                                        Text(String(source.availableParts))
-                                    }
-                                    .width(min: 60, ideal: 80, max: 110)
-
-                                    TableColumn("Queue", value: \.remoteQueueRank) { source in
-                                        Text(source.queueRankText)
-                                    }
-                                    .width(min: 70, ideal: 82, max: 120)
-
-                                    TableColumn("From", value: \.sourceFromText) { source in
-                                        Text(source.sourceFromText)
-                                    }
-                                    .width(min: 110, ideal: 140, max: 210)
-
-                                    TableColumn("Server", value: \.serverName) { source in
-                                        Text(source.serverEndpoint)
-                                            .lineLimit(1)
-                                            .truncationMode(.middle)
-                                    }
-                                    .width(min: 170, ideal: 240, max: 360)
-
-                                    TableColumn("Remote Name", value: \.remoteFilename) { source in
-                                        Text(source.remoteFilename.isEmpty ? "-" : source.remoteFilename)
-                                            .lineLimit(1)
-                                            .truncationMode(.middle)
-                                    }
-                                    .width(min: 220, ideal: 340, max: 520)
-                                }
-                                .frame(minHeight: 180, idealHeight: 230, maxHeight: 280)
-                            }
-                        }
-                    }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                Text("Select a download item in Downloads tab first.")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            }
-        }
-        .padding(14)
-        .frame(minWidth: 760, idealWidth: 820, maxWidth: 860)
-        .background(GlassEffectBackground(material: .hudWindow))
-        .onAppear {
-            if let selectedDownload {
-                model.refreshDownloadSources(for: selectedDownload)
-            }
-        }
-    }
-
-    private var serversPanel: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 8) {
-                TextField("Server address (IP:Port)", text: $model.serverAddressInput)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(minWidth: 260)
-
-                TextField("Name (optional)", text: $model.serverNameInput)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(minWidth: 200)
-
-                Button("Add") {
-                    model.addServer()
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(model.isBusy || model.serverAddressInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-
-                Divider()
-                    .frame(height: 18)
-
-                Button("Refresh") {
-                    model.refreshServers()
-                }
-                .buttonStyle(.bordered)
-                .disabled(model.isBusy)
-
-                Button("Connect") {
-                    model.connectServer(selectedServer)
-                }
-                .buttonStyle(.bordered)
-                .disabled(model.isBusy)
-
-                Button("Disconnect") {
-                    model.disconnectServer()
-                }
-                .buttonStyle(.bordered)
-                .disabled(model.isBusy)
-
-                Button("Remove") {
-                    if let selectedServer {
-                        model.removeServer(selectedServer)
-                    }
-                }
-                .buttonStyle(.bordered)
-                .disabled(model.isBusy || selectedServer == nil)
-
-                Spacer()
-
-                Text("\(displayedServers.count) server(s)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Table(displayedServers, selection: $selectedServerID, sortOrder: $serverSortOrder) {
-                TableColumn("Name", value: \.name) { item in
-                    Text(item.name.isEmpty ? "(unnamed)" : item.name)
-                        .contextMenu { serverContextMenu(item) }
-                }
-                TableColumn("Address", value: \.address) { item in
-                    Text(item.address)
-                        .contextMenu { serverContextMenu(item) }
-                }.width(170)
-                TableColumn("Users", value: \.users) { item in
-                    Text(item.usersText)
-                        .contextMenu { serverContextMenu(item) }
-                }.width(95)
-                TableColumn("Files", value: \.files) { item in
-                    Text(String(item.files))
-                        .contextMenu { serverContextMenu(item) }
-                }.width(90)
-                TableColumn("Ping", value: \.ping) { item in
-                    Text(item.ping > 0 ? "\(item.ping) ms" : "-")
-                        .contextMenu { serverContextMenu(item) }
-                }.width(90)
-                TableColumn("Failed", value: \.failed) { item in
-                    Text(String(item.failed))
-                        .contextMenu { serverContextMenu(item) }
-                }.width(75)
-                TableColumn("Version", value: \.version) { item in
-                    Text(item.version)
-                        .contextMenu { serverContextMenu(item) }
-                }.width(90)
-                TableColumn("Prio", value: \.priority) { item in
-                    Text(String(item.priority))
-                        .contextMenu { serverContextMenu(item) }
-                }.width(70)
-                TableColumn("Static") { item in
-                    Text(item.isStatic ? "Yes" : "No")
-                        .contextMenu { serverContextMenu(item) }
-                }.width(70)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            if let selectedServer {
-                HStack(spacing: 8) {
-                    Text("Description:")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(selectedServer.description.isEmpty ? "-" : selectedServer.description)
-                        .font(.caption)
-                    Spacer()
-                }
-            }
-        }
-    }
-
-    private var diagnosticsSheet: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 10) {
-                Picker("Diagnostics", selection: $diagnosticsTab) {
-                    ForEach(DiagnosticsTab.allCases, id: \.self) { tab in
-                        Text(tab.rawValue).tag(tab)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 460)
-
-                Spacer()
-
-                Button("Copy") {
-                    copyCurrentDiagnostics()
-                }
-                .buttonStyle(.bordered)
-
-                if diagnosticsTab == .log {
-                    Button("Clear Log") {
-                        model.resetLog()
-                    }
-                    .buttonStyle(.bordered)
-                }
-
-                Button("Close") {
-                    showDiagnosticsSheet = false
-                }
-                .buttonStyle(.borderedProminent)
-            }
-
-            ScrollView {
-                Text(currentDiagnosticsText)
-                    .font(.system(.body, design: .monospaced))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .textSelection(.enabled)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        }
-        .padding(14)
-        .frame(minWidth: 920, minHeight: 520)
-        .background(GlassEffectBackground(material: .hudWindow))
-    }
-
-    private var currentDiagnosticsText: String {
-        switch diagnosticsTab {
-        case .log:
-            return model.outputLog.isEmpty ? "No command output yet." : model.outputLog
-        case .downloads:
-            return model.lastDownloadsRawOutput.isEmpty ? "No raw download queue output captured yet." : model.lastDownloadsRawOutput
-        case .sources:
-            return model.lastSourcesRawOutput.isEmpty ? "No raw source output captured yet." : model.lastSourcesRawOutput
-        case .search:
-            return model.lastSearchRawOutput.isEmpty ? "No raw search output captured yet." : model.lastSearchRawOutput
-        case .servers:
-            return model.lastServersRawOutput.isEmpty ? "No raw server-list output captured yet." : model.lastServersRawOutput
-        }
+        .background(
+            DownloadsTableRowStripeStyle()
+        )
     }
 
     private var footerStatusBar: some View {
         GeometryReader { geometry in
             let isNarrow = geometry.size.width < 940
+            let ed2kState = connectionState(from: model.status.ed2k)
+            let kadState = connectionState(from: model.status.kad)
 
             VStack(spacing: 6) {
                 HStack(spacing: 8) {
@@ -881,7 +353,8 @@ struct ContentView: View {
                         statusBadge(
                             title: "eD2k",
                             value: compactED2kBadgeValue(model.status.ed2k),
-                            showsDisclosure: true
+                            showsDisclosure: true,
+                            tone: statusBadgeTone(for: ed2kState)
                         )
                     }
                     .buttonStyle(.plain)
@@ -900,7 +373,11 @@ struct ContentView: View {
                     }
                     .help("Show Full eD2k Status")
 
-                    statusBadge(title: "Kad", value: compactConnectionState(model.status.kad))
+                    statusBadge(
+                        title: "Kad",
+                        value: compactConnectionState(model.status.kad),
+                        tone: statusBadgeTone(for: kadState)
+                    )
                     statusBadge(title: "Download", value: model.status.downloadSpeed)
                     statusBadge(title: "Upload", value: model.status.uploadSpeed)
                     statusBadge(title: "Queue", value: model.status.queue)
@@ -963,7 +440,27 @@ struct ContentView: View {
         .frame(height: footerDetailsExpanded ? 46 : 24)
     }
 
-    private func statusBadge(title: String, value: String, showsDisclosure: Bool = false) -> some View {
+    private enum ConnectionState {
+        case connected
+        case disconnected
+        case transitional
+        case unknown
+    }
+
+    private enum StatusBadgeTone {
+        case neutral
+        case connected
+        case disconnected
+        case transitional
+        case unknown
+    }
+
+    private func statusBadge(
+        title: String,
+        value: String,
+        showsDisclosure: Bool = false,
+        tone: StatusBadgeTone = .neutral
+    ) -> some View {
         HStack(spacing: 4) {
             Text(title + ":")
                 .font(.caption2)
@@ -979,21 +476,103 @@ struct ContentView: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(.thinMaterial, in: Capsule())
+        .background(statusBadgeBackground(tone: tone), in: Capsule())
+    }
+
+    private func statusBadgeBackground(tone: StatusBadgeTone) -> Color {
+        switch tone {
+        case .neutral:
+            return Color.secondary.opacity(0.12)
+        case .connected:
+            return Color.green.opacity(0.18)
+        case .disconnected:
+            return Color.orange.opacity(0.22)
+        case .transitional:
+            return Color.yellow.opacity(0.20)
+        case .unknown:
+            return Color.secondary.opacity(0.18)
+        }
+    }
+
+    @ViewBuilder
+    private func completedToolbarIcon(count: Int) -> some View {
+        ZStack(alignment: .topTrailing) {
+            Image(systemName: "checkmark")
+            if count > 0 {
+                Text(count > 99 ? "99+" : "\(count)")
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 1)
+                    .background(Color.accentColor, in: Capsule())
+                    .offset(x: 8, y: -8)
+            }
+        }
+    }
+
+    private func statusBadgeTone(for state: ConnectionState) -> StatusBadgeTone {
+        switch state {
+        case .connected:
+            return .connected
+        case .disconnected:
+            return .disconnected
+        case .transitional:
+            return .transitional
+        case .unknown:
+            return .unknown
+        }
+    }
+
+    private func connectionState(from value: String) -> ConnectionState {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty || trimmed == "-" {
+            return .unknown
+        }
+
+        let lower = trimmed.lowercased()
+
+        let disconnectedTokens = [
+            "disconnected", "not connected", "offline", "stopped", "off",
+            "断开", "未连接", "離線", "离线", "未連線"
+        ]
+        if disconnectedTokens.contains(where: { lower.contains($0) }) {
+            return .disconnected
+        }
+
+        let transitionalTokens = [
+            "connecting", "starting", "initializing", "pending", "run", "running",
+            "连接中", "正在连接", "連線中", "初始化"
+        ]
+        if transitionalTokens.contains(where: { lower.contains($0) }) {
+            return .transitional
+        }
+
+        let connectedTokens = [
+            "connected", "lowid", "highid", "firewalled", "on",
+            "已连接", "已連線", "连接", "連線"
+        ]
+        if connectedTokens.contains(where: { lower.contains($0) }) {
+            return .connected
+        }
+
+        if lower.contains("unknown") || lower.contains("未知") {
+            return .unknown
+        }
+
+        return .unknown
     }
 
     private func compactConnectionState(_ value: String) -> String {
-        let lower = value.lowercased()
-        if lower.contains("connect") {
+        switch connectionState(from: value) {
+        case .connected:
             return "On"
-        }
-        if lower.contains("run") {
+        case .disconnected:
+            return "Off"
+        case .transitional:
             return "Run"
-        }
-        if lower.contains("unknown") {
+        case .unknown:
             return "?"
         }
-        return "Off"
     }
 
     private func compactED2kBadgeValue(_ value: String) -> String {
@@ -1021,7 +600,7 @@ struct ContentView: View {
             }
         }
 
-        return rest.isEmpty ? "On" : rest
+        return rest.isEmpty ? compactConnectionState(value) : rest
     }
 
     private func downloadStatusSymbol(for status: String) -> String {
@@ -1065,15 +644,11 @@ struct ContentView: View {
             .padding(.vertical, 3)
             .background {
                 if showsProgressBackground {
-                    ZStack {
-                        Rectangle()
-                            .fill(Color.primary.opacity(0.02))
-                        DownloadRowSegmentBackground(
-                            colors: item.progressColors,
-                            fallbackProgress: item.progressDisplayValue / 100.0
-                        )
-                        .opacity(0.28)
-                    }
+                    DownloadRowSegmentBackground(
+                        colors: item.progressColors,
+                        fallbackProgress: item.progressDisplayValue / 100.0
+                    )
+                    .opacity(0.28)
                 }
             }
     }
@@ -1230,15 +805,7 @@ struct ContentView: View {
     @ViewBuilder
     private func downloadContextMenu(_ item: DownloadItem) -> some View {
         Button("Details…") {
-            selectedDownloadIDs = [item.id]
-            syncSelectedDownloadDraft()
-            showDownloadDetailsSheet = true
-        }
-        Button("Sources…") {
-            selectedDownloadIDs = [item.id]
-            model.refreshDownloadSources(for: item)
-            syncSelectedDownloadDraft()
-            showDownloadDetailsSheet = true
+            openDownloadDetailsWindow(for: item, refreshSources: false)
         }
         Button("Copy eD2k Link") {
             model.copyDownloadLinkToClipboard(item)
@@ -1264,52 +831,12 @@ struct ContentView: View {
         }
     }
 
-    @ViewBuilder
-    private func serverContextMenu(_ item: ServerItem) -> some View {
-        Button("Connect") {
-            model.connectServer(item)
-        }
-        Button("Remove") {
-            model.removeServer(item)
-        }
-    }
-
-    private func detailRowLarge(_ title: String, _ value: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(title + ":")
-                .font(.body)
-                .foregroundStyle(.secondary)
-                .frame(width: 145, alignment: .leading)
-            Text(value)
-                .font(.body)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    private func refreshDisplayedSearchResults() {
-        displayedSearchResults = model.searchResults.sorted(using: searchSortOrder)
-    }
-
     private func refreshDisplayedDownloads() {
         displayedDownloads = model.downloads.sorted(using: downloadSortOrder)
         selectedDownloadIDs = selectedDownloadIDs.filter { id in
             displayedDownloads.contains(where: { $0.id == id })
         }
-        if selectedDownloadIDs.isEmpty {
-            downloadRenameDraft = ""
-            showDownloadDetailsSheet = false
-        } else if selectedDownload != nil && downloadRenameDraft.isEmpty {
-            syncSelectedDownloadDraft()
-        }
-    }
-
-    private func refreshDisplayedServers() {
-        displayedServers = model.servers.sorted(using: serverSortOrder)
-        if let selectedServerID,
-           !displayedServers.contains(where: { $0.id == selectedServerID }) {
-            self.selectedServerID = nil
-        }
+        model.selectedDownloadID = selectedDownload?.id
     }
 
     private func removePendingDownloads() {
@@ -1318,27 +845,22 @@ struct ContentView: View {
         model.removeDownloads(items)
     }
 
-    private func copyCurrentDiagnostics() {
-        switch diagnosticsTab {
-        case .log:
-            model.copyLogToClipboard()
-        case .downloads:
-            model.copyDownloadsRawToClipboard()
-        case .sources:
-            model.copySourcesRawToClipboard()
-        case .search:
-            model.copySearchRawToClipboard()
-        case .servers:
-            model.copyServersRawToClipboard()
-        }
+    private func presentSelectedDownloadDetails() {
+        openDownloadDetailsWindow(for: selectedDownload, refreshSources: true)
     }
 
-    private func syncSelectedDownloadDraft() {
-        guard let selectedDownload else {
-            downloadRenameDraft = ""
-            return
+    private func openDownloadDetailsWindow(for item: DownloadItem?, refreshSources: Bool) {
+        if let item {
+            selectedDownloadIDs = [item.id]
+            model.selectedDownloadID = item.id
+            if refreshSources {
+                model.refreshDownloadSources(for: item)
+            }
+        } else {
+            model.selectedDownloadID = selectedDownload?.id
         }
-        downloadRenameDraft = selectedDownload.name
+        openWindow(id: "download-details-window")
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     private func isCompletedDownload(_ item: DownloadItem) -> Bool {
@@ -1410,7 +932,97 @@ private struct DownloadRowSegmentBackground: View {
     }
 }
 
-private struct DownloadSegmentedProgressBar: View {
+private struct DownloadsTableRowStripeStyle: NSViewRepresentable {
+    final class HostView: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            apply()
+        }
+
+        override func viewDidMoveToSuperview() {
+            super.viewDidMoveToSuperview()
+            apply()
+        }
+
+        override func layout() {
+            super.layout()
+            apply()
+        }
+
+        func apply() {
+            DispatchQueue.main.async { [weak self] in
+                guard let self, let tableView = self.findNearestTableView() else { return }
+                self.configure(tableView)
+            }
+        }
+
+        private func findNearestTableView() -> NSTableView? {
+            var ancestor: NSView? = self
+            while let current = ancestor {
+                if let tableView = current.subviews.compactMap({ self.findTableView(in: $0) }).first {
+                    return tableView
+                }
+                ancestor = current.superview
+            }
+            return nil
+        }
+
+        private func findTableView(in view: NSView) -> NSTableView? {
+            if let table = view as? NSTableView {
+                return table
+            }
+            for subview in view.subviews {
+                if let table = findTableView(in: subview) {
+                    return table
+                }
+            }
+            return nil
+        }
+
+        private func configure(_ tableView: NSTableView) {
+            tableView.usesAlternatingRowBackgroundColors = true
+            configureHorizontalScrollBehavior(for: tableView)
+        }
+
+        private func configureHorizontalScrollBehavior(for tableView: NSTableView) {
+            guard let scrollView = tableView.enclosingScrollView else { return }
+
+            let totalColumnWidth = tableView.tableColumns.reduce(CGFloat(0)) { partial, column in
+                partial + column.width
+            }
+            let viewportWidth = scrollView.contentView.bounds.width
+            let fitsHorizontally = totalColumnWidth <= (viewportWidth + 0.5)
+
+            let targetElasticity: NSScrollView.Elasticity = fitsHorizontally ? .none : .automatic
+            if scrollView.horizontalScrollElasticity != targetElasticity {
+                scrollView.horizontalScrollElasticity = targetElasticity
+            }
+
+            if fitsHorizontally {
+                scrollView.hasHorizontalScroller = false
+                let currentOrigin = scrollView.contentView.bounds.origin
+                if currentOrigin.x != 0 {
+                    scrollView.contentView.scroll(to: NSPoint(x: 0, y: currentOrigin.y))
+                    scrollView.reflectScrolledClipView(scrollView.contentView)
+                }
+            } else {
+                scrollView.hasHorizontalScroller = true
+            }
+        }
+    }
+
+    func makeNSView(context: Context) -> HostView {
+        let view = HostView(frame: .zero)
+        view.isHidden = true
+        return view
+    }
+
+    func updateNSView(_ nsView: HostView, context: Context) {
+        nsView.apply()
+    }
+}
+
+struct DownloadSegmentedProgressBar: View {
     let colors: [UInt32]
     let fallbackProgress: Double
 

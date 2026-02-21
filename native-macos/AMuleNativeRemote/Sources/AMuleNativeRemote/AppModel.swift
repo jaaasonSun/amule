@@ -12,9 +12,11 @@ final class AppModel: ObservableObject {
     @Published var status: StatusSnapshot = .init()
     @Published var isSessionConnected = false
     @Published var searchQuery: String = ""
-    @Published var searchScope: String = "kad"
+    @Published var searchScope: String = "global"
     @Published var searchResults: [SearchResult] = []
     @Published var searchStatusMessage: String = ""
+    @Published var searchProgress: Int = 0
+    @Published var isSearchInProgress = false
     @Published var lastSearchRawOutput = ""
     @Published var downloads: [DownloadItem] = []
     @Published var downloadSourcesByHash: [String: [DownloadSourceItem]] = [:]
@@ -30,11 +32,13 @@ final class AppModel: ObservableObject {
     @Published var isRefreshingSources = false
     @Published var shouldAutoRefreshDownloads = false
     @Published var addLinksPanelRequestID: Int = 0
+    @Published var selectedDownloadID: String? = nil
     @Published var hudMessage: String = ""
     @Published var showHUD = false
 
     private var autoRefreshTask: Task<Void, Never>?
     private var hudDismissTask: Task<Void, Never>?
+    private var searchTask: Task<Void, Never>?
 
     var buildCommit: String {
         if let value = Bundle.main.object(forInfoDictionaryKey: "AMuleBuildCommit") as? String,
@@ -102,38 +106,97 @@ final class AppModel: ObservableObject {
         let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return }
 
-        run(label: "search") {
-            await MainActor.run {
-                self.searchStatusMessage = "Searching..."
+        guard !isSearchInProgress else { return }
+
+        lastError = ""
+        searchStatusMessage = "Searching..."
+        searchProgress = 0
+        searchResults = []
+        isSearchInProgress = true
+
+        let scope = searchScope
+        let currentConfig = config
+
+        searchTask?.cancel()
+        searchTask = Task {
+            defer {
+                self.isSearchInProgress = false
+                self.searchTask = nil
             }
 
-            let (progress, payload, raw) = try await AMuleECBridgeClient.search(
-                scope: self.searchScope,
-                query: query,
-                polls: 12,
-                pollIntervalMs: 900,
-                config: self.config
-            )
-            let parsed = SearchResult.fromBridge(payload)
+            do {
+                let (progress, payload, raw) = try await AMuleECBridgeClient.search(
+                    scope: scope,
+                    query: query,
+                    polls: 12,
+                    pollIntervalMs: 900,
+                    config: currentConfig
+                )
+                let parsed = SearchResult.fromBridge(payload)
 
-            await MainActor.run {
-                self.searchResults = parsed
-                self.lastSearchRawOutput = raw
-                if parsed.isEmpty {
-                    self.searchStatusMessage = "No results yet (\(progress)% complete)."
-                } else {
-                    self.searchStatusMessage = "Found \(parsed.count) result(s), progress \(progress)%."
+                await MainActor.run {
+                    self.searchProgress = max(0, min(100, progress))
+                    self.searchResults = parsed
+                    self.lastSearchRawOutput = raw
+                    if parsed.isEmpty {
+                        self.searchStatusMessage = "No results yet (\(self.searchProgress)% complete)."
+                    } else {
+                        self.searchStatusMessage = "Found \(parsed.count) result(s), progress \(self.searchProgress)%."
+                    }
+                    self.appendLog("$ search \(scope) \(query)\n\(raw)")
                 }
-                self.appendLog("$ search \(self.searchScope) \(query)\n\(raw)")
+            } catch {
+                await MainActor.run {
+                    if self.isSearchInProgress {
+                        self.lastError = error.localizedDescription
+                        self.appendLog("! search failed\n\(error.localizedDescription)")
+                        if self.searchStatusMessage.isEmpty || self.searchStatusMessage == "Searching..." {
+                            self.searchStatusMessage = "Search failed"
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    func stopSearch() {
+        guard isSearchInProgress else { return }
+        searchTask?.cancel()
+        searchTask = nil
+
+        Task {
+            do {
+                let (_, raw) = try await AMuleECBridgeClient.searchStop(config: self.config)
+                await MainActor.run {
+                    self.appendLog("$ search-stop\n\(raw)")
+                    self.searchStatusMessage = "Search stopped (\(self.searchProgress)% complete)."
+                    self.isSearchInProgress = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.lastError = error.localizedDescription
+                    self.appendLog("! search-stop failed\n\(error.localizedDescription)")
+                    self.searchStatusMessage = "Search stop failed"
+                    self.isSearchInProgress = false
+                }
             }
         }
     }
 
     func downloadResult(_ result: SearchResult) {
+        downloadResults([result])
+    }
+
+    func downloadResults(_ results: [SearchResult]) {
+        let unique = Dictionary(grouping: results, by: \.hash).compactMap { $0.value.first }
+        guard !unique.isEmpty else { return }
+
         run(label: "download") {
-            let (_, raw) = try await AMuleECBridgeClient.download(hash: result.hash, config: self.config)
-            await MainActor.run {
-                self.appendLog("$ download \(result.hash)\n\(raw)")
+            for result in unique {
+                let (_, raw) = try await AMuleECBridgeClient.download(hash: result.hash, config: self.config)
+                await MainActor.run {
+                    self.appendLog("$ download \(result.hash)\n\(raw)")
+                }
             }
             try await self.refreshDownloadsNow()
             await self.refreshStatus(logOutput: false)
@@ -208,6 +271,14 @@ final class AppModel: ObservableObject {
     }
 
     func refreshDownloadSources(for item: DownloadItem) {
+        if item.isCompletedLike {
+            // Completed files are no longer in the active queue, so per-file
+            // source queries are expected to be unavailable.
+            downloadSourcesByHash[item.id] = []
+            isRefreshingSources = false
+            return
+        }
+
         isRefreshingSources = true
         lastError = ""
         Task {
@@ -215,8 +286,13 @@ final class AppModel: ObservableObject {
                 try await self.refreshDownloadSourcesNow(for: item)
             } catch {
                 await MainActor.run {
-                    self.lastError = error.localizedDescription
-                    self.appendLog("! sources failed\n\(error.localizedDescription)")
+                    let message = error.localizedDescription
+                    if message.contains("File not found in download queue") {
+                        self.downloadSourcesByHash[item.id] = []
+                    } else {
+                        self.lastError = message
+                        self.appendLog("! sources failed\n\(message)")
+                    }
                 }
             }
             await MainActor.run {

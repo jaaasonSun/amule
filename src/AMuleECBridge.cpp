@@ -108,10 +108,15 @@ struct SourceEntry {
 };
 
 struct SearchEntry {
+	uint32_t id = 0;
 	std::string hash;
 	std::string name;
 	uint64_t size = 0;
 	uint32_t sources = 0;
+	uint32_t completeSources = 0;
+	uint32_t statusCode = 0;
+	std::string status;
+	uint32_t parentID = 0;
 	bool alreadyHave = false;
 };
 
@@ -376,7 +381,7 @@ bool ParseArgs(int argc, char** argv, Options& options, std::string& error)
 			options.ecids.push_back(static_cast<uint32_t>(ecid));
 		} else if (arg == "--help") {
 			error =
-				"Usage: amule-ec-bridge --host <ip> --port <port> --password <plain_or_md5> --op <status|downloads|sources|search|download|add-link|rename|connect|disconnect|pause|resume|cancel|priority|clear-completed|servers|server-connect|server-disconnect|server-add|server-remove> [op args]";
+				"Usage: amule-ec-bridge --host <ip> --port <port> --password <plain_or_md5> --op <status|downloads|sources|search|search-stop|download|add-link|rename|connect|disconnect|pause|resume|cancel|priority|clear-completed|servers|server-connect|server-disconnect|server-add|server-remove> [op args]";
 			return false;
 		} else {
 			error = "Unknown argument: " + arg;
@@ -1009,7 +1014,7 @@ bool HandleSearch(CRemoteConnect& conn, const Options& options, std::string& err
 
 	uint32_t progress = 0;
 	std::vector<SearchEntry> ordered;
-	std::map<std::string, size_t> indexByHash;
+	std::map<uint32_t, size_t> indexByID;
 
 	const int polls = options.polls > 0 ? options.polls : 10;
 	const int interval = options.pollIntervalMs > 0 ? options.pollIntervalMs : 900;
@@ -1035,15 +1040,26 @@ bool HandleSearch(CRemoteConnect& conn, const Options& options, std::string& err
 		for (CECPacket::const_iterator it = resultsReply->begin(); it != resultsReply->end(); ++it) {
 			const CEC_SearchFile_Tag* tag = static_cast<const CEC_SearchFile_Tag*>(&*it);
 			SearchEntry entry;
+			entry.id = tag->ID();
 			entry.hash = ToUtf8(tag->FileHashString());
 			entry.name = ToUtf8(tag->FileName());
 			entry.size = tag->SizeFull();
 			entry.sources = tag->SourceCount();
+			entry.completeSources = tag->CompleteSourceCount();
+			entry.statusCode = tag->DownloadStatus();
+			switch (entry.statusCode) {
+				case 1: entry.status = "Downloaded"; break;
+				case 2: entry.status = "Queued"; break;
+				case 3: entry.status = "Canceled"; break;
+				case 4: entry.status = "Queued (Canceled)"; break;
+				default: entry.status = "New"; break;
+			}
+			entry.parentID = tag->ParentID();
 			entry.alreadyHave = tag->AlreadyHave();
 
-			std::map<std::string, size_t>::iterator pos = indexByHash.find(entry.hash);
-			if (pos == indexByHash.end()) {
-				indexByHash[entry.hash] = ordered.size();
+			std::map<uint32_t, size_t>::iterator pos = indexByID.find(entry.id);
+			if (pos == indexByID.end()) {
+				indexByID[entry.id] = ordered.size();
 				ordered.push_back(entry);
 			} else {
 				ordered[pos->second] = entry;
@@ -1061,17 +1077,32 @@ bool HandleSearch(CRemoteConnect& conn, const Options& options, std::string& err
 		if (i != 0) {
 			std::cout << ",";
 		}
-		std::cout
-			<< "{"
-			<< "\"id\":" << i << ","
-			<< "\"hash\":\"" << JsonEscape(e.hash) << "\"," 
-			<< "\"name\":\"" << JsonEscape(e.name) << "\"," 
-			<< "\"size\":" << e.size << ","
-			<< "\"sources\":" << e.sources << ","
-			<< "\"already_have\":" << (e.alreadyHave ? "true" : "false")
-			<< "}";
-	}
+			std::cout
+				<< "{"
+				<< "\"id\":" << e.id << ","
+				<< "\"hash\":\"" << JsonEscape(e.hash) << "\"," 
+				<< "\"name\":\"" << JsonEscape(e.name) << "\"," 
+				<< "\"size\":" << e.size << ","
+				<< "\"sources\":" << e.sources << ","
+				<< "\"complete_sources\":" << e.completeSources << ","
+				<< "\"status_code\":" << e.statusCode << ","
+				<< "\"status\":\"" << JsonEscape(e.status) << "\","
+				<< "\"parent_id\":" << e.parentID << ","
+				<< "\"already_have\":" << (e.alreadyHave ? "true" : "false")
+				<< "}";
+		}
 	std::cout << "]}" << std::endl;
+	return true;
+}
+
+bool HandleSearchStop(CRemoteConnect& conn, std::string& error)
+{
+	CECPacket req(EC_OP_SEARCH_STOP);
+	std::unique_ptr<const CECPacket> reply = SendRecvChecked(conn, req, error);
+	if (!reply) {
+		return false;
+	}
+	PrintJsonMessage("Search stop requested");
 	return true;
 }
 
@@ -1270,11 +1301,18 @@ bool HandleServers(CRemoteConnect& conn, std::string& error)
 			e.isStatic = isStatic != 0;
 		}
 
-		uint32 ipRaw = 0;
-		if (TagUInt(tag, EC_TAG_SERVER_IP, ipRaw) && ipRaw != 0) {
-			e.ip = ToUtf8(Uint32toStringIP(ipRaw));
+		// Server list entries usually encode endpoint data as IPv4 in the parent tag.
+		EC_IPv4_t endpoint = tag.GetIPv4Data();
+		if (endpoint.IP() != 0) {
+			e.ip = ToUtf8(Uint32toStringIP(endpoint.IP()));
+			e.port = endpoint.m_port;
+		} else {
+			uint32 ipRaw = 0;
+			if (TagUInt(tag, EC_TAG_SERVER_IP, ipRaw) && ipRaw != 0) {
+				e.ip = ToUtf8(Uint32toStringIP(ipRaw));
+			}
+			TagUInt16(tag, EC_TAG_SERVER_PORT, e.port);
 		}
-		TagUInt16(tag, EC_TAG_SERVER_PORT, e.port);
 
 		if (e.address.empty()) {
 			if (!e.ip.empty() && e.port != 0) {
@@ -1437,6 +1475,8 @@ int main(int argc, char** argv)
 		ok = HandleServers(conn, error);
 	} else if (options.op == "search") {
 		ok = HandleSearch(conn, options, error);
+	} else if (options.op == "search-stop") {
+		ok = HandleSearchStop(conn, error);
 	} else if (options.op == "download") {
 		ok = HandleDownloadHash(conn, options, error);
 	} else if (options.op == "add-link") {

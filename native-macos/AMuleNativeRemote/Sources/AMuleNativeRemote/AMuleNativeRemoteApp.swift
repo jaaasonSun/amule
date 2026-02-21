@@ -7,7 +7,7 @@ struct AMuleNativeRemoteApp: App {
     @StateObject private var model = AppModel()
 
     var body: some Scene {
-        WindowGroup("aMule Native Remote", id: "downloads-window") {
+        Window("aMule Native Remote", id: "downloads-window") {
             ContentView()
                 .environmentObject(model)
         }
@@ -24,6 +24,14 @@ struct AMuleNativeRemoteApp: App {
                 .environmentObject(model)
         }
         .windowStyle(.hiddenTitleBar)
+
+        Window("Download Details", id: "download-details-window") {
+            DownloadDetailsWindowView()
+                .environmentObject(model)
+        }
+        .windowStyle(.automatic)
+        .windowResizability(.contentSize)
+        .defaultSize(width: 820, height: 620)
 
         WindowGroup("Diagnostics", id: "diagnostics-window") {
             DiagnosticsWindowView()
@@ -43,14 +51,65 @@ struct AMuleNativeRemoteApp: App {
     }
 }
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
-        DispatchQueue.main.async {
-            for window in NSApp.windows where window.isVisible {
-                window.orderOut(nil)
-            }
+        installObservers()
+        updateDockIconVisibility()
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    private func installObservers() {
+        let center = NotificationCenter.default
+        let names: [Notification.Name] = [
+            NSWindow.didBecomeMainNotification,
+            NSWindow.didResignMainNotification,
+            NSWindow.didMiniaturizeNotification,
+            NSWindow.didDeminiaturizeNotification,
+            NSWindow.willCloseNotification,
+            NSApplication.didHideNotification,
+            NSApplication.didUnhideNotification
+        ]
+
+        for name in names {
+            center.addObserver(
+                self,
+                selector: #selector(handleWindowStateChange(_:)),
+                name: name,
+                object: nil
+            )
         }
+    }
+
+    @objc
+    private func handleWindowStateChange(_ notification: Notification) {
+        updateDockIconVisibility()
+    }
+
+    private func updateDockIconVisibility() {
+        let shouldShowDock = NSApp.windows.contains(where: shouldShowInDock(window:))
+        let targetPolicy: NSApplication.ActivationPolicy = shouldShowDock ? .regular : .accessory
+        if NSApp.activationPolicy() != targetPolicy {
+            NSApp.setActivationPolicy(targetPolicy)
+        }
+    }
+
+    private func shouldShowInDock(window: NSWindow) -> Bool {
+        guard window.isVisible, !window.isMiniaturized else { return false }
+        guard !(window is NSPanel) else { return false }
+        return window.styleMask.contains(.titled)
+    }
+}
+
+@MainActor
+private func prepareForWindowPresentation() {
+    if NSApp.activationPolicy() != .regular {
+        NSApp.setActivationPolicy(.regular)
     }
 }
 
@@ -93,22 +152,27 @@ private struct MenuBarStatusMenu: View {
             Divider()
 
             Button("Open Main Window") {
+                prepareForWindowPresentation()
                 openWindow(id: "downloads-window")
                 NSApp.activate(ignoringOtherApps: true)
             }
             Button("Open Search Window") {
+                prepareForWindowPresentation()
                 openWindow(id: "search-window")
                 NSApp.activate(ignoringOtherApps: true)
             }
             Button("Open Servers Window") {
+                prepareForWindowPresentation()
                 openWindow(id: "servers-window")
                 NSApp.activate(ignoringOtherApps: true)
             }
             Button("Open Diagnostics Window") {
+                prepareForWindowPresentation()
                 openWindow(id: "diagnostics-window")
                 NSApp.activate(ignoringOtherApps: true)
             }
             Button("Show Add Links Panel") {
+                prepareForWindowPresentation()
                 openWindow(id: "downloads-window")
                 model.requestAddLinksPanel()
                 NSApp.activate(ignoringOtherApps: true)
@@ -135,10 +199,28 @@ private struct AppMenuCommands: Commands {
             .keyboardShortcut("r", modifiers: [.command])
         }
 
+        CommandGroup(replacing: .newItem) {
+            Button("Add Links…") {
+                prepareForWindowPresentation()
+                openWindow(id: "downloads-window")
+                model.requestAddLinksPanel()
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            .keyboardShortcut("n", modifiers: [.command])
+        }
+
         ToolbarCommands()
 
         CommandMenu("Tools") {
+            Button("Show Details") {
+                prepareForWindowPresentation()
+                openWindow(id: "download-details-window")
+            }
+            .keyboardShortcut("i", modifiers: [.command])
+            .disabled(model.selectedDownloadID == nil)
+
             Button("Diagnostics") {
+                prepareForWindowPresentation()
                 openWindow(id: "diagnostics-window")
             }
             .keyboardShortcut("d", modifiers: [.command, .shift])

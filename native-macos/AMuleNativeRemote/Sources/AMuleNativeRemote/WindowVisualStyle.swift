@@ -148,7 +148,13 @@ struct WindowAppearanceConfigurator: NSViewRepresentable {
         if let toolbarStyle {
             window.toolbarStyle = toolbarStyle
         }
-        _ = showsToolbarBaselineSeparator
+        if let showsToolbarBaselineSeparator, let toolbar = window.toolbar {
+            let object = toolbar as NSObject
+            let selector = NSSelectorFromString("setShowsBaselineSeparator:")
+            if object.responds(to: selector) {
+                object.setValue(showsToolbarBaselineSeparator, forKey: "showsBaselineSeparator")
+            }
+        }
         if allowsToolbarCustomization {
             window.toolbar?.allowsUserCustomization = true
         }
@@ -227,52 +233,9 @@ struct WindowAppearanceConfigurator: NSViewRepresentable {
     private func updateToolbarTopGradient(in window: NSWindow) {
         guard let themeFrame = window.contentView?.superview else { return }
         let gradientIdentifier = NSUserInterfaceItemIdentifier("AMule.ToolbarTopGradient")
-        let dynamicHeight: CGFloat = {
-            guard toolbarTopGradientHeight == nil,
-                  let contentView = window.contentView else {
-                return 0
-            }
-            let contentFrame = contentView.frame
-            let layoutRect = window.contentLayoutRect
-            return max(0, contentFrame.maxY - layoutRect.maxY)
-        }()
-        let gradientHeight = max(0, toolbarTopGradientHeight ?? dynamicHeight)
-
-        guard gradientHeight > 0, toolbarTopGradientOpacity > 0 else {
-            themeFrame.subviews
-                .first(where: { $0.identifier == gradientIdentifier })?
-                .removeFromSuperview()
-            return
-        }
-
-        let gradientView: ToolbarTopGradientView
-        if let existing = themeFrame.subviews.first(where: { $0.identifier == gradientIdentifier }) as? ToolbarTopGradientView {
-            gradientView = existing
-        } else {
-            gradientView = ToolbarTopGradientView(frame: .zero)
-            gradientView.identifier = gradientIdentifier
-        }
-
-        gradientView.updateOpacity(toolbarTopGradientOpacity)
-
-        if gradientView.superview == nil {
-            if let titlebarContainer = themeFrame.subviews.first(where: { String(describing: type(of: $0)).contains("Titlebar") }) {
-                themeFrame.addSubview(gradientView, positioned: .below, relativeTo: titlebarContainer)
-            } else if let contentView = window.contentView {
-                themeFrame.addSubview(gradientView, positioned: .above, relativeTo: contentView)
-            } else {
-                themeFrame.addSubview(gradientView)
-            }
-            gradientView.autoresizingMask = [.width, .minYMargin]
-        }
-
-        gradientView.frame = CGRect(
-            x: 0,
-            y: themeFrame.bounds.height - gradientHeight,
-            width: themeFrame.bounds.width,
-            height: gradientHeight
-        )
-        gradientView.needsLayout = true
+        themeFrame.subviews
+            .first(where: { $0.identifier == gradientIdentifier })?
+            .removeFromSuperview()
     }
 }
 
