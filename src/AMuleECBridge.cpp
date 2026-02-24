@@ -44,6 +44,8 @@ struct Options {
 	std::string priority = "normal";
 	std::string serverAddress;
 	std::string serverName;
+	std::string serverURL;
+	std::string kadURL;
 	std::string serverIP;
 	int serverPort = 0;
 	int polls = 10;
@@ -356,6 +358,10 @@ bool ParseArgs(int argc, char** argv, Options& options, std::string& error)
 			if (!needValue(arg, options.serverAddress)) return false;
 		} else if (arg == "--server-name") {
 			if (!needValue(arg, options.serverName)) return false;
+		} else if (arg == "--server-url") {
+			if (!needValue(arg, options.serverURL)) return false;
+		} else if (arg == "--kad-url") {
+			if (!needValue(arg, options.kadURL)) return false;
 		} else if (arg == "--server-ip") {
 			if (!needValue(arg, options.serverIP)) return false;
 		} else if (arg == "--server-port") {
@@ -381,7 +387,7 @@ bool ParseArgs(int argc, char** argv, Options& options, std::string& error)
 			options.ecids.push_back(static_cast<uint32_t>(ecid));
 		} else if (arg == "--help") {
 			error =
-				"Usage: amule-ec-bridge --host <ip> --port <port> --password <plain_or_md5> --op <status|downloads|sources|search|search-stop|download|add-link|rename|connect|disconnect|pause|resume|cancel|priority|clear-completed|servers|server-connect|server-disconnect|server-add|server-remove> [op args]";
+				"Usage: amule-ec-bridge --host <ip> --port <port> --password <plain_or_md5> --op <status|downloads|sources|search|search-stop|download|add-link|rename|connect|disconnect|pause|resume|cancel|priority|clear-completed|servers|server-connect|server-disconnect|server-add|server-remove|server-update-from-url|kad-update-from-url> [op args]";
 			return false;
 		} else {
 			error = "Unknown argument: " + arg;
@@ -1420,6 +1426,44 @@ bool HandleServerRemove(CRemoteConnect& conn, const Options& options, std::strin
 	return true;
 }
 
+bool HandleServerUpdateFromURL(CRemoteConnect& conn, const Options& options, std::string& error)
+{
+	if (options.serverURL.empty()) {
+		error = "Missing --server-url";
+		return false;
+	}
+
+	CECPacket req(EC_OP_SERVER_UPDATE_FROM_URL);
+	req.AddTag(CECTag(EC_TAG_SERVERS_UPDATE_URL, wxString::FromUTF8(options.serverURL.c_str())));
+
+	std::unique_ptr<const CECPacket> reply = SendRecvChecked(conn, req, error);
+	if (!reply) {
+		return false;
+	}
+
+	PrintJsonMessage("Server list update requested");
+	return true;
+}
+
+bool HandleKadUpdateFromURL(CRemoteConnect& conn, const Options& options, std::string& error)
+{
+	if (options.kadURL.empty()) {
+		error = "Missing --kad-url";
+		return false;
+	}
+
+	CECPacket req(EC_OP_KAD_UPDATE_FROM_URL);
+	req.AddTag(CECTag(EC_TAG_KADEMLIA_UPDATE_URL, wxString::FromUTF8(options.kadURL.c_str())));
+
+	std::unique_ptr<const CECPacket> reply = SendRecvChecked(conn, req, error);
+	if (!reply) {
+		return false;
+	}
+
+	PrintJsonMessage("Kad nodes update requested");
+	return true;
+}
+
 } // namespace
 
 // Stubs needed for ASIO socket notifications in non-GUI tools.
@@ -1497,6 +1541,10 @@ int main(int argc, char** argv)
 		ok = HandleServerAdd(conn, options, error);
 	} else if (options.op == "server-remove") {
 		ok = HandleServerRemove(conn, options, error);
+	} else if (options.op == "server-update-from-url") {
+		ok = HandleServerUpdateFromURL(conn, options, error);
+	} else if (options.op == "kad-update-from-url") {
+		ok = HandleKadUpdateFromURL(conn, options, error);
 	} else {
 		error = "Unsupported --op value";
 	}

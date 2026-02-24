@@ -69,6 +69,7 @@ struct GlassEffectBackground: NSViewRepresentable {
 }
 
 struct WindowAppearanceConfigurator: NSViewRepresentable {
+    var windowTitle: String? = nil
     var hideTitle: Bool = false
     var transparentTitlebar: Bool = false
     var fullSizeContentView: Bool = false
@@ -98,11 +99,6 @@ struct WindowAppearanceConfigurator: NSViewRepresentable {
             applyNow()
         }
 
-        override func layout() {
-            super.layout()
-            applyNow()
-        }
-
         func applyNow() {
             guard let window else { return }
             applyConfiguration?(window)
@@ -126,6 +122,10 @@ struct WindowAppearanceConfigurator: NSViewRepresentable {
                 self.apply(to: window)
             }
             return
+        }
+
+        if let windowTitle {
+            window.title = windowTitle
         }
 
         if hideTitle {

@@ -2,6 +2,14 @@ import Foundation
 import SwiftUI
 import AppKit
 
+private func L3(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
+private func LF3(_ key: String, _ args: CVarArg...) -> String {
+    String(format: NSLocalizedString(key, comment: ""), locale: .current, arguments: args)
+}
+
 @MainActor
 final class AppModel: ObservableObject {
     @AppStorage("amule.bridgePath") var bridgePath: String = AMuleConnectionConfig.preferredDefaultPath()
@@ -14,7 +22,6 @@ final class AppModel: ObservableObject {
     @Published var searchQuery: String = ""
     @Published var searchScope: String = "global"
     @Published var searchResults: [SearchResult] = []
-    @Published var searchStatusMessage: String = ""
     @Published var searchProgress: Int = 0
     @Published var isSearchInProgress = false
     @Published var lastSearchRawOutput = ""
@@ -109,7 +116,6 @@ final class AppModel: ObservableObject {
         guard !isSearchInProgress else { return }
 
         lastError = ""
-        searchStatusMessage = "Searching..."
         searchProgress = 0
         searchResults = []
         isSearchInProgress = true
@@ -138,11 +144,6 @@ final class AppModel: ObservableObject {
                     self.searchProgress = max(0, min(100, progress))
                     self.searchResults = parsed
                     self.lastSearchRawOutput = raw
-                    if parsed.isEmpty {
-                        self.searchStatusMessage = "No results yet (\(self.searchProgress)% complete)."
-                    } else {
-                        self.searchStatusMessage = "Found \(parsed.count) result(s), progress \(self.searchProgress)%."
-                    }
                     self.appendLog("$ search \(scope) \(query)\n\(raw)")
                 }
             } catch {
@@ -150,9 +151,6 @@ final class AppModel: ObservableObject {
                     if self.isSearchInProgress {
                         self.lastError = error.localizedDescription
                         self.appendLog("! search failed\n\(error.localizedDescription)")
-                        if self.searchStatusMessage.isEmpty || self.searchStatusMessage == "Searching..." {
-                            self.searchStatusMessage = "Search failed"
-                        }
                     }
                 }
             }
@@ -169,14 +167,12 @@ final class AppModel: ObservableObject {
                 let (_, raw) = try await AMuleECBridgeClient.searchStop(config: self.config)
                 await MainActor.run {
                     self.appendLog("$ search-stop\n\(raw)")
-                    self.searchStatusMessage = "Search stopped (\(self.searchProgress)% complete)."
                     self.isSearchInProgress = false
                 }
             } catch {
                 await MainActor.run {
                     self.lastError = error.localizedDescription
                     self.appendLog("! search-stop failed\n\(error.localizedDescription)")
-                    self.searchStatusMessage = "Search stop failed"
                     self.isSearchInProgress = false
                 }
             }
@@ -191,24 +187,50 @@ final class AppModel: ObservableObject {
         let unique = Dictionary(grouping: results, by: \.hash).compactMap { $0.value.first }
         guard !unique.isEmpty else { return }
 
+        presentHUD(message: LF3("Adding %lld download(s)...", Int64(unique.count)), autoDismissAfter: nil)
+
         run(label: "download") {
+            var successCount = 0
+            var failureCount = 0
+
             for result in unique {
-                let (_, raw) = try await AMuleECBridgeClient.download(hash: result.hash, config: self.config)
-                await MainActor.run {
-                    self.appendLog("$ download \(result.hash)\n\(raw)")
+                do {
+                    let (_, raw) = try await AMuleECBridgeClient.download(hash: result.hash, config: self.config)
+                    await MainActor.run {
+                        self.appendLog("$ download \(result.hash)\n\(raw)")
+                    }
+                    successCount += 1
+                } catch {
+                    failureCount += 1
+                    await MainActor.run {
+                        self.appendLog("! download \(result.hash)\n\(error.localizedDescription)")
+                    }
                 }
             }
             try await self.refreshDownloadsNow()
             await self.refreshStatus(logOutput: false)
+
+            await MainActor.run {
+                self.presentHUD(message: LF3("Added %lld download(s)", Int64(successCount)))
+                if failureCount > 0 {
+                    self.lastError = LF3(
+                        "Added %lld download(s), failed %lld.",
+                        Int64(successCount),
+                        Int64(failureCount)
+                    )
+                }
+            }
         }
     }
 
     func addLinks(_ rawInput: String) {
         let links = parseLinks(from: rawInput)
         guard !links.isEmpty else {
-            lastError = "No valid links found."
+            lastError = L3("No valid links found.")
             return
         }
+
+        presentHUD(message: LF3("Adding %lld link(s)...", Int64(links.count)), autoDismissAfter: nil)
 
         run(label: "add-link") {
             let normalizedLinks = links.map { self.normalizeLink($0) }
@@ -253,12 +275,16 @@ final class AppModel: ObservableObject {
             }
 
             await MainActor.run {
-                self.presentHUD(message: "Added \(actualAddedCount) link(s)")
+                self.presentHUD(message: LF3("Added %lld link(s)", Int64(actualAddedCount)))
             }
 
             if failureCount > 0 {
                 await MainActor.run {
-                    self.lastError = "Added \(actualAddedCount) link(s), failed \(failureCount)."
+                    self.lastError = LF3(
+                        "Added %lld link(s), failed %lld.",
+                        Int64(actualAddedCount),
+                        Int64(failureCount)
+                    )
                 }
             }
         }
@@ -317,7 +343,7 @@ final class AppModel: ObservableObject {
         let name = serverNameInput.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !address.isEmpty else {
-            lastError = "Server address is required (e.g. 1.2.3.4:4661)."
+            lastError = L3("Server address is required (e.g. 1.2.3.4:4661).")
             return
         }
 
@@ -366,7 +392,7 @@ final class AppModel: ObservableObject {
 
     func removeServer(_ server: ServerItem) {
         guard !server.ip.isEmpty, server.port > 0 else {
-            lastError = "Selected server has invalid endpoint information."
+            lastError = L3("Selected server has invalid endpoint information.")
             return
         }
 
@@ -376,6 +402,50 @@ final class AppModel: ObservableObject {
                 self.appendLog("$ server-remove \(server.address)\n\(raw)")
             }
             try await self.refreshServersNow(logOutput: false)
+        }
+    }
+
+    func updateServerListFromURL(_ rawURL: String) {
+        let trimmed = rawURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            lastError = L3("Server list URL is required.")
+            return
+        }
+        guard let url = URL(string: trimmed),
+              let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https" else {
+            lastError = L3("Invalid server list URL. Use http:// or https://.")
+            return
+        }
+
+        run(label: "server-update-from-url") {
+            let (_, raw) = try await AMuleECBridgeClient.serverUpdateFromURL(url: trimmed, config: self.config)
+            await MainActor.run {
+                self.appendLog("$ server-update-from-url \(trimmed)\n\(raw)")
+            }
+            try await self.refreshServersNow(logOutput: false)
+        }
+    }
+
+    func updateKadNodesFromURL(_ rawURL: String) {
+        let trimmed = rawURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            lastError = L3("nodes.dat URL is required.")
+            return
+        }
+        guard let url = URL(string: trimmed),
+              let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https" else {
+            lastError = L3("Invalid nodes.dat URL. Use http:// or https://.")
+            return
+        }
+
+        run(label: "kad-update-from-url") {
+            let (_, raw) = try await AMuleECBridgeClient.kadUpdateFromURL(url: trimmed, config: self.config)
+            await MainActor.run {
+                self.appendLog("$ kad-update-from-url \(trimmed)\n\(raw)")
+            }
+            await self.refreshStatus(logOutput: false, suppressErrors: true)
         }
     }
 
@@ -466,7 +536,7 @@ final class AppModel: ObservableObject {
     func renameDownload(_ item: DownloadItem, to newName: String) {
         let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            lastError = "File name cannot be empty."
+            lastError = L3("File name cannot be empty.")
             return
         }
         guard trimmed != item.name else {
@@ -525,6 +595,9 @@ final class AppModel: ObservableObject {
                 try await work()
             } catch {
                 await MainActor.run {
+                    if self.showHUD, self.hudDismissTask == nil {
+                        self.hideHUD()
+                    }
                     self.lastError = error.localizedDescription
                     self.appendLog("! \(label) failed\n\(error.localizedDescription)")
                 }
@@ -734,21 +807,37 @@ final class AppModel: ObservableObject {
     }
 
     private func presentHUD(message: String) {
+        presentHUD(message: message, autoDismissAfter: 2_000_000_000)
+    }
+
+    private func presentHUD(message: String, autoDismissAfter nanoseconds: UInt64?) {
         hudDismissTask?.cancel()
+        hudDismissTask = nil
         hudMessage = message
         withAnimation(.easeOut(duration: 0.15)) {
             showHUD = true
         }
 
+        guard let nanoseconds else { return }
+
         hudDismissTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            try? await Task.sleep(nanoseconds: nanoseconds)
             guard !Task.isCancelled else { return }
             await MainActor.run {
                 guard let self else { return }
+                self.hudDismissTask = nil
                 withAnimation(.easeIn(duration: 0.18)) {
                     self.showHUD = false
                 }
             }
+        }
+    }
+
+    private func hideHUD() {
+        hudDismissTask?.cancel()
+        hudDismissTask = nil
+        withAnimation(.easeIn(duration: 0.18)) {
+            showHUD = false
         }
     }
 }

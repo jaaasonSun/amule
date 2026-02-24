@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 REPO_ROOT="$(cd "$ROOT_DIR/../.." && pwd)"
-APP_NAME="${AMULE_APP_NAME:-aMule Native Remote}"
+APP_NAME="${AMULE_APP_NAME:-aMule Remote}"
 APP_PATH="$ROOT_DIR/dist/${APP_NAME}.app"
 
 echo "[1/4] Build bridge (amule-ec-bridge)"

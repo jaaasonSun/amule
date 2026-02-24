@@ -1,6 +1,86 @@
 import SwiftUI
 import AppKit
 
+private func L2(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
+private func LF2(_ key: String, _ args: CVarArg...) -> String {
+    String(format: NSLocalizedString(key, comment: ""), locale: .current, arguments: args)
+}
+
+private enum ServerWindowConnectionState2 {
+    case connected
+    case disconnected
+    case transitional
+    case unknown
+}
+
+private func connectionState2(from value: String) -> ServerWindowConnectionState2 {
+    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    if trimmed.isEmpty || trimmed == "-" { return .unknown }
+
+    let lower = trimmed.lowercased()
+    if ["disconnected", "not connected", "offline", "stopped", "off", "断开", "未连接", "離線", "离线", "未連線"]
+        .contains(where: { lower.contains($0) }) {
+        return .disconnected
+    }
+    if ["connecting", "starting", "initializing", "pending", "run", "running", "连接中", "正在连接", "連線中", "初始化"]
+        .contains(where: { lower.contains($0) }) {
+        return .transitional
+    }
+    if ["connected", "lowid", "highid", "firewalled", "on", "已连接", "已連線", "连接", "連線"]
+        .contains(where: { lower.contains($0) }) {
+        return .connected
+    }
+    return .unknown
+}
+
+private func localizedConnectionStateText2(_ state: ServerWindowConnectionState2) -> String {
+    switch state {
+    case .connected: return L2("Connected")
+    case .disconnected: return L2("Disconnected")
+    case .transitional: return L2("Connecting")
+    case .unknown: return L2("Unknown")
+    }
+}
+
+private func extractED2kServerName2(from value: String) -> String? {
+    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    let prefixes = ["Connected to ", "Connecting to "]
+    guard let prefix = prefixes.first(where: { trimmed.hasPrefix($0) }) else { return nil }
+
+    var rest = String(trimmed.dropFirst(prefix.count))
+    if let suffixRange = rest.range(of: #"\s+(LowID|HighID)\s*$"#, options: .regularExpression) {
+        rest.removeSubrange(suffixRange)
+    }
+    if let endpointRange = rest.range(
+        of: #"\s+\[?[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+(?::[0-9]+)?\]?$"#,
+        options: .regularExpression
+    ) {
+        rest.removeSubrange(endpointRange)
+    }
+    let name = rest.trimmingCharacters(in: .whitespacesAndNewlines)
+    return name.isEmpty ? nil : name
+}
+
+private func localizedED2kStatusSummary2(_ value: String) -> String {
+    let state = connectionState2(from: value)
+    switch state {
+    case .connected:
+        if let name = extractED2kServerName2(from: value) {
+            return LF2("Connected to %@", name)
+        }
+    case .transitional:
+        if let name = extractED2kServerName2(from: value) {
+            return LF2("Connecting to %@", name)
+        }
+    case .disconnected, .unknown:
+        break
+    }
+    return localizedConnectionStateText2(state)
+}
+
 private enum SearchOutlineSortKey: String {
     case index
     case name
@@ -22,11 +102,21 @@ private struct SearchTreeNode: Identifiable, Hashable {
 struct SearchWindowView: View {
     @EnvironmentObject private var model: AppModel
 
+    let embeddedInMainWindow: Bool
+    let mockMode: Bool
+
+    init(embeddedInMainWindow: Bool = false, mockMode: Bool = false) {
+        self.embeddedInMainWindow = embeddedInMainWindow
+        self.mockMode = mockMode
+    }
+
     @State private var searchSortDescriptors = [
         NSSortDescriptor(key: SearchOutlineSortKey.index.rawValue, ascending: true)
     ]
     @State private var displayedSearchResults: [SearchResult] = []
     @State private var selectedSearchResultIDs: Set<SearchResult.ID> = []
+    @State private var mockSearchQuery: String = ""
+    @State private var mockSearchScope: String = "global"
 
     private var selectedSearchResults: [SearchResult] {
         displayedSearchResults.filter { selectedSearchResultIDs.contains($0.id) }
@@ -36,102 +126,253 @@ struct SearchWindowView: View {
         buildSearchTree(from: displayedSearchResults, using: searchSortDescriptors)
     }
 
-    private var searchFooterSummary: String {
-        let base = "Found \(displayedSearchResults.count) result(s), progress \(model.searchProgress)%."
-        return model.isSearchInProgress ? "Searching... \(base)" : base
+    private var searchOutlineAutosaveName: String {
+        if mockMode {
+            return "AMuleNativeRemote.SearchOutline.Mock"
+        }
+        return embeddedInMainWindow
+            ? "AMuleNativeRemote.SearchOutline.Main"
+            : "AMuleNativeRemote.SearchOutline.Window"
+    }
+
+    private var activeSearchScopeValue: String {
+        mockMode ? mockSearchScope : model.searchScope
+    }
+
+    private var searchScopeMenuLabel: String {
+        switch activeSearchScopeValue.lowercased() {
+        case "kad":
+            return L2("Kad")
+        case "local":
+            return L2("Local")
+        default:
+            return L2("Global")
+        }
+    }
+
+    private var searchToolbarPlaceholder: String { L2("Search") }
+
+    private var searchQueryBinding: Binding<String> {
+        if mockMode {
+            return $mockSearchQuery
+        }
+        return $model.searchQuery
+    }
+
+    private var isSearchInProgressForUI: Bool {
+        mockMode ? false : model.isSearchInProgress
+    }
+
+    private var canDownloadSelectedSearchResults: Bool {
+        !mockMode && !selectedSearchResults.isEmpty && !model.isBusy
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            SearchResultsOutlineView(
-                nodes: searchTree,
-                selection: $selectedSearchResultIDs,
-                sortDescriptors: $searchSortDescriptors
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            Divider()
-
-            HStack(spacing: 8) {
-                Text(searchFooterSummary)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                if !selectedSearchResultIDs.isEmpty {
-                    Text("\(selectedSearchResultIDs.count) selected")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                if model.isSearchInProgress {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 8)
+        if embeddedInMainWindow {
+            baseSearchContent
+        } else {
+            baseSearchContent
+                .frame(minWidth: 920, minHeight: 320)
+                .background(
+                    GlassEffectBackground(material: .underWindowBackground)
+                        .ignoresSafeArea()
+                )
+                .background(
+                    WindowAppearanceConfigurator(
+                        hideTitle: true,
+                        transparentTitlebar: true,
+                        fullSizeContentView: true,
+                        toolbarStyle: .automatic,
+                        makeWindowTransparent: true,
+                        ensureToolbarWhenTransparentTitlebar: false
+                    )
+                )
         }
+    }
+
+    private var baseSearchContent: some View {
+        SearchResultsOutlineView(
+            nodes: searchTree,
+            selection: $selectedSearchResultIDs,
+            sortDescriptors: $searchSortDescriptors,
+            autosaveName: searchOutlineAutosaveName
+        )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .frame(minWidth: 920, minHeight: 320)
-        .searchable(text: $model.searchQuery, placement: .toolbar, prompt: "Search keyword")
-        .onSubmit(of: .search) {
-            model.performSearch()
-        }
+        .frame(minHeight: 320)
         .toolbar {
-            ToolbarItem(placement: .navigation) {
-                Picker("Scope", selection: $model.searchScope) {
-                    Text("Kad").tag("kad")
-                    Text("Global").tag("global")
-                    Text("Local").tag("local")
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
-            }
-
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
+                    guard !mockMode else { return }
                     model.downloadResults(selectedSearchResults)
                 } label: {
                     Label("Download", systemImage: "arrow.down.circle")
                 }
                 .help("Download Selected")
-                .disabled(selectedSearchResults.isEmpty || model.isBusy)
+                .disabled(!canDownloadSelectedSearchResults)
 
                 Button {
+                    guard !mockMode else { return }
                     model.stopSearch()
                 } label: {
                     Label("Stop", systemImage: "stop.fill")
                 }
                 .help("Stop Search")
-                .disabled(!model.isSearchInProgress)
+                .disabled(!isSearchInProgressForUI)
+
+                Menu {
+                    Button {
+                        setSearchScope("kad")
+                    } label: {
+                        HStack {
+                            Text("Kad")
+                            if activeSearchScopeValue.lowercased() == "kad" {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+
+                    Button {
+                        setSearchScope("global")
+                    } label: {
+                        HStack {
+                            Text("Global")
+                            if activeSearchScopeValue.lowercased() == "global" {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+
+                    Button {
+                        setSearchScope("local")
+                    } label: {
+                        HStack {
+                            Text("Local")
+                            if activeSearchScopeValue.lowercased() == "local" {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                } label: {
+                    Text(searchScopeMenuLabel)
+                }
+                .help("Search Scope")
             }
         }
-        .background(
-            GlassEffectBackground(material: .underWindowBackground)
-                .ignoresSafeArea()
+        .searchable(
+            text: searchQueryBinding,
+            placement: .toolbar,
+            prompt: Text(searchToolbarPlaceholder)
         )
-        .background(
-            WindowAppearanceConfigurator(
-                hideTitle: true,
-                transparentTitlebar: true,
-                fullSizeContentView: true,
-                toolbarStyle: .automatic,
-                makeWindowTransparent: true,
-                ensureToolbarWhenTransparentTitlebar: false
-            )
-        )
+        .onSubmit(of: .search) {
+            guard !mockMode else { return }
+            model.performSearch()
+        }
         .task {
             refreshDisplayedSearchResults()
         }
         .onChange(of: model.searchResults) {
             refreshDisplayedSearchResults()
         }
+        .onChange(of: mockSearchQuery) {
+            guard mockMode else { return }
+            refreshDisplayedSearchResults()
+        }
+        .onChange(of: mockSearchScope) {
+            guard mockMode else { return }
+            refreshDisplayedSearchResults()
+        }
     }
 
     private func refreshDisplayedSearchResults() {
-        displayedSearchResults = model.searchResults
+        if mockMode {
+            displayedSearchResults = mockSearchResults(scope: activeSearchScopeValue, query: mockSearchQuery)
+        } else {
+            displayedSearchResults = model.searchResults
+        }
         let validIDs = Set(displayedSearchResults.map(\.id))
         selectedSearchResultIDs = selectedSearchResultIDs.intersection(validIDs)
+    }
+
+    private func setSearchScope(_ scope: String) {
+        if mockMode {
+            mockSearchScope = scope
+        } else {
+            model.searchScope = scope
+        }
+    }
+
+    private func mockSearchResults(scope: String, query: String) -> [SearchResult] {
+        let seed = mockSearchSeedResults(scope: scope)
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return seed }
+
+        let tokens = trimmed
+            .folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: .current)
+            .split(whereSeparator: \.isWhitespace)
+            .map(String.init)
+
+        guard !tokens.isEmpty else { return seed }
+
+        return seed.filter { result in
+            let haystack = (result.name + " " + result.hash)
+                .folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: .current)
+            return tokens.allSatisfy { haystack.contains($0) }
+        }
+    }
+
+    private func mockSearchSeedResults(scope: String) -> [SearchResult] {
+        let scopeLabel: String
+        switch scope.lowercased() {
+        case "kad":
+            scopeLabel = "Kad"
+        case "local":
+            scopeLabel = "Local"
+        default:
+            scopeLabel = "Global"
+        }
+
+        func item(
+            _ index: Int,
+            _ name: String,
+            sizeMB: UInt64,
+            sources: Int,
+            complete: Int,
+            statusCode: Int,
+            status: String,
+            parentID: Int = 0,
+            alreadyHave: Bool = false
+        ) -> SearchResult {
+            SearchResult(
+                index: index,
+                hash: String(format: "%032X", index * 4099 + 17),
+                name: "[\(scopeLabel)] \(name)",
+                sizeBytes: sizeMB * 1024 * 1024,
+                sources: sources,
+                completeSources: complete,
+                statusCode: statusCode,
+                status: status,
+                parentID: parentID,
+                alreadyHave: alreadyHave
+            )
+        }
+
+        return [
+            item(100, "Ubuntu 24.04 Desktop ISO", sizeMB: 6144, sources: 132, complete: 41, statusCode: 0, status: "New"),
+            item(101, "ubuntu-24.04-desktop-amd64.iso", sizeMB: 6144, sources: 78, complete: 33, statusCode: 2, status: "Queued", parentID: 100),
+            item(102, "Ubuntu_24.04_Desktop_x64.iso", sizeMB: 6144, sources: 44, complete: 8, statusCode: 0, status: "New", parentID: 100),
+
+            item(200, "Blender Training Pack 2026", sizeMB: 2048, sources: 51, complete: 12, statusCode: 0, status: "New"),
+            item(201, "Blender.Training.Pack.2026.part1.zip", sizeMB: 2048, sources: 22, complete: 4, statusCode: 0, status: "New", parentID: 200),
+            item(202, "Blender_Training_Pack_2026.zip", sizeMB: 2048, sources: 19, complete: 5, statusCode: 2, status: "Queued", parentID: 200),
+            item(203, "BTP-2026.zip", sizeMB: 2048, sources: 10, complete: 3, statusCode: 1, status: "Downloaded", parentID: 200, alreadyHave: true),
+
+            item(300, "Daft Punk - Alive 2007 (FLAC)", sizeMB: 420, sources: 38, complete: 11, statusCode: 0, status: "New"),
+            item(301, "Daft.Punk.Alive.2007.FLAC", sizeMB: 420, sources: 12, complete: 2, statusCode: 4, status: "Queued (Canceled)", parentID: 300),
+            item(302, "Daft Punk - Alive 2007 [FLAC].zip", sizeMB: 420, sources: 17, complete: 6, statusCode: 3, status: "Canceled", parentID: 300),
+
+            item(400, "Inception (2010) 1080p BluRay x264", sizeMB: 8192, sources: 26, complete: 7, statusCode: 0, status: "New"),
+            item(500, "orphaned child demo (invalid parent id)", sizeMB: 55, sources: 4, complete: 1, statusCode: 0, status: "New", parentID: 9999)
+        ]
     }
 
     private func buildSearchTree(from results: [SearchResult], using sortDescriptors: [NSSortDescriptor]) -> [SearchTreeNode] {
@@ -255,6 +496,7 @@ private struct SearchResultsOutlineView: NSViewRepresentable {
     let nodes: [SearchTreeNode]
     @Binding var selection: Set<SearchResult.ID>
     @Binding var sortDescriptors: [NSSortDescriptor]
+    let autosaveName: String
 
     func makeCoordinator() -> Coordinator {
         Coordinator(selection: $selection, sortDescriptors: $sortDescriptors)
@@ -281,14 +523,14 @@ private struct SearchResultsOutlineView: NSViewRepresentable {
         outlineView.selectionHighlightStyle = .regular
         outlineView.columnAutoresizingStyle = .noColumnAutoresizing
         outlineView.focusRingType = .none
-        outlineView.autosaveName = "AMuleNativeRemote.SearchOutline"
+        outlineView.autosaveName = autosaveName
         outlineView.autosaveTableColumns = true
 
         let nameColumn = makeColumn(
             key: .name,
             title: "Name",
-            width: 660,
-            minWidth: 500,
+            width: 560,
+            minWidth: 360,
             maxWidth: 2600
         )
         outlineView.addTableColumn(nameColumn)
@@ -328,7 +570,7 @@ private struct SearchResultsOutlineView: NSViewRepresentable {
         maxWidth: CGFloat
     ) -> NSTableColumn {
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(key.rawValue))
-        column.title = title
+        column.title = L2(title)
         column.width = width
         column.minWidth = minWidth
         column.maxWidth = maxWidth
@@ -767,7 +1009,7 @@ struct DownloadDetailsWindowView: View {
                             colors: item.progressColors,
                             fallbackProgress: item.progressDisplayValue / 100.0
                         )
-                        Text("Progress: \(item.progressText)")
+                        Text(LF2("Progress: %@", item.progressText))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -806,7 +1048,7 @@ struct DownloadDetailsWindowView: View {
                                 detailRowLarge("Active Time", item.activeTimeText)
                                 detailRowLarge("Last Seen Complete", item.lastSeenCompleteText)
                                 detailRowLarge("Last Received", item.lastReceivedText)
-                                detailRowLarge("Shared", item.shared ? "Yes" : "No")
+                                detailRowLarge("Shared", item.shared ? L2("Yes") : L2("No"))
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
@@ -947,14 +1189,14 @@ struct DownloadDetailsWindowView: View {
         )
         .background(
             WindowAppearanceConfigurator(
-                hideTitle: false,
+                hideTitle: true,
                 transparentTitlebar: true,
                 fullSizeContentView: true,
-                toolbarStyle: .unifiedCompact,
+                toolbarStyle: .automatic,
                 showsToolbarBaselineSeparator: false,
                 makeWindowTransparent: true,
-                ensureToolbarWhenTransparentTitlebar: true,
-                forceNoToolbar: false
+                ensureToolbarWhenTransparentTitlebar: false,
+                forceNoToolbar: true
             )
         )
         .onAppear {
@@ -985,7 +1227,7 @@ struct DownloadDetailsWindowView: View {
 
     private func detailRowLarge(_ title: String, _ value: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(title + ":")
+            Text(L2(title) + ":")
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .frame(width: 145, alignment: .leading)
@@ -1007,6 +1249,7 @@ struct ServersWindowView: View {
     @State private var displayedServers: [ServerItem] = []
     @State private var selectedServerID: ServerItem.ID? = nil
     @State private var showingAddServerSheet = false
+    @State private var showingImportServerMetSheet = false
 
     private var selectedServer: ServerItem? {
         guard let selectedServerID else { return nil }
@@ -1015,45 +1258,23 @@ struct ServersWindowView: View {
 
     @ToolbarContentBuilder
     private var serversToolbar: some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
-            Button {
-                showingAddServerSheet = true
-            } label: {
-                Label("Add", systemImage: "plus")
-            }
-            .help("Add Server")
-            .disabled(model.isBusy)
-        }
-
-        ToolbarItem(placement: .navigation) {
-            Button {
-                model.refreshServers()
-            } label: {
-                Label("Refresh", systemImage: "arrow.clockwise")
-            }
-            .help("Refresh Servers")
-            .disabled(model.isBusy)
-        }
-
-        ToolbarItem(placement: .navigation) {
-            Button {
-                model.disconnectServer()
-            } label: {
-                Label("Disconnect", systemImage: "minus.circle")
-            }
-            .help("Disconnect Current Server")
-            .disabled(model.isBusy)
-        }
-
-        ToolbarItem(placement: .navigation) {
+        ToolbarItem(placement: .primaryAction) {
             ControlGroup {
                 Button {
-                    model.connectServer(selectedServer)
+                    showingAddServerSheet = true
                 } label: {
-                    Label("Connect", systemImage: "link")
+                    Label("Add", systemImage: "plus")
                 }
-                .help("Connect Selected Server")
-                .disabled(model.isBusy || selectedServer == nil)
+                .help("Add Server")
+                .disabled(model.isBusy)
+
+                Button {
+                    model.refreshServers()
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .help("Refresh Servers")
+                .disabled(model.isBusy)
 
                 Button {
                     if let selectedServer {
@@ -1067,13 +1288,72 @@ struct ServersWindowView: View {
             }
             .controlGroupStyle(.navigation)
         }
+
+        ToolbarItem(placement: .primaryAction) {
+            Button {
+                showingImportServerMetSheet = true
+            } label: {
+                Label("Import .met", systemImage: "arrow.down.circle")
+            }
+            .help("Import server list from URL")
+            .disabled(model.isBusy)
+        }
+
+        ToolbarItem(placement: .primaryAction) {
+            ControlGroup {
+                Button {
+                    model.connectServer(selectedServer)
+                } label: {
+                    Label("Connect", systemImage: "link")
+                }
+                .help("Connect Selected Server")
+                .disabled(model.isBusy || selectedServer == nil)
+
+                Button {
+                    model.disconnectServer()
+                } label: {
+                    Label("Disconnect", systemImage: "minus.circle")
+                }
+                .help("Disconnect Current Server")
+                .disabled(model.isBusy)
+            }
+            .controlGroupStyle(.navigation)
+        }
     }
 
     var body: some View {
+        baseServersContent
+            .frame(minWidth: 1040, minHeight: 620)
+            .background(
+                GlassEffectBackground(material: .underWindowBackground)
+                    .ignoresSafeArea()
+            )
+            .background(
+                WindowAppearanceConfigurator(
+                    windowTitle: "eD2k",
+                    hideTitle: false,
+                    transparentTitlebar: true,
+                    fullSizeContentView: true,
+                    toolbarStyle: .automatic,
+                    makeWindowTransparent: true,
+                    ensureToolbarWhenTransparentTitlebar: false
+                )
+            )
+    }
+
+    private var baseServersContent: some View {
         VStack(spacing: 0) {
             Table(displayedServers, selection: $selectedServerID, sortOrder: $serverSortOrder) {
                 TableColumn("Name", value: \.name) { item in
-                    Text(item.name.isEmpty ? "(unnamed)" : item.name)
+                    HStack(spacing: 6) {
+                        if isConnectedServer(item) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                                .help("Connected Server")
+                        }
+                        Text(item.name.isEmpty ? L2("(unnamed)") : item.name)
+                            .fontWeight(isConnectedServer(item) ? .semibold : .regular)
+                    }
                         .contextMenu { serverContextMenu(item) }
                 }
                 .width(min: 180, ideal: 220, max: 420)
@@ -1121,7 +1401,7 @@ struct ServersWindowView: View {
                 .width(70)
 
                 TableColumn("Static") { item in
-                    Text(item.isStatic ? "Yes" : "No")
+                    Text(item.isStatic ? L2("Yes") : L2("No"))
                         .contextMenu { serverContextMenu(item) }
                 }
                 .width(70)
@@ -1146,7 +1426,12 @@ struct ServersWindowView: View {
                         .truncationMode(.tail)
                 }
                 Spacer()
-                Text("\(displayedServers.count) server(s)")
+                Text(localizedED2kStatusSummary2(model.status.ed2k))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Text(LF2("%lld server(s)", Int64(displayedServers.count)))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -1154,22 +1439,7 @@ struct ServersWindowView: View {
             .padding(.vertical, 6)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .frame(minWidth: 1040, minHeight: 620)
         .toolbar { serversToolbar }
-        .background(
-            GlassEffectBackground(material: .underWindowBackground)
-                .ignoresSafeArea()
-        )
-        .background(
-            WindowAppearanceConfigurator(
-                hideTitle: true,
-                transparentTitlebar: true,
-                fullSizeContentView: true,
-                toolbarStyle: .automatic,
-                makeWindowTransparent: true,
-                ensureToolbarWhenTransparentTitlebar: false
-            )
-        )
         .task {
             refreshDisplayedServers()
             model.refreshServers()
@@ -1180,6 +1450,9 @@ struct ServersWindowView: View {
         .onChange(of: serverSortOrder) {
             refreshDisplayedServers()
         }
+        .onChange(of: model.status.ed2k) {
+            refreshDisplayedServers()
+        }
         .sheet(isPresented: $showingAddServerSheet) {
             AddServerSheetView(isBusy: model.isBusy) { address, name in
                 model.serverAddressInput = address
@@ -1188,6 +1461,14 @@ struct ServersWindowView: View {
                 showingAddServerSheet = false
             }
             .presentationDetents([.height(220)])
+            .presentationDragIndicator(.hidden)
+        }
+        .sheet(isPresented: $showingImportServerMetSheet) {
+            ImportServerMetSheetView(isBusy: model.isBusy) { url in
+                model.updateServerListFromURL(url)
+                showingImportServerMetSheet = false
+            }
+            .presentationDetents([.height(200)])
             .presentationDragIndicator(.hidden)
         }
     }
@@ -1203,11 +1484,41 @@ struct ServersWindowView: View {
     }
 
     private func refreshDisplayedServers() {
-        displayedServers = model.servers.sorted(using: serverSortOrder)
+        var sorted = model.servers.sorted(using: serverSortOrder)
+        let connected = sorted.filter(isConnectedServer)
+        if !connected.isEmpty {
+            let others = sorted.filter { !isConnectedServer($0) }
+            sorted = connected + others
+        }
+        displayedServers = sorted
         if let selectedServerID,
            !displayedServers.contains(where: { $0.id == selectedServerID }) {
             self.selectedServerID = nil
         }
+    }
+
+    private func isConnectedServer(_ server: ServerItem) -> Bool {
+        guard let endpoint = currentConnectedServerEndpoint else { return false }
+        return server.ip == endpoint.ip && server.port == endpoint.port
+    }
+
+    private var currentConnectedServerEndpoint: (ip: String, port: Int)? {
+        let text = model.status.ed2k.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return nil }
+
+        // Extract the first IPv4:port endpoint from eD2k status text, e.g.
+        // "Connected to Foo [1.2.3.4:4661] LowID".
+        guard let range = text.range(
+            of: #"\b([0-9]{1,3}(?:\.[0-9]{1,3}){3}):([0-9]{1,5})\b"#,
+            options: .regularExpression
+        ) else {
+            return nil
+        }
+
+        let endpoint = String(text[range])
+        let parts = endpoint.split(separator: ":", maxSplits: 1).map(String.init)
+        guard parts.count == 2, let port = Int(parts[1]) else { return nil }
+        return (ip: parts[0], port: port)
     }
 }
 
@@ -1259,6 +1570,46 @@ private struct AddServerSheetView: View {
     }
 }
 
+private struct ImportServerMetSheetView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let isBusy: Bool
+    let onAdd: (_ url: String) -> Void
+
+    @State private var url: String = ""
+
+    private var trimmedURL: String {
+        url.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Import Server List")
+                .font(.headline)
+
+            TextField("http://example.com/server.met", text: $url)
+                .textFieldStyle(.roundedBorder)
+
+            HStack {
+                Button("Close") {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+
+                Spacer()
+
+                Button("Add") {
+                    onAdd(trimmedURL)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isBusy || trimmedURL.isEmpty)
+            }
+        }
+        .padding(16)
+        .frame(width: 520)
+    }
+}
+
 struct DiagnosticsWindowView: View {
     @EnvironmentObject private var model: AppModel
 
@@ -1268,6 +1619,8 @@ struct DiagnosticsWindowView: View {
         case sources = "Raw Src"
         case search = "Raw Search"
         case servers = "Raw Servers"
+
+        var localizedTitle: String { L2(rawValue) }
     }
 
     @State private var diagnosticsTab: DiagnosticsTab = .log
@@ -1278,7 +1631,7 @@ struct DiagnosticsWindowView: View {
                 HStack(spacing: 10) {
                     Picker("Diagnostics", selection: $diagnosticsTab) {
                         ForEach(DiagnosticsTab.allCases, id: \.self) { tab in
-                            Text(tab.rawValue).tag(tab)
+                            Text(tab.localizedTitle).tag(tab)
                         }
                     }
                     .pickerStyle(.segmented)
@@ -1328,15 +1681,15 @@ struct DiagnosticsWindowView: View {
     private var currentDiagnosticsText: String {
         switch diagnosticsTab {
         case .log:
-            return model.outputLog.isEmpty ? "No command output yet." : model.outputLog
+            return model.outputLog.isEmpty ? L2("No command output yet.") : model.outputLog
         case .downloads:
-            return model.lastDownloadsRawOutput.isEmpty ? "No raw download queue output captured yet." : model.lastDownloadsRawOutput
+            return model.lastDownloadsRawOutput.isEmpty ? L2("No raw download queue output captured yet.") : model.lastDownloadsRawOutput
         case .sources:
-            return model.lastSourcesRawOutput.isEmpty ? "No raw source output captured yet." : model.lastSourcesRawOutput
+            return model.lastSourcesRawOutput.isEmpty ? L2("No raw source output captured yet.") : model.lastSourcesRawOutput
         case .search:
-            return model.lastSearchRawOutput.isEmpty ? "No raw search output captured yet." : model.lastSearchRawOutput
+            return model.lastSearchRawOutput.isEmpty ? L2("No raw search output captured yet.") : model.lastSearchRawOutput
         case .servers:
-            return model.lastServersRawOutput.isEmpty ? "No raw server-list output captured yet." : model.lastServersRawOutput
+            return model.lastServersRawOutput.isEmpty ? L2("No raw server-list output captured yet.") : model.lastServersRawOutput
         }
     }
 

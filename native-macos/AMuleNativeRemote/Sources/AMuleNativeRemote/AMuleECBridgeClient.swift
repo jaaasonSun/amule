@@ -6,7 +6,7 @@ struct AMuleConnectionConfig {
     var port: Int
     var password: String
 
-    static let legacyFallbackBridgePath = "/path/to/amule/build/src/amule-ec-bridge"
+    static let fallbackBridgeCommand = "amule-ec-bridge"
 
     static var bundledBridgePath: String? {
         let fm = FileManager.default
@@ -31,8 +31,17 @@ struct AMuleConnectionConfig {
             return bundled
         }
 
+        let cwd = fm.currentDirectoryPath
         let candidates = [
-            legacyFallbackBridgePath,
+            URL(fileURLWithPath: cwd)
+                .appendingPathComponent("build/src/amule-ec-bridge")
+                .path,
+            URL(fileURLWithPath: cwd)
+                .appendingPathComponent("../build/src/amule-ec-bridge")
+                .standardized.path,
+            URL(fileURLWithPath: cwd)
+                .appendingPathComponent("../../build/src/amule-ec-bridge")
+                .standardized.path,
             "/opt/homebrew/bin/amule-ec-bridge",
             "/usr/local/bin/amule-ec-bridge"
         ]
@@ -41,7 +50,7 @@ struct AMuleConnectionConfig {
             return candidate
         }
 
-        return legacyFallbackBridgePath
+        return fallbackBridgeCommand
     }
 }
 
@@ -419,6 +428,24 @@ enum AMuleECBridgeClient {
             config: config
         )
         return (envelope.message ?? "Server remove requested", raw)
+    }
+
+    static func serverUpdateFromURL(url: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        let (envelope, raw) = try await invoke(
+            op: "server-update-from-url",
+            extraArgs: ["--server-url", url],
+            config: config
+        )
+        return (envelope.message ?? "Server list update requested", raw)
+    }
+
+    static func kadUpdateFromURL(url: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        let (envelope, raw) = try await invoke(
+            op: "kad-update-from-url",
+            extraArgs: ["--kad-url", url],
+            config: config
+        )
+        return (envelope.message ?? "Kad nodes update requested", raw)
     }
 
     private static func invoke(

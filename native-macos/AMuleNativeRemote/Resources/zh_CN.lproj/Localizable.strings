@@ -1,0 +1,201 @@
+"All" = "全部";
+"Downloading" = "下载中";
+"Pending" = "等待中";
+"Paused" = "已暂停";
+"Completed" = "已完成";
+
+"Downloads" = "下载";
+"Server" = "服务器";
+"Connection" = "连接";
+"Search" = "搜索";
+"eD2k" = "eD2k";
+"Kad" = "Kad";
+
+"On" = "开";
+"Off" = "关";
+"Run" = "运行中";
+
+"Remove Selected Downloads?" = "删除所选下载？";
+"This will remove %lld selected download(s). This action cannot be undone." = "这将删除 %lld 个所选下载。此操作无法撤销。";
+"Cancel" = "取消";
+"Remove" = "删除";
+
+"Start" = "开始";
+"Pause" = "暂停";
+"Details" = "详情";
+"Add Links" = "添加链接";
+"Clear Completed" = "清除已完成";
+"Refresh" = "刷新";
+
+"Resume Selected Downloads" = "继续所选下载";
+"Pause Selected Downloads" = "暂停所选下载";
+"Remove Selected Downloads" = "删除所选下载";
+"Show Download Details" = "显示下载详情";
+"Show Add Links Panel" = "显示添加链接面板";
+"Clear Completed Downloads" = "清除已完成下载";
+"Refresh Kad Status" = "刷新 Kad 状态";
+
+"Name" = "名称";
+"Progress" = "进度";
+"Speed" = "速度";
+"Src" = "源";
+
+"Kad Connection" = "Kad 连接";
+"Update nodes.dat from URL" = "从 URL 更新 nodes.dat";
+"Download nodes.dat" = "下载 nodes.dat";
+
+"Connect To aMule Server" = "连接到 aMule 服务器";
+"Connected" = "已连接";
+"Disconnected" = "未连接";
+"Connecting" = "连接中";
+"Unknown" = "未知";
+"Host" = "主机";
+"Port" = "端口";
+"Password" = "密码";
+"Close" = "关闭";
+"Disconnect" = "断开连接";
+"Reconnect" = "重新连接";
+"Connect" = "连接";
+
+"Add eD2k Links" = "添加 eD2k 链接";
+"Paste one link per line (ed2k:// or magnet:? links)." = "每行粘贴一个链接（ed2k:// 或 magnet:? 链接）。";
+"Clear" = "清空";
+"Start Download" = "开始下载";
+
+"Details…" = "详情…";
+"Copy eD2k Link" = "复制 eD2k 链接";
+"Resume" = "继续";
+"Priority" = "优先级";
+"Low" = "低";
+"Normal" = "普通";
+"High" = "高";
+"Auto" = "自动";
+
+"Global" = "全局";
+"Local" = "本地";
+"Scope" = "范围";
+"Download" = "下载";
+"Stop" = "停止";
+"Download Selected" = "下载所选项";
+"Stop Search" = "停止搜索";
+"Found %lld result(s), progress %d%%." = "找到 %lld 个结果，进度 %d%%。";
+"Searching... %@" = "搜索中… %@";
+"%lld selected" = "已选择 %lld 项";
+
+"Size" = "大小";
+"Comp" = "完整源";
+"Status" = "状态";
+"Have" = "已拥有";
+"Hash" = "哈希";
+
+"New file name" = "新文件名";
+"Apply" = "应用";
+"Edit" = "编辑";
+"Progress: %@" = "进度：%@";
+"Copy" = "复制";
+"Transferred" = "已传输";
+"Sources" = "来源";
+"Category" = "分类";
+"Part File" = "分块文件";
+"Transferring" = "传输中源";
+"A4AF" = "A4AF";
+"Available Parts" = "可用分块";
+"Active Time" = "活动时间";
+"Last Seen Complete" = "最近看到完整源";
+"Last Received" = "最近接收";
+"Shared" = "共享";
+"Yes" = "是";
+"No" = "否";
+"Alternative Names" = "其他文件名";
+"Use" = "使用";
+"No sources available yet." = "暂无可用来源。";
+"Client" = "客户端";
+"Endpoint" = "端点";
+"Software" = "软件";
+"State" = "状态";
+"Avail" = "可用";
+"Queue" = "队列";
+"From" = "来源";
+"Remote Name" = "远端文件名";
+"Select a download item in the Downloads window first." = "请先在下载窗口中选择一个下载项。";
+
+"Add" = "添加";
+"Import .met" = "导入 .met";
+"Import server list from URL" = "从 URL 导入服务器列表";
+"Refresh Servers" = "刷新服务器";
+"Disconnect Current Server" = "断开当前服务器";
+"Connect Selected Server" = "连接所选服务器";
+"Remove Selected Server" = "删除所选服务器";
+"Address" = "地址";
+"Users" = "用户";
+"Files" = "文件";
+"Ping" = "延迟";
+"Failed" = "失败";
+"Version" = "版本";
+"Prio" = "优先级";
+"Static" = "静态";
+"Description:" = "描述：";
+"%lld server(s)" = "%lld 个服务器";
+"(unnamed)" = "（未命名）";
+
+"Add Server" = "添加服务器";
+"Server address (IP:Port)" = "服务器地址（IP:端口）";
+"Name (optional)" = "名称（可选）";
+"Import Server List" = "导入服务器列表";
+
+"Diagnostics" = "诊断";
+"Log" = "日志";
+"Raw DL" = "原始下载";
+"Raw Src" = "原始来源";
+"Raw Search" = "原始搜索";
+"Raw Servers" = "原始服务器";
+"Clear Log" = "清空日志";
+"No command output yet." = "暂无命令输出。";
+"No raw download queue output captured yet." = "尚未捕获原始下载队列输出。";
+"No raw source output captured yet." = "尚未捕获原始来源输出。";
+"No raw search output captured yet." = "尚未捕获原始搜索输出。";
+"No raw server-list output captured yet." = "尚未捕获原始服务器列表输出。";
+
+"Servers" = "服务器";
+"Open Main Window" = "打开主窗口";
+"Open Window" = "打开窗口";
+"Open Search Window" = "打开搜索窗口";
+"Open Servers Window" = "打开服务器窗口";
+"Open eD2k Window" = "打开 eD2k 窗口";
+"Open Diagnostics Window" = "打开诊断窗口";
+"Quit" = "退出";
+"Refresh Status" = "刷新状态";
+"Add Links…" = "添加链接…";
+"Tools" = "工具";
+"Show Details" = "显示详情";
+
+"eD2k: %@" = "eD2k：%@";
+"Kad: %@" = "Kad：%@";
+"Connected to %@" = "已连接到 %@";
+"Connecting to %@" = "正在连接到 %@";
+"D: %@   U: %@" = "下行：%@   上行：%@";
+"Q: %@" = "队列：%@";
+"Searching..." = "搜索中…";
+"No results yet (%d%% complete)." = "暂无结果（已完成 %d%%）。";
+"Search failed" = "搜索失败";
+"Search stopped (%d%% complete)." = "搜索已停止（已完成 %d%%）。";
+"Search stop failed" = "停止搜索失败";
+"No valid links found." = "未找到有效链接。";
+"Adding %lld link(s)..." = "正在添加 %lld 个链接…";
+"Added %lld link(s)" = "已添加 %lld 个链接";
+"Added %lld link(s), failed %lld." = "已添加 %lld 个链接，失败 %lld 个。";
+"Adding %lld download(s)..." = "正在添加 %lld 个下载…";
+"Added %lld download(s)" = "已添加 %lld 个下载";
+"Added %lld download(s), failed %lld." = "已添加 %lld 个下载，失败 %lld 个。";
+"Server address is required (e.g. 1.2.3.4:4661)." = "必须填写服务器地址（例如 1.2.3.4:4661）。";
+"Selected server has invalid endpoint information." = "所选服务器端点信息无效。";
+"Server list URL is required." = "必须填写服务器列表 URL。";
+"Invalid server list URL. Use http:// or https://." = "服务器列表 URL 无效。请使用 http:// 或 https://。";
+"nodes.dat URL is required." = "必须填写 nodes.dat URL。";
+"Invalid nodes.dat URL. Use http:// or https://." = "nodes.dat URL 无效。请使用 http:// 或 https://。";
+"File name cannot be empty." = "文件名不能为空。";
+"Upload" = "上传";
+"%@ Search" = "%@ 搜索";
+
+"Filter Downloads" = "筛选下载";
+"aMule Server" = "aMule 服务器";

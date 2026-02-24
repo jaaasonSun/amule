@@ -15,6 +15,18 @@ aMule is an eMule-like client for the eDonkey and Kademlia networks.
 [FAQ]:   http://wiki.amule.org/wiki/FAQ_aMule	"FAQ on aMule"
 
 
+Branch Note (This Fork / Branch)
+--------------------------------
+
+This branch includes an additional native macOS remote GUI project at
+`native-macos/AMuleNativeRemote` (SwiftUI/AppKit, backed by `amule-ec-bridge`).
+
+The native macOS app in this branch is entirely vibe coded.
+
+For build/run instructions and current feature coverage of the native app, see:
+`native-macos/AMuleNativeRemote/README.md`.
+
+
 Overview
 --------
 

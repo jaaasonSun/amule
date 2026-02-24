@@ -1,9 +1,58 @@
 import SwiftUI
 import AppKit
 
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
+private func LF(_ key: String, _ args: CVarArg...) -> String {
+    String(format: NSLocalizedString(key, comment: ""), locale: .current, arguments: args)
+}
+
 struct ContentView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.openWindow) private var openWindow
+
+    private enum PartFileStatusCode {
+        static let ready = 0
+        static let empty = 1
+        static let waitingForHash = 2
+        static let hashing = 3
+        static let error = 4
+        static let insufficient = 5
+        static let unknown = 6
+        static let paused = 7
+        static let completing = 8
+        static let complete = 9
+        static let allocating = 10
+    }
+
+    private enum DownloadSidebarFilter: String, CaseIterable, Identifiable {
+        case all = "All"
+        case downloading = "Downloading"
+        case pending = "Pending"
+        case paused = "Paused"
+        case completed = "Completed"
+
+        var id: String { rawValue }
+
+        var localizedTitle: String { L(rawValue) }
+
+        var symbolName: String {
+            switch self {
+            case .all: return "tray.full"
+            case .downloading: return "arrow.down"
+            case .pending: return "clock"
+            case .paused: return "pause"
+            case .completed: return "checkmark"
+            }
+        }
+    }
+
+    private enum SidebarSelection: Hashable {
+        case downloads(DownloadSidebarFilter)
+        case search
+    }
 
     private static let plainPortFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
@@ -15,16 +64,33 @@ struct ContentView: View {
 
     @State private var showLoginSheet = false
     @State private var showAddLinksSheet = false
-    @State private var showCompletedDownloadsSheet = false
+    @State private var showKadSheet = false
     @State private var addLinksDraft: String = ""
+    @State private var kadNodesURL: String = "http://upd.emule-security.org/nodes.dat"
+    @State private var isRefreshingKadStatus = false
+    @State private var selectedSidebarSelection: SidebarSelection = .downloads(.all)
 
     @State private var downloadSortOrder = [KeyPathComparator(\DownloadItem.name, order: .forward)]
+    @State private var downloadNameFilterQuery: String = ""
     @State private var displayedDownloads: [DownloadItem] = []
     @State private var selectedDownloadIDs: Set<DownloadItem.ID> = []
-    @State private var footerDetailsExpanded = false
-    @State private var showEd2kStatusPopover = false
     @State private var showRemoveConfirmation = false
     @State private var pendingRemoveDownloadIDs: Set<DownloadItem.ID> = []
+
+    private var sidebarSelectionBinding: Binding<SidebarSelection?> {
+        Binding<SidebarSelection?>(
+            get: { selectedSidebarSelection },
+            set: { newValue in
+                guard let newValue else { return }
+                var tx = Transaction()
+                tx.animation = nil
+                tx.disablesAnimations = true
+                withTransaction(tx) {
+                    selectedSidebarSelection = newValue
+                }
+            }
+        )
+    }
 
     private var selectedDownload: DownloadItem? {
         displayedDownloads.first(where: { selectedDownloadIDs.contains($0.id) })
@@ -45,33 +111,81 @@ struct ContentView: View {
             }
     }
 
-    private var completedDownloadsContentHeight: CGFloat {
-        let rowHeight: CGFloat = 32
-        let rows = CGFloat(min(max(completedDownloads.count, 1), 10))
-        return rows * rowHeight + 4
-    }
-
     var body: some View {
         configuredBody
     }
 
-    private var baseBody: some View {
-        VStack(spacing: 6) {
-            downloadsPanel
-                .padding(.top, 0)
-            Divider()
-            footerStatusBar
-                .padding(.horizontal, 10)
-                .padding(.bottom, 6)
-            if !model.lastError.isEmpty {
-                Text(model.lastError)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 10)
-            }
+    private var activeSidebarFilter: DownloadSidebarFilter {
+        if case .downloads(let filter) = selectedSidebarSelection {
+            return filter
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        return .all
+    }
+
+    private var downloadsPageToolbarTitle: String {
+        switch activeSidebarFilter {
+        case .all:
+            return L("Downloads")
+        default:
+            return activeSidebarFilter.localizedTitle
+        }
+    }
+
+    private var windowTitleText: String {
+        switch selectedSidebarSelection {
+        case .downloads:
+            return downloadsPageToolbarTitle
+        case .search:
+            return L("Search")
+        }
+    }
+
+    private var baseBody: some View {
+        VStack(spacing: 0) {
+            NavigationSplitView {
+                List(selection: sidebarSelectionBinding) {
+                    ForEach(DownloadSidebarFilter.allCases) { filter in
+                        Label(filter.localizedTitle, systemImage: filter.symbolName)
+                            .badge(downloadFilterCount(for: filter))
+                            .tag(SidebarSelection.downloads(filter))
+                    }
+
+                    searchSidebarRow
+                        .tag(SidebarSelection.search)
+                }
+                .listStyle(.sidebar)
+                .navigationSplitViewColumnWidth(min: 150, ideal: 180, max: 220)
+            } detail: {
+                VStack(spacing: 0) {
+                    Group {
+                        switch selectedSidebarSelection {
+                        case .downloads:
+                            downloadsPanel
+                        case .search:
+                            SearchWindowView(embeddedInMainWindow: true)
+                                .transaction { tx in
+                                    tx.animation = nil
+                                    tx.disablesAnimations = true
+                                }
+                        }
+                    }
+                    .padding(.top, 0)
+                    if !model.lastError.isEmpty {
+                        Divider()
+                        Text(model.lastError)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                    }
+                    Divider()
+                    mainFooterBar
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
+            .navigationTitle(windowTitleText)
+        }
     }
 
     private var configuredBody: some View {
@@ -80,14 +194,14 @@ struct ContentView: View {
 
     private var styledBody: some View {
         baseBody
-            .frame(minWidth: 560, minHeight: 420)
+            .frame(minWidth: 760, minHeight: 420)
             .background(
                 GlassEffectBackground(material: .underWindowBackground)
                     .ignoresSafeArea()
             )
             .background(
                 WindowAppearanceConfigurator(
-                    hideTitle: true,
+                    hideTitle: false,
                     transparentTitlebar: true,
                     fullSizeContentView: true,
                     toolbarStyle: .automatic,
@@ -132,6 +246,12 @@ struct ContentView: View {
             .onChange(of: downloadSortOrder) {
                 refreshDisplayedDownloads()
             }
+            .onChange(of: downloadNameFilterQuery) {
+                refreshDisplayedDownloads()
+            }
+            .onChange(of: selectedSidebarSelection) {
+                refreshDisplayedDownloads()
+            }
             .onChange(of: selectedDownloadIDs) {
                 model.selectedDownloadID = selectedDownload?.id
                 if let selectedDownload {
@@ -145,6 +265,7 @@ struct ContentView: View {
 
     private var presentedBody: some View {
         observedBody
+            .animation(.none, value: selectedSidebarSelection)
             .sheet(isPresented: $showLoginSheet) {
                 if #available(macOS 13.3, *) {
                     loginSheet
@@ -161,14 +282,31 @@ struct ContentView: View {
                     addLinksSheet
                 }
             }
-            .toolbar { downloadsToolbar }
+            .sheet(isPresented: $showKadSheet) {
+                if #available(macOS 13.3, *) {
+                    kadSheet
+                        .presentationBackground(.clear)
+                } else {
+                    kadSheet
+                }
+            }
+            .toolbar {
+                if case .downloads = selectedSidebarSelection {
+                    downloadsToolbar
+                }
+            }
             .alert("Remove Selected Downloads?", isPresented: $showRemoveConfirmation) {
                 Button("Cancel", role: .cancel) {}
                 Button("Remove", role: .destructive) {
                     removePendingDownloads()
                 }
             } message: {
-                Text("This will remove \(pendingRemoveDownloadIDs.count) selected download(s). This action cannot be undone.")
+                Text(
+                    LF(
+                        "This will remove %lld selected download(s). This action cannot be undone.",
+                        Int64(pendingRemoveDownloadIDs.count)
+                    )
+                )
             }
             .overlay {
                 if model.showHUD {
@@ -181,19 +319,17 @@ struct ContentView: View {
 
     @ToolbarContentBuilder
     private var downloadsToolbar: some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
-            ControlGroup {
-                Button {
-                    presentSelectedDownloadDetails()
-                } label: {
-                    Label("Details", systemImage: "info.circle")
-                }
-                .help("Show Download Details")
-                .disabled(selectedDownload == nil)
+        ToolbarItem(placement: .automatic) {
+            Button {
+                presentSelectedDownloadDetails()
+            } label: {
+                Label("Details", systemImage: "info")
             }
+            .help("Show Download Details")
+            .disabled(selectedDownload == nil)
         }
 
-        ToolbarItem(placement: .navigation) {
+        ToolbarItem(placement: .automatic) {
             ControlGroup {
                 Button {
                     model.resumeDownloads(selectedDownloads)
@@ -223,9 +359,7 @@ struct ContentView: View {
             .controlGroupStyle(.navigation)
         }
 
-        ToolbarSpacer(.flexible, placement: .automatic)
-
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItem(placement: .automatic) {
             Button {
                 showAddLinksSheet = true
             } label: {
@@ -233,39 +367,21 @@ struct ContentView: View {
             }
             .help("Show Add Links Panel")
             .disabled(model.isBusy)
+        }
 
+        ToolbarItem(placement: .automatic) {
             Button {
-                showCompletedDownloadsSheet.toggle()
+                model.clearCompletedDownloads(completedDownloads)
             } label: {
-                Label {
-                    Text("Completed")
-                } icon: {
-                    completedToolbarIcon(count: completedDownloads.count)
-                }
+                Label("Clear Completed", systemImage: "checkmark")
             }
-            .help("Show Completed Downloads")
-            .popover(isPresented: $showCompletedDownloadsSheet, arrowEdge: .bottom) {
-                completedDownloadsSheet
-            }
-
-            Button {
-                openWindow(id: "search-window")
-            } label: {
-                Label("Search", systemImage: "magnifyingglass")
-            }
-            .help("Open Search Window")
-
-            Button {
-                openWindow(id: "servers-window")
-            } label: {
-                Label("Servers", systemImage: "server.rack")
-            }
-            .help("Open Servers Window")
+            .help("Clear Completed Downloads")
+            .disabled(completedDownloads.isEmpty || model.isBusy)
         }
     }
 
     private var downloadsPanel: some View {
-        Table(displayedDownloads, selection: $selectedDownloadIDs, sortOrder: $downloadSortOrder) {
+        return Table(displayedDownloads, selection: $selectedDownloadIDs, sortOrder: $downloadSortOrder) {
             TableColumn("Name", sortUsing: KeyPathComparator(\DownloadItem.name, order: .forward)) { item in
                 downloadTableCell(
                     item,
@@ -334,192 +450,284 @@ struct ContentView: View {
         .padding(.horizontal, 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .scrollContentBackground(.hidden)
-        .background(
-            DownloadsTableRowStripeStyle()
-        )
+        .searchable(text: $downloadNameFilterQuery, placement: .toolbar, prompt: L("Filter Downloads"))
     }
 
-    private var footerStatusBar: some View {
-        GeometryReader { geometry in
-            let isNarrow = geometry.size.width < 940
-            let ed2kState = connectionState(from: model.status.ed2k)
-            let kadState = connectionState(from: model.status.kad)
+    enum ConnectionState {
+        case connected
+        case disconnected
+        case transitional
+        case unknown
+    }
 
-            VStack(spacing: 6) {
-                HStack(spacing: 8) {
-                    Button {
-                        showEd2kStatusPopover.toggle()
-                    } label: {
-                        statusBadge(
-                            title: "eD2k",
-                            value: compactED2kBadgeValue(model.status.ed2k),
-                            showsDisclosure: true,
-                            tone: statusBadgeTone(for: ed2kState)
-                        )
+    private var searchSidebarRow: some View {
+        Label("Search", systemImage: "magnifyingglass")
+            .lineLimit(1)
+            .badge(searchSidebarBadgeText)
+    }
+
+    private var searchSidebarBadgeText: String {
+        if model.isSearchInProgress {
+            return "…"
+        }
+        return String(model.searchResults.count)
+    }
+
+    private var amuleServerFooterConnectionState: ConnectionState {
+        model.isSessionConnected ? .connected : .disconnected
+    }
+
+    private var ed2kFooterConnectionState: ConnectionState {
+        connectionState(from: model.status.ed2k)
+    }
+
+    private var kadFooterConnectionState: ConnectionState {
+        connectionState(from: model.status.kad)
+    }
+
+    private var ed2kFooterStatusText: String {
+        compactED2kBadgeValue(model.status.ed2k)
+    }
+
+    private var mainFooterBar: some View {
+        HStack(spacing: 6) {
+            footerStatusControl(state: amuleServerFooterConnectionState) {
+                Button {
+                    showLoginSheet = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "link")
+                            .foregroundStyle(.secondary)
+                        Text(L("aMule Server"))
+                        footerConnectionStateSymbol(amuleServerFooterConnectionState)
                     }
-                    .buttonStyle(.plain)
-                    .popover(isPresented: $showEd2kStatusPopover, arrowEdge: .top) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("eD2k Status")
-                                .font(.caption.weight(.semibold))
+                    .font(.caption)
+                }
+                .buttonStyle(.bordered)
+                .help("Open Connection Panel")
+            }
+
+            footerStatusControl(state: ed2kFooterConnectionState) {
+                ControlGroup {
+                    Button {
+                        openWindow(id: "servers-window")
+                        NSApp.activate(ignoringOtherApps: true)
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "rectangle.connected.to.line.below")
                                 .foregroundStyle(.secondary)
-                            Text(model.status.ed2k)
-                                .font(.callout)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .textSelection(.enabled)
+                            switch ed2kFooterConnectionState {
+                            case .connected:
+                                Text(ed2kFooterPrimaryText)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                            case .transitional:
+                                Text(ed2kFooterPrimaryText)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                footerConnectionStateSymbol(ed2kFooterConnectionState)
+                            case .disconnected, .unknown:
+                                Text("eD2k")
+                                footerConnectionStateSymbol(ed2kFooterConnectionState)
+                            }
                         }
-                        .padding(10)
-                        .frame(minWidth: 220, maxWidth: 360)
+                        .font(.caption)
+                        // Segmented controls render tighter leading content padding than
+                        // bordered buttons; add a small inset so eD2k aligns visually
+                        // with the aMule/Kad footer buttons.
+                        .padding(.leading, 3)
                     }
-                    .help("Show Full eD2k Status")
-
-                    statusBadge(
-                        title: "Kad",
-                        value: compactConnectionState(model.status.kad),
-                        tone: statusBadgeTone(for: kadState)
-                    )
-                    statusBadge(title: "Download", value: model.status.downloadSpeed)
-                    statusBadge(title: "Upload", value: model.status.uploadSpeed)
-                    statusBadge(title: "Queue", value: model.status.queue)
-
-                    if !isNarrow {
-                        Button {
-                            footerDetailsExpanded.toggle()
-                        } label: {
-                            Image(systemName: footerDetailsExpanded ? "chevron.down.circle.fill" : "info.circle")
-                                .font(.caption)
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.secondary)
-                        .help(footerDetailsExpanded ? "Hide Network Details" : "Show Network Details")
-                    }
-
-                    Spacer()
+                    .help("Open eD2k Window")
 
                     Button {
-                        showLoginSheet = true
+                        if ed2kFooterConnectionState == .connected {
+                            model.connectServer(nil)
+                        } else {
+                            model.connectServer(bestServerForED2kConnect)
+                        }
                     } label: {
-                        Label(
-                            model.isSessionConnected ? "Connected" : "Disconnected",
-                            systemImage: model.isSessionConnected ? "link.circle.fill" : "link.circle"
-                        )
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(model.isSessionConnected ? .green : .orange)
+                        Image(systemName: "arrow.clockwise")
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .help("Connection Status and Settings")
+                    .help("Reconnect")
+                    .disabled(model.isBusy)
                 }
+                .controlGroupStyle(.navigation)
+            }
 
-                if footerDetailsExpanded && !isNarrow {
-                    HStack(spacing: 10) {
-                        Text("eD2k: \(model.status.ed2k)")
-                            .font(.caption)
+            footerStatusControl(state: kadFooterConnectionState) {
+                Button {
+                    showKadSheet = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "point.3.filled.connected.trianglepath.dotted")
                             .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        Divider()
-                            .frame(height: 12)
-                        Text("Kad: \(model.status.kad)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        Spacer()
+                        Text("Kad")
+                        footerConnectionStateSymbol(kadFooterConnectionState)
                     }
-                    .padding(.leading, 4)
+                    .font(.caption)
                 }
+                .buttonStyle(.bordered)
+                .help("Open Kad Panel")
             }
-            .onChange(of: isNarrow) { _, narrow in
-                if narrow {
-                    footerDetailsExpanded = false
-                }
+
+            Spacer(minLength: 8)
+
+            HStack(spacing: 6) {
+                footerMetricChip(title: L("Download"), value: model.status.downloadSpeed)
+                footerMetricChip(title: L("Upload"), value: model.status.uploadSpeed)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(.trailing, 8)
         }
-        .frame(height: footerDetailsExpanded ? 46 : 24)
-    }
-
-    private enum ConnectionState {
-        case connected
-        case disconnected
-        case transitional
-        case unknown
-    }
-
-    private enum StatusBadgeTone {
-        case neutral
-        case connected
-        case disconnected
-        case transitional
-        case unknown
-    }
-
-    private func statusBadge(
-        title: String,
-        value: String,
-        showsDisclosure: Bool = false,
-        tone: StatusBadgeTone = .neutral
-    ) -> some View {
-        HStack(spacing: 4) {
-            Text(title + ":")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.caption)
-                .lineLimit(1)
-            if showsDisclosure {
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-            }
-        }
+        .controlSize(.small)
         .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(statusBadgeBackground(tone: tone), in: Capsule())
+        .padding(.vertical, 5)
     }
 
-    private func statusBadgeBackground(tone: StatusBadgeTone) -> Color {
-        switch tone {
-        case .neutral:
-            return Color.secondary.opacity(0.12)
-        case .connected:
-            return Color.green.opacity(0.18)
-        case .disconnected:
-            return Color.orange.opacity(0.22)
-        case .transitional:
-            return Color.yellow.opacity(0.20)
-        case .unknown:
-            return Color.secondary.opacity(0.18)
+    private func footerMetricChip(title: String, value: String) -> some View {
+        HStack(spacing: 4) {
+            Text(title)
+            Text(value)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+                .lineLimit(1)
+        }
+        .font(.caption)
+    }
+
+    private var ed2kFooterPrimaryText: String {
+        let compact = ed2kFooterStatusText
+        let stateText = compactConnectionState(model.status.ed2k)
+        if compact != stateText && compact != "?" && !compact.isEmpty {
+            return compact
+        }
+        return "eD2k"
+    }
+
+    @ViewBuilder
+    private func footerStatusControl<Content: View>(
+        state: ConnectionState,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        if case .disconnected = state {
+            content()
+                .tint(.red)
+        } else {
+            content()
         }
     }
 
     @ViewBuilder
-    private func completedToolbarIcon(count: Int) -> some View {
-        ZStack(alignment: .topTrailing) {
-            Image(systemName: "checkmark")
-            if count > 0 {
-                Text(count > 99 ? "99+" : "\(count)")
-                    .font(.system(size: 8, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 1)
-                    .background(Color.accentColor, in: Capsule())
-                    .offset(x: 8, y: -8)
-            }
+    private func footerConnectionStateSymbol(_ state: ConnectionState) -> some View {
+        switch state {
+        case .connected:
+            Image(systemName: "checkmark.circle")
+        case .disconnected:
+            Image(systemName: "xmark.circle")
+        case .transitional:
+            ProgressView()
+                .controlSize(.small)
+        case .unknown:
+            Image(systemName: "questionmark.circle")
+                .foregroundStyle(.secondary)
         }
     }
 
-    private func statusBadgeTone(for state: ConnectionState) -> StatusBadgeTone {
-        switch state {
+    private var bestServerForED2kConnect: ServerItem? {
+        model.servers
+            .filter { !$0.ip.isEmpty && $0.port > 0 }
+            .sorted {
+                if $0.files != $1.files { return $0.files > $1.files }
+                if $0.users != $1.users { return $0.users > $1.users }
+                return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+            }
+            .first
+    }
+
+    private var kadSheet: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Kad")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(kadSheetStatusDotColor)
+                        .frame(width: 8, height: 8)
+                    Text(localizedConnectionStatusText(for: model.status.kad))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                    Button {
+                        guard !isRefreshingKadStatus else { return }
+                        isRefreshingKadStatus = true
+                        Task {
+                            await model.refreshStatus(logOutput: false, suppressErrors: true)
+                            await MainActor.run {
+                                isRefreshingKadStatus = false
+                            }
+                        }
+                    } label: {
+                        Group {
+                            if isRefreshingKadStatus {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Image(systemName: "arrow.clockwise")
+                            }
+                        }
+                        .frame(width: 14, height: 14)
+                    }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.circle)
+                    .controlSize(.small)
+                    .help("Refresh")
+                    .disabled(model.isBusy || isRefreshingKadStatus)
+                    Spacer()
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Update nodes.dat from URL")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                TextField("http://example.com/nodes.dat", text: $kadNodesURL)
+                    .textFieldStyle(.roundedBorder)
+                    .disabled(model.isBusy)
+            }
+
+            HStack(spacing: 8) {
+                Spacer()
+                Button("Close") {
+                    showKadSheet = false
+                }
+                .buttonStyle(.bordered)
+
+                Button("Download nodes.dat") {
+                    model.updateKadNodesFromURL(kadNodesURL)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(model.isBusy || kadNodesURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .padding(16)
+        .frame(minWidth: 300, idealWidth: 320, maxWidth: 360)
+        .background(GlassEffectBackground(material: .hudWindow))
+    }
+
+    private var kadSheetStatusDotColor: Color {
+        switch connectionState(from: model.status.kad) {
         case .connected:
-            return .connected
-        case .disconnected:
-            return .disconnected
+            return .green
         case .transitional:
-            return .transitional
+            return .orange
+        case .disconnected:
+            return .orange
         case .unknown:
-            return .unknown
+            return .secondary
         }
     }
 
@@ -565,20 +773,33 @@ struct ContentView: View {
     private func compactConnectionState(_ value: String) -> String {
         switch connectionState(from: value) {
         case .connected:
-            return "On"
+            return L("On")
         case .disconnected:
-            return "Off"
+            return L("Off")
         case .transitional:
-            return "Run"
+            return L("Run")
         case .unknown:
             return "?"
         }
     }
 
+    private func localizedConnectionStatusText(for value: String) -> String {
+        switch connectionState(from: value) {
+        case .connected:
+            return L("Connected")
+        case .disconnected:
+            return L("Disconnected")
+        case .transitional:
+            return L("Connecting")
+        case .unknown:
+            return L("Unknown")
+        }
+    }
+
     private func compactED2kBadgeValue(_ value: String) -> String {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        let prefix = "Connected to "
-        guard trimmed.hasPrefix(prefix) else {
+        let prefixes = ["Connected to ", "Connecting to "]
+        guard let prefix = prefixes.first(where: { trimmed.hasPrefix($0) }) else {
             return compactConnectionState(value)
         }
 
@@ -648,7 +869,7 @@ struct ContentView: View {
                         colors: item.progressColors,
                         fallbackProgress: item.progressDisplayValue / 100.0
                     )
-                    .opacity(0.28)
+                    .opacity(0.20)
                 }
             }
     }
@@ -663,7 +884,7 @@ struct ContentView: View {
                 Circle()
                     .fill(model.isSessionConnected ? Color.green : Color.orange)
                     .frame(width: 8, height: 8)
-                Text(model.isSessionConnected ? "Connected" : "Disconnected")
+                Text(model.isSessionConnected ? L("Connected") : L("Disconnected"))
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -697,7 +918,7 @@ struct ContentView: View {
                     .buttonStyle(.bordered)
                     .disabled(model.isBusy)
                 }
-                Button(model.isSessionConnected ? "Reconnect" : "Connect") {
+                Button(model.isSessionConnected ? L("Reconnect") : L("Connect")) {
                     model.connectAll()
                 }
                 .buttonStyle(.borderedProminent)
@@ -705,7 +926,7 @@ struct ContentView: View {
             }
         }
         .padding(16)
-        .frame(minWidth: 400, idealWidth: 430, maxWidth: 470, minHeight: 188)
+        .frame(minWidth: 300, idealWidth: 320, maxWidth: 360, minHeight: 188)
         .background(GlassEffectBackground(material: .hudWindow))
     }
 
@@ -749,59 +970,6 @@ struct ContentView: View {
         .background(GlassEffectBackground(material: .hudWindow))
     }
 
-    private var completedDownloadsSheet: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Text("Completed Downloads")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                Spacer()
-                Text("\(completedDownloads.count) item(s)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Button("Clear") {
-                    model.clearCompletedDownloads(completedDownloads)
-                }
-                .buttonStyle(.bordered)
-                .disabled(completedDownloads.isEmpty || model.isBusy)
-            }
-
-            if completedDownloads.isEmpty {
-                Text("No completed items.")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 6)
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(completedDownloads) { item in
-                            HStack(spacing: 10) {
-                                Text(item.name)
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
-                                Spacer(minLength: 8)
-                                Text(item.lastSeenCompleteText)
-                                    .font(.caption.monospacedDigit())
-                                    .foregroundStyle(.secondary)
-                                    .fixedSize(horizontal: true, vertical: false)
-                            }
-                            .padding(.vertical, 6)
-                            .padding(.horizontal, 6)
-                            if item.id != completedDownloads.last?.id {
-                                Divider()
-                            }
-                        }
-                    }
-                }
-                .frame(height: completedDownloadsContentHeight)
-                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8))
-            }
-        }
-        .padding(14)
-        .frame(width: 620)
-    }
-
     @ViewBuilder
     private func downloadContextMenu(_ item: DownloadItem) -> some View {
         Button("Details…") {
@@ -831,12 +999,156 @@ struct ContentView: View {
         }
     }
 
+    private func downloadFilterCount(for filter: DownloadSidebarFilter) -> Int {
+        switch filter {
+        case .all:
+            return model.downloads.count
+        case .downloading:
+            return model.downloads.filter { isDownloadingDownload($0) }.count
+        case .pending:
+            return model.downloads.filter { isPendingDownload($0) }.count
+        case .paused:
+            return model.downloads.filter { isPausedDownload($0) }.count
+        case .completed:
+            return model.downloads.filter { isCompletedDownload($0) }.count
+        }
+    }
+
+    private func filteredDownloads(_ items: [DownloadItem], for filter: DownloadSidebarFilter) -> [DownloadItem] {
+        switch filter {
+        case .all:
+            return items
+        case .downloading:
+            return items.filter { isDownloadingDownload($0) }
+        case .pending:
+            return items.filter { isPendingDownload($0) }
+        case .paused:
+            return items.filter { isPausedDownload($0) }
+        case .completed:
+            return items.filter { isCompletedDownload($0) }
+        }
+    }
+
+    private func isPausedDownload(_ item: DownloadItem) -> Bool {
+        if item.statusCode == PartFileStatusCode.paused || item.statusCode == PartFileStatusCode.insufficient {
+            return true
+        }
+        let lower = item.status.lowercased()
+        if lower.contains("paused") || lower.contains("insufficient") || item.status.contains("暂停") || item.status.contains("磁盘空间不足") {
+            return true
+        }
+        return false
+    }
+
+    private func isDownloadingDownload(_ item: DownloadItem) -> Bool {
+        if isCompletedDownload(item) || isPausedDownload(item) {
+            return false
+        }
+        if item.statusCode == PartFileStatusCode.completing ||
+            item.statusCode == PartFileStatusCode.waitingForHash ||
+            item.statusCode == PartFileStatusCode.hashing ||
+            item.statusCode == PartFileStatusCode.allocating ||
+            item.statusCode == PartFileStatusCode.error ||
+            item.statusCode == PartFileStatusCode.insufficient {
+            return false
+        }
+        if item.speedBytes > 0 {
+            return true
+        }
+        if item.sourceTransferring > 0 {
+            return true
+        }
+        let lower = item.status.lowercased()
+        if lower.contains("downloading") {
+            return true
+        }
+        if item.status.contains("下载") && !item.status.contains("等待") && !item.status.contains("暂停") {
+            return true
+        }
+        return false
+    }
+
+    private func isPendingDownload(_ item: DownloadItem) -> Bool {
+        if isCompletedDownload(item) || isPausedDownload(item) || isDownloadingDownload(item) {
+            return false
+        }
+        return true
+    }
+
     private func refreshDisplayedDownloads() {
-        displayedDownloads = model.downloads.sorted(using: downloadSortOrder)
+        let scoped = filteredDownloads(model.downloads, for: activeSidebarFilter)
+        let filtered = filterDownloadsByName(scoped, query: downloadNameFilterQuery)
+        displayedDownloads = filtered.sorted(using: downloadSortOrder)
         selectedDownloadIDs = selectedDownloadIDs.filter { id in
             displayedDownloads.contains(where: { $0.id == id })
         }
         model.selectedDownloadID = selectedDownload?.id
+    }
+
+    private func filterDownloadsByName(_ items: [DownloadItem], query: String) -> [DownloadItem] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return items }
+        return items.filter { matchesDownloadNameFilter($0.name, query: trimmed) }
+    }
+
+    private func matchesDownloadNameFilter(_ name: String, query: String) -> Bool {
+        let haystack = normalizedFuzzySearchString(name)
+        let compactHaystack = haystack.replacingOccurrences(of: " ", with: "")
+        let tokens = normalizedFuzzySearchString(query)
+            .split(whereSeparator: \.isWhitespace)
+            .map(String.init)
+            .filter { !$0.isEmpty }
+
+        guard !tokens.isEmpty else { return true }
+
+        for token in tokens {
+            if haystack.contains(token) || compactHaystack.contains(token) {
+                continue
+            }
+            if fuzzySubsequenceMatch(needle: token, in: haystack) || fuzzySubsequenceMatch(needle: token, in: compactHaystack) {
+                continue
+            }
+            return false
+        }
+        return true
+    }
+
+    private func normalizedFuzzySearchString(_ raw: String) -> String {
+        let folded = raw.folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: .current)
+        let mapped = folded.unicodeScalars.map { scalar -> Character in
+            if CharacterSet.alphanumerics.contains(scalar) || CharacterSet.nonBaseCharacters.contains(scalar) {
+                return Character(scalar)
+            }
+            // Keep CJK and other letters/numbers via Unicode categories covered by alphanumerics.
+            return " "
+        }
+        return String(mapped)
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func fuzzySubsequenceMatch(needle: String, in haystack: String) -> Bool {
+        guard !needle.isEmpty else { return true }
+        if needle.count == 1 {
+            return haystack.contains(needle)
+        }
+
+        var haystackIndex = haystack.startIndex
+        for needleChar in needle {
+            var found = false
+            while haystackIndex < haystack.endIndex {
+                if haystack[haystackIndex] == needleChar {
+                    found = true
+                    haystack.formIndex(after: &haystackIndex)
+                    break
+                }
+                haystack.formIndex(after: &haystackIndex)
+            }
+            if !found {
+                return false
+            }
+        }
+        return true
     }
 
     private func removePendingDownloads() {
@@ -864,7 +1176,7 @@ struct ContentView: View {
     }
 
     private func isCompletedDownload(_ item: DownloadItem) -> Bool {
-        if item.isCompleted || item.statusCode == 9 {
+        if item.isCompleted || item.statusCode == PartFileStatusCode.complete {
             return true
         }
         if item.sizeBytes > 0 && item.doneBytes >= item.sizeBytes {
@@ -924,7 +1236,12 @@ private struct DownloadRowSegmentBackground: View {
         let red = Double(packed & 0xff) / 255.0
         let green = Double((packed >> 8) & 0xff) / 255.0
         let blue = Double((packed >> 16) & 0xff) / 255.0
-        return Color(red: red, green: green, blue: blue)
+        let luma = (0.2126 * red) + (0.7152 * green) + (0.0722 * blue)
+        let saturationScale = 0.42
+        let softenedRed = luma + (red - luma) * saturationScale
+        let softenedGreen = luma + (green - luma) * saturationScale
+        let softenedBlue = luma + (blue - luma) * saturationScale
+        return Color(red: softenedRed, green: softenedGreen, blue: softenedBlue)
     }
 
     private static func packedColor(r: Int, g: Int, b: Int) -> UInt32 {
@@ -932,99 +1249,12 @@ private struct DownloadRowSegmentBackground: View {
     }
 }
 
-private struct DownloadsTableRowStripeStyle: NSViewRepresentable {
-    final class HostView: NSView {
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            apply()
-        }
-
-        override func viewDidMoveToSuperview() {
-            super.viewDidMoveToSuperview()
-            apply()
-        }
-
-        override func layout() {
-            super.layout()
-            apply()
-        }
-
-        func apply() {
-            DispatchQueue.main.async { [weak self] in
-                guard let self, let tableView = self.findNearestTableView() else { return }
-                self.configure(tableView)
-            }
-        }
-
-        private func findNearestTableView() -> NSTableView? {
-            var ancestor: NSView? = self
-            while let current = ancestor {
-                if let tableView = current.subviews.compactMap({ self.findTableView(in: $0) }).first {
-                    return tableView
-                }
-                ancestor = current.superview
-            }
-            return nil
-        }
-
-        private func findTableView(in view: NSView) -> NSTableView? {
-            if let table = view as? NSTableView {
-                return table
-            }
-            for subview in view.subviews {
-                if let table = findTableView(in: subview) {
-                    return table
-                }
-            }
-            return nil
-        }
-
-        private func configure(_ tableView: NSTableView) {
-            tableView.usesAlternatingRowBackgroundColors = true
-            configureHorizontalScrollBehavior(for: tableView)
-        }
-
-        private func configureHorizontalScrollBehavior(for tableView: NSTableView) {
-            guard let scrollView = tableView.enclosingScrollView else { return }
-
-            let totalColumnWidth = tableView.tableColumns.reduce(CGFloat(0)) { partial, column in
-                partial + column.width
-            }
-            let viewportWidth = scrollView.contentView.bounds.width
-            let fitsHorizontally = totalColumnWidth <= (viewportWidth + 0.5)
-
-            let targetElasticity: NSScrollView.Elasticity = fitsHorizontally ? .none : .automatic
-            if scrollView.horizontalScrollElasticity != targetElasticity {
-                scrollView.horizontalScrollElasticity = targetElasticity
-            }
-
-            if fitsHorizontally {
-                scrollView.hasHorizontalScroller = false
-                let currentOrigin = scrollView.contentView.bounds.origin
-                if currentOrigin.x != 0 {
-                    scrollView.contentView.scroll(to: NSPoint(x: 0, y: currentOrigin.y))
-                    scrollView.reflectScrolledClipView(scrollView.contentView)
-                }
-            } else {
-                scrollView.hasHorizontalScroller = true
-            }
-        }
-    }
-
-    func makeNSView(context: Context) -> HostView {
-        let view = HostView(frame: .zero)
-        view.isHidden = true
-        return view
-    }
-
-    func updateNSView(_ nsView: HostView, context: Context) {
-        nsView.apply()
-    }
-}
-
 struct DownloadSegmentedProgressBar: View {
     let colors: [UInt32]
     let fallbackProgress: Double
+
+    private let outerCornerRadius: CGFloat = 6
+    private let innerCornerRadius: CGFloat = 4.5
 
     private static let fallbackDoneColor = packedColor(r: 104, g: 104, b: 104)
     private static let fallbackMissingColor = packedColor(r: 255, g: 0, b: 0)
@@ -1058,21 +1288,34 @@ struct DownloadSegmentedProgressBar: View {
                 )
             }
         }
-        .frame(height: 8)
-        .padding(.horizontal, 2)
-        .padding(.vertical, 2)
-        .background(Color.black.opacity(0.35), in: RoundedRectangle(cornerRadius: 4))
-        .overlay(
-            RoundedRectangle(cornerRadius: 4)
-                .stroke(Color.white.opacity(0.14), lineWidth: 1)
-        )
+        .frame(height: 10)
+        .clipShape(RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous))
+        .padding(2)
+        .background {
+            RoundedRectangle(cornerRadius: outerCornerRadius, style: .continuous)
+                .fill(Color.black.opacity(0.18))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: outerCornerRadius, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.05), lineWidth: 0.75)
+        }
     }
 
     private func color(from packed: UInt32) -> Color {
         let red = Double(packed & 0xff) / 255.0
         let green = Double((packed >> 8) & 0xff) / 255.0
         let blue = Double((packed >> 16) & 0xff) / 255.0
-        return Color(red: red, green: green, blue: blue)
+        let luma = (0.2126 * red) + (0.7152 * green) + (0.0722 * blue)
+        let saturationScale = 0.55
+        let softenedRed = luma + (red - luma) * saturationScale
+        let softenedGreen = luma + (green - luma) * saturationScale
+        let softenedBlue = luma + (blue - luma) * saturationScale
+        return Color(
+            red: softenedRed,
+            green: softenedGreen,
+            blue: softenedBlue,
+            opacity: 0.82
+        )
     }
 
     private static func packedColor(r: Int, g: Int, b: Int) -> UInt32 {

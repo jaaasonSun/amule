@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-APP_NAME="${AMULE_APP_NAME:-aMule Native Remote}"
+APP_NAME="${AMULE_APP_NAME:-aMule Remote}"
 APP_PATH="${AMULE_APP_PATH:-$ROOT_DIR/dist/${APP_NAME}.app}"
 ZIP_PATH="${AMULE_ZIP_PATH:-$ROOT_DIR/dist/${APP_NAME}.zip}"
 SIGN_IDENTITY="${AMULE_SIGN_IDENTITY:-}"
