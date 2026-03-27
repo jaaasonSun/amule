@@ -1619,18 +1619,31 @@ struct DiagnosticsWindowView: View {
         case sources = "Raw Src"
         case search = "Raw Search"
         case servers = "Raw Servers"
+        case coreLog = "Core Log"
+        case coreDebugLog = "Core Debug"
 
         var localizedTitle: String { L2(rawValue) }
     }
 
     @State private var diagnosticsTab: DiagnosticsTab = .log
 
+    private var availableTabs: [DiagnosticsTab] {
+        var tabs: [DiagnosticsTab] = [.log, .downloads, .sources, .search, .servers]
+        if model.isBridgeOpSupported("log") {
+            tabs.append(.coreLog)
+        }
+        if model.isBridgeOpSupported("debug-log") {
+            tabs.append(.coreDebugLog)
+        }
+        return tabs
+    }
+
     var body: some View {
         GeometryReader { proxy in
             VStack(spacing: 12) {
                 HStack(spacing: 10) {
                     Picker("Diagnostics", selection: $diagnosticsTab) {
-                        ForEach(DiagnosticsTab.allCases, id: \.self) { tab in
+                        ForEach(availableTabs, id: \.self) { tab in
                             Text(tab.localizedTitle).tag(tab)
                         }
                     }
@@ -1649,6 +1662,22 @@ struct DiagnosticsWindowView: View {
                             model.resetLog()
                         }
                         .buttonStyle(.bordered)
+                    }
+
+                    if diagnosticsTab == .coreLog {
+                        Button("Refresh") {
+                            model.refreshCoreLog()
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(model.isBusy || !model.isBridgeOpSupported("log"))
+                    }
+
+                    if diagnosticsTab == .coreDebugLog {
+                        Button("Refresh") {
+                            model.refreshCoreDebugLog()
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(model.isBusy || !model.isBridgeOpSupported("debug-log"))
                     }
                 }
 
@@ -1676,6 +1705,16 @@ struct DiagnosticsWindowView: View {
                 ensureToolbarWhenTransparentTitlebar: true
             )
         )
+        .onAppear {
+            if !availableTabs.contains(diagnosticsTab), let first = availableTabs.first {
+                diagnosticsTab = first
+            }
+        }
+        .onChange(of: model.bridgeOps) {
+            if !availableTabs.contains(diagnosticsTab), let first = availableTabs.first {
+                diagnosticsTab = first
+            }
+        }
     }
 
     private var currentDiagnosticsText: String {
@@ -1690,6 +1729,10 @@ struct DiagnosticsWindowView: View {
             return model.lastSearchRawOutput.isEmpty ? L2("No raw search output captured yet.") : model.lastSearchRawOutput
         case .servers:
             return model.lastServersRawOutput.isEmpty ? L2("No raw server-list output captured yet.") : model.lastServersRawOutput
+        case .coreLog:
+            return model.coreLogLines.isEmpty ? L2("No core log lines captured yet.") : model.coreLogLines.joined(separator: "\n")
+        case .coreDebugLog:
+            return model.coreDebugLogLines.isEmpty ? L2("No core debug log lines captured yet.") : model.coreDebugLogLines.joined(separator: "\n")
         }
     }
 
@@ -1705,6 +1748,528 @@ struct DiagnosticsWindowView: View {
             model.copySearchRawToClipboard()
         case .servers:
             model.copyServersRawToClipboard()
+        case .coreLog:
+            model.copyCoreLogRawToClipboard()
+        case .coreDebugLog:
+            model.copyCoreDebugLogRawToClipboard()
+        }
+    }
+}
+
+struct UploadsWindowView: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Button {
+                    model.refreshUploads()
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.isBusy || !model.isBridgeOpSupported("uploads"))
+
+                Spacer()
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+
+            Divider()
+
+            if !model.isBridgeOpSupported("uploads") {
+                Text("Uploads are unsupported by this bridge.")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .padding(18)
+            } else if model.uploads.isEmpty {
+                Text("No active uploads.")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .padding(18)
+            } else {
+                List(model.uploads, id: \.clientID) { upload in
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text(upload.clientName.isEmpty ? "Client \(upload.clientID)" : upload.clientName)
+                                .font(.headline)
+                            Spacer()
+                            Text("↑ \(upload.speedUp)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Text("\(upload.userIP):\(upload.userPort)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 2)
+                }
+                .listStyle(.inset)
+            }
+        }
+        .frame(minWidth: 760, minHeight: 500)
+        .background(GlassEffectBackground(material: .underWindowBackground).ignoresSafeArea())
+        .background(
+            WindowAppearanceConfigurator(
+                windowTitle: "Uploads",
+                hideTitle: false,
+                transparentTitlebar: true,
+                fullSizeContentView: true,
+                toolbarStyle: .automatic,
+                makeWindowTransparent: true,
+                ensureToolbarWhenTransparentTitlebar: false
+            )
+        )
+        .task { model.refreshUploads() }
+    }
+}
+
+struct SharedFilesWindowView: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                Button {
+                    model.refreshSharedFiles()
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.isBusy || !model.isBridgeOpSupported("shared-files"))
+
+                Button("Reload") {
+                    model.reloadSharedFiles()
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.isBusy || !model.isBridgeOpSupported("shared-files-reload"))
+
+                Spacer()
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+
+            Divider()
+
+            if !model.isBridgeOpSupported("shared-files") {
+                Text("Shared files are unsupported by this bridge.")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .padding(18)
+            } else if model.sharedFiles.isEmpty {
+                Text("No shared files available.")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .padding(18)
+            } else {
+                List(model.sharedFiles, id: \.hash) { file in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(file.name)
+                            .font(.headline)
+                        Text(file.path)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 2)
+                }
+                .listStyle(.inset)
+            }
+        }
+        .frame(minWidth: 760, minHeight: 500)
+        .background(GlassEffectBackground(material: .underWindowBackground).ignoresSafeArea())
+        .background(
+            WindowAppearanceConfigurator(
+                windowTitle: "Shared Files",
+                hideTitle: false,
+                transparentTitlebar: true,
+                fullSizeContentView: true,
+                toolbarStyle: .automatic,
+                makeWindowTransparent: true,
+                ensureToolbarWhenTransparentTitlebar: false
+            )
+        )
+        .task { model.refreshSharedFiles() }
+    }
+}
+
+struct CategoriesWindowView: View {
+    @EnvironmentObject private var model: AppModel
+    @State private var newCategoryName = ""
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                Button {
+                    model.refreshCategories()
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.isBusy || !model.isBridgeOpSupported("categories"))
+
+                TextField("New category name", text: $newCategoryName)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 280)
+
+                Button("Create") {
+                    model.createCategory(name: newCategoryName, path: "", comment: "", color: 0, priority: 0)
+                    newCategoryName = ""
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(model.isBusy || !model.isBridgeOpSupported("category-create"))
+
+                Spacer()
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+
+            Divider()
+
+            if !model.isBridgeOpSupported("categories") {
+                Text("Categories are unsupported by this bridge.")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .padding(18)
+            } else if model.categories.isEmpty {
+                Text("No categories available.")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .padding(18)
+            } else {
+                List(model.categories, id: \.id) { category in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(category.title.isEmpty ? "Category \(category.id)" : category.title)
+                                .font(.headline)
+                            Text("ID: \(category.id)  Priority: \(category.priority)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button("Delete") {
+                            model.deleteCategory(id: category.id)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(model.isBusy || !model.isBridgeOpSupported("category-delete"))
+                    }
+                    .padding(.vertical, 2)
+                }
+                .listStyle(.inset)
+            }
+        }
+        .frame(minWidth: 700, minHeight: 460)
+        .background(GlassEffectBackground(material: .underWindowBackground).ignoresSafeArea())
+        .background(
+            WindowAppearanceConfigurator(
+                windowTitle: "Categories",
+                hideTitle: false,
+                transparentTitlebar: true,
+                fullSizeContentView: true,
+                toolbarStyle: .automatic,
+                makeWindowTransparent: true,
+                ensureToolbarWhenTransparentTitlebar: false
+            )
+        )
+        .task { model.refreshCategories() }
+    }
+}
+
+struct FriendsWindowView: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Button {
+                    model.refreshFriends()
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.isBusy || !model.isBridgeOpSupported("friends"))
+                Spacer()
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+
+            Divider()
+
+            if !model.isBridgeOpSupported("friends") {
+                Text("Friends are unsupported by this bridge.")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .padding(18)
+            } else if model.friends.isEmpty {
+                Text("No friends available.")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .padding(18)
+            } else {
+                List(model.friends, id: \.id) { friend in
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text(friend.name.isEmpty ? "Friend \(friend.id)" : friend.name)
+                                .font(.headline)
+                            Spacer()
+                            Text("\(friend.ip):\(friend.port)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        HStack {
+                            Toggle("Friend Slot", isOn: Binding(
+                                get: { friend.friendSlot },
+                                set: { enabled in model.setFriendSlot(id: friend.id, enabled: enabled) }
+                            ))
+                            .toggleStyle(.switch)
+                            .disabled(model.isBusy || !model.isBridgeOpSupported("friend-slot"))
+
+                            Spacer()
+                            Button("Remove") {
+                                model.removeFriend(id: friend.id)
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(model.isBusy || !model.isBridgeOpSupported("friend-remove"))
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+                .listStyle(.inset)
+            }
+        }
+        .frame(minWidth: 760, minHeight: 500)
+        .background(GlassEffectBackground(material: .underWindowBackground).ignoresSafeArea())
+        .background(
+            WindowAppearanceConfigurator(
+                windowTitle: "Friends",
+                hideTitle: false,
+                transparentTitlebar: true,
+                fullSizeContentView: true,
+                toolbarStyle: .automatic,
+                makeWindowTransparent: true,
+                ensureToolbarWhenTransparentTitlebar: false
+            )
+        )
+        .task { model.refreshFriends() }
+    }
+}
+
+struct StatsWindowView: View {
+    @EnvironmentObject private var model: AppModel
+    @State private var widthInput = "480"
+    @State private var scaleInput = "1"
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                Button {
+                    model.refreshStatsTree()
+                } label: {
+                    Label("Refresh Tree", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.isBusy || !model.isBridgeOpSupported("stats-tree"))
+
+                TextField("Width", text: $widthInput)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 90)
+                TextField("Scale", text: $scaleInput)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 90)
+
+                Button("Refresh Graphs") {
+                    let width = Int(widthInput) ?? 480
+                    let scale = Int(scaleInput) ?? 1
+                    model.refreshStatsGraphs(width: max(1, width), scale: max(1, scale))
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(model.isBusy || !model.isBridgeOpSupported("stats-graphs"))
+
+                Spacer()
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+
+            Divider()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    if let tree = model.statsTree {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Stats Tree")
+                                .font(.headline)
+                            ForEach(flatten(tree: tree), id: \.self) { line in
+                                Text(line)
+                                    .font(.system(.caption, design: .monospaced))
+                            }
+                        }
+                    }
+
+                    if let graphs = model.statsGraphs {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Stats Graphs (\(graphs.samples.count) samples)")
+                                .font(.headline)
+                            Text("Last: \(graphs.last)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            ForEach(Array(graphs.samples.enumerated()), id: \.offset) { _, sample in
+                                Text("dl=\(sample.dl) ul=\(sample.ul) conn=\(sample.connections) kad=\(sample.kad)")
+                                    .font(.system(.caption, design: .monospaced))
+                            }
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14)
+            }
+        }
+        .frame(minWidth: 780, minHeight: 520)
+        .background(GlassEffectBackground(material: .underWindowBackground).ignoresSafeArea())
+        .background(
+            WindowAppearanceConfigurator(
+                windowTitle: "Statistics",
+                hideTitle: false,
+                transparentTitlebar: true,
+                fullSizeContentView: true,
+                toolbarStyle: .automatic,
+                makeWindowTransparent: true,
+                ensureToolbarWhenTransparentTitlebar: false
+            )
+        )
+        .task {
+            model.refreshStatsTree()
+            model.refreshStatsGraphs()
+        }
+    }
+
+    private func flatten(tree: BridgeStatsTreeNodePayload, depth: Int = 0) -> [String] {
+        let indent = String(repeating: "  ", count: depth)
+        var lines = ["\(indent)- \(tree.label): \(tree.value)"]
+        for child in tree.children {
+            lines.append(contentsOf: flatten(tree: child, depth: depth + 1))
+        }
+        return lines
+    }
+}
+
+struct PreferencesWindowView: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                Button {
+                    model.refreshConnectionPrefs()
+                } label: {
+                    Label("Reload", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.isBusy || !model.isBridgeOpSupported("prefs-connection-get"))
+
+                Spacer()
+                if model.isBusy {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+
+            Divider()
+
+            Form {
+                Section("Connection Speed Limits") {
+                    VStack(alignment: .leading, spacing: 14) {
+                        limitField(
+                            title: "Download",
+                            text: $model.connectionMaxDownloadInput,
+                            value: model.connectionMaxDownloadKBps,
+                            placeholder: "0"
+                        )
+                        limitField(
+                            title: "Upload",
+                            text: $model.connectionMaxUploadInput,
+                            value: model.connectionMaxUploadKBps,
+                            placeholder: "0"
+                        )
+                        Text("Values are in KiB/s. Use 0 for unlimited speed.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 6)
+                }
+
+                Section("IP Filter") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        TextField("https://example.com/ipfilter.dat", text: $model.ipFilterURLInput)
+                            .textFieldStyle(.roundedBorder)
+                            .disabled(model.isBusy || !model.isBridgeOpSupported("ipfilter-update"))
+
+                        HStack(spacing: 10) {
+                            Button("Update") {
+                                model.updateIpFilterFromURL(model.ipFilterURLInput)
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(model.isBusy || !model.isBridgeOpSupported("ipfilter-update"))
+
+                            Button("Reload") {
+                                model.reloadIpFilter()
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(model.isBusy || !model.isBridgeOpSupported("ipfilter-reload"))
+                        }
+                    }
+                    .padding(.vertical, 6)
+                }
+            }
+            .formStyle(.grouped)
+
+            HStack {
+                Spacer()
+                Button("Apply") {
+                    model.setConnectionSpeedLimits(
+                        maxDL: model.connectionMaxDownloadInput,
+                        maxUL: model.connectionMaxUploadInput
+                    )
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(model.isBusy || !model.isBridgeOpSupported("prefs-connection-set"))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+        }
+        .frame(minWidth: 640, minHeight: 420)
+        .background(GlassEffectBackground(material: .underWindowBackground).ignoresSafeArea())
+        .background(
+            WindowAppearanceConfigurator(
+                windowTitle: "Preferences",
+                hideTitle: false,
+                transparentTitlebar: true,
+                fullSizeContentView: true,
+                toolbarStyle: .automatic,
+                makeWindowTransparent: true,
+                ensureToolbarWhenTransparentTitlebar: false
+            )
+        )
+        .task {
+            if model.isBridgeOpSupported("prefs-connection-get") {
+                model.refreshConnectionPrefs()
+            }
+        }
+    }
+
+    private func limitField(title: String, text: Binding<String>, value: Int, placeholder: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .frame(width: 96, alignment: .leading)
+            TextField(placeholder, text: text)
+                .textFieldStyle(.roundedBorder)
+                .frame(maxWidth: 180)
+            Text("KiB/s")
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text("Current: \(value)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 }

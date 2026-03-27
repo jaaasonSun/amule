@@ -43,6 +43,42 @@ struct AMuleNativeRemoteApp: App {
                 .environmentObject(model)
         }
         .windowStyle(.automatic)
+
+        WindowGroup("Uploads", id: "uploads-window") {
+            UploadsWindowView()
+                .environmentObject(model)
+        }
+        .windowStyle(.automatic)
+
+        WindowGroup("Shared Files", id: "shared-files-window") {
+            SharedFilesWindowView()
+                .environmentObject(model)
+        }
+        .windowStyle(.automatic)
+
+        WindowGroup("Categories", id: "categories-window") {
+            CategoriesWindowView()
+                .environmentObject(model)
+        }
+        .windowStyle(.automatic)
+
+        WindowGroup("Friends", id: "friends-window") {
+            FriendsWindowView()
+                .environmentObject(model)
+        }
+        .windowStyle(.automatic)
+
+        WindowGroup("Statistics", id: "stats-window") {
+            StatsWindowView()
+                .environmentObject(model)
+        }
+        .windowStyle(.automatic)
+
+        WindowGroup("Preferences", id: "preferences-window") {
+            PreferencesWindowView()
+                .environmentObject(model)
+        }
+        .windowStyle(.automatic)
         .commands {
             AppMenuCommands(model: model)
         }
@@ -83,6 +119,36 @@ private struct AppMenuCommands: Commands {
                 openWindow(id: "diagnostics-window")
             }
             .keyboardShortcut("d", modifiers: [.command, .shift])
+
+            Button("Uploads") {
+                openWindow(id: "uploads-window")
+            }
+            .disabled(!model.isBridgeOpSupported("uploads"))
+
+            Button("Shared Files") {
+                openWindow(id: "shared-files-window")
+            }
+            .disabled(!model.isBridgeOpSupported("shared-files"))
+
+            Button("Categories") {
+                openWindow(id: "categories-window")
+            }
+            .disabled(!model.isBridgeOpSupported("categories"))
+
+            Button("Friends") {
+                openWindow(id: "friends-window")
+            }
+            .disabled(!model.isBridgeOpSupported("friends"))
+
+            Button("Statistics") {
+                openWindow(id: "stats-window")
+            }
+            .disabled(!model.isBridgeOpSupported("stats-tree") && !model.isBridgeOpSupported("stats-graphs"))
+
+            Button("Preferences") {
+                openWindow(id: "preferences-window")
+            }
+            .disabled(!model.isBridgeOpSupported("prefs-connection-get") && !model.isBridgeOpSupported("prefs-connection-set"))
         }
     }
 }

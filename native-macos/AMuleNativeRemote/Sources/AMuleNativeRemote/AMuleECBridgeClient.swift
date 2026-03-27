@@ -261,16 +261,192 @@ struct BridgeServerPayload: Decodable {
     }
 }
 
-private struct BridgeEnvelope: Decodable {
+struct BridgeCapabilitiesPayload: Decodable {
+    let bridgeVersion: String
+    let clientName: String
+    let defaultHost: String
+    let defaultPort: Int
+    let ops: [String]
+
+    private enum CodingKeys: String, CodingKey {
+        case bridgeVersion = "bridge_version"
+        case clientName = "client_name"
+        case defaultHost = "default_host"
+        case defaultPort = "default_port"
+        case ops
+    }
+}
+
+struct BridgeUploadPayload: Decodable {
+    let clientID: Int
+    let clientName: String
+    let userIP: String
+    let userPort: Int
+    let serverIP: String
+    let serverPort: Int
+    let serverName: String
+    let speedUp: Int
+    let xferUp: UInt64
+    let xferDown: UInt64
+    let uploadFile: Int?
+
+    private enum CodingKeys: String, CodingKey {
+        case clientID = "client_id"
+        case clientName = "client_name"
+        case userIP = "user_ip"
+        case userPort = "user_port"
+        case serverIP = "server_ip"
+        case serverPort = "server_port"
+        case serverName = "server_name"
+        case speedUp = "speed_up"
+        case xferUp = "xfer_up"
+        case xferDown = "xfer_down"
+        case uploadFile = "upload_file"
+    }
+}
+
+struct BridgeSharedFilePayload: Decodable {
+    let hash: String
+    let name: String
+    let path: String
+    let size: UInt64
+    let ed2kLink: String
+    let priority: Int
+    let requests: Int
+    let requestsAll: Int
+    let accepts: Int
+    let acceptsAll: Int
+    let xferred: UInt64
+    let xferredAll: UInt64
+    let comment: String?
+    let rating: Int?
+
+    private enum CodingKeys: String, CodingKey {
+        case hash
+        case name
+        case path
+        case size
+        case ed2kLink = "ed2k_link"
+        case priority
+        case requests
+        case requestsAll = "requests_all"
+        case accepts
+        case acceptsAll = "accepts_all"
+        case xferred
+        case xferredAll = "xferred_all"
+        case comment
+        case rating
+    }
+}
+
+struct BridgeCoreLogPayload: Decodable {
+    let kind: String
+    let lines: [String]
+}
+
+struct BridgeConnectionPrefsPayload: Decodable {
+    let maxDownload: Int
+    let maxUpload: Int
+
+    private enum CodingKeys: String, CodingKey {
+        case maxDownload = "max_dl"
+        case maxUpload = "max_ul"
+    }
+}
+
+struct BridgeCategoryPayload: Decodable {
+    let id: Int
+    let title: String
+    let path: String
+    let comment: String
+    let color: Int
+    let priority: Int
+}
+
+struct BridgeFriendPayload: Decodable {
+    let id: Int
+    let name: String
+    let hash: String
+    let ip: String
+    let port: Int
+    let client: String
+    let friendSlot: Bool
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case hash
+        case ip
+        case port
+        case client
+        case friendSlot = "friend_slot"
+    }
+}
+
+struct BridgeStatsTreeNodePayload: Decodable {
+    let id: Int
+    let label: String
+    let value: Double
+    let children: [BridgeStatsTreeNodePayload]
+}
+
+struct BridgeStatsGraphSamplePayload: Decodable {
+    let dl: Int
+    let ul: Int
+    let connections: Int
+    let kad: Int
+}
+
+struct BridgeStatsGraphsPayload: Decodable {
+    let last: Double
+    let samples: [BridgeStatsGraphSamplePayload]
+}
+
+struct BridgeStatsPayload: Decodable {
+    let tree: BridgeStatsTreeNodePayload?
+    let graphs: BridgeStatsGraphsPayload?
+}
+
+struct BridgeEnvelope: Decodable {
     let ok: Bool
     let error: String?
     let message: String?
+    let schemaVersion: Int?
+    let capabilities: BridgeCapabilitiesPayload?
     let status: BridgeStatusPayload?
     let downloads: [BridgeDownloadPayload]?
     let sources: [BridgeDownloadSourcePayload]?
+    let uploads: [BridgeUploadPayload]?
+    let sharedFiles: [BridgeSharedFilePayload]?
+    let log: BridgeCoreLogPayload?
+    let prefsConnection: BridgeConnectionPrefsPayload?
+    let categories: [BridgeCategoryPayload]?
+    let friends: [BridgeFriendPayload]?
+    let stats: BridgeStatsPayload?
     let servers: [BridgeServerPayload]?
     let progress: Int?
     let results: [BridgeSearchPayload]?
+
+    private enum CodingKeys: String, CodingKey {
+        case ok
+        case error
+        case message
+        case schemaVersion = "schema_version"
+        case capabilities
+        case status
+        case downloads
+        case sources
+        case uploads
+        case sharedFiles = "shared_files"
+        case log
+        case prefsConnection = "prefs_connection"
+        case categories
+        case friends
+        case stats
+        case servers
+        case progress
+        case results
+    }
 }
 
 enum AMuleECBridgeClient {
@@ -448,6 +624,209 @@ enum AMuleECBridgeClient {
         return (envelope.message ?? "Kad nodes update requested", raw)
     }
 
+    static func capabilitiesEnvelope(config: AMuleConnectionConfig) async throws -> (BridgeEnvelope, String) {
+        try await invoke(op: "capabilities", extraArgs: [], config: config)
+    }
+
+    static func capabilities(config: AMuleConnectionConfig) async throws -> (schemaVersion: Int?, capabilities: BridgeCapabilitiesPayload, raw: String) {
+        let (envelope, raw) = try await invoke(op: "capabilities", extraArgs: [], config: config)
+        guard let capabilities = envelope.capabilities else {
+            throw AMuleClientError.invalidResponse(raw)
+        }
+        return (envelope.schemaVersion, capabilities, raw)
+    }
+
+    static func uploads(config: AMuleConnectionConfig) async throws -> ([BridgeUploadPayload], String) {
+        let (envelope, raw) = try await invoke(op: "uploads", extraArgs: [], config: config)
+        return (envelope.uploads ?? [], raw)
+    }
+
+    static func sharedFiles(config: AMuleConnectionConfig) async throws -> ([BridgeSharedFilePayload], String) {
+        let (envelope, raw) = try await invoke(op: "shared-files", extraArgs: [], config: config)
+        return (envelope.sharedFiles ?? [], raw)
+    }
+
+    static func sharedFilesReload(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        let (envelope, raw) = try await invoke(op: "shared-files-reload", extraArgs: [], config: config)
+        return (envelope.message ?? "Shared files reload requested", raw)
+    }
+
+    static func log(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String) {
+        let (envelope, raw) = try await invoke(op: "log", extraArgs: [], config: config)
+        guard let payload = envelope.log else {
+            throw AMuleClientError.invalidResponse(raw)
+        }
+        return (payload, raw)
+    }
+
+    static func debugLog(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String) {
+        let (envelope, raw) = try await invoke(op: "debug-log", extraArgs: [], config: config)
+        guard let payload = envelope.log else {
+            throw AMuleClientError.invalidResponse(raw)
+        }
+        return (payload, raw)
+    }
+
+    static func kadStart(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        let (envelope, raw) = try await invoke(op: "kad-start", extraArgs: [], config: config)
+        return (envelope.message ?? "Kad start requested", raw)
+    }
+
+    static func kadStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        let (envelope, raw) = try await invoke(op: "kad-stop", extraArgs: [], config: config)
+        return (envelope.message ?? "Kad stop requested", raw)
+    }
+
+    static func kadBootstrap(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        let (envelope, raw) = try await invoke(
+            op: "kad-bootstrap",
+            extraArgs: ["--server-ip", ip, "--server-port", String(port)],
+            config: config
+        )
+        return (envelope.message ?? "Kad bootstrap requested", raw)
+    }
+
+    static func prefsConnectionGet(config: AMuleConnectionConfig) async throws -> (BridgeConnectionPrefsPayload, String) {
+        let (envelope, raw) = try await invoke(op: "prefs-connection-get", extraArgs: [], config: config)
+        guard let payload = envelope.prefsConnection else {
+            throw AMuleClientError.invalidResponse(raw)
+        }
+        return (payload, raw)
+    }
+
+    static func prefsConnectionSet(maxDownload: Int, maxUpload: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        let (envelope, raw) = try await invoke(
+            op: "prefs-connection-set",
+            extraArgs: ["--max-dl", String(maxDownload), "--max-ul", String(maxUpload)],
+            config: config
+        )
+        return (envelope.message ?? "Connection speed limits updated", raw)
+    }
+
+    static func categories(config: AMuleConnectionConfig) async throws -> ([BridgeCategoryPayload], String) {
+        let (envelope, raw) = try await invoke(op: "categories", extraArgs: [], config: config)
+        return (envelope.categories ?? [], raw)
+    }
+
+    static func categoryCreate(
+        name: String,
+        path: String,
+        comment: String,
+        color: Int,
+        priority: Int,
+        config: AMuleConnectionConfig
+    ) async throws -> (message: String, raw: String) {
+        let extraArgs = [
+            "--name", name,
+            "--category-path", path,
+            "--category-comment", comment,
+            "--category-color", String(color),
+            "--category-priority", String(priority)
+        ]
+        let (envelope, raw) = try await invoke(op: "category-create", extraArgs: extraArgs, config: config)
+        return (envelope.message ?? "Category create requested", raw)
+    }
+
+    static func categoryUpdate(
+        categoryID: Int,
+        name: String,
+        path: String,
+        comment: String,
+        color: Int,
+        priority: Int,
+        config: AMuleConnectionConfig
+    ) async throws -> (message: String, raw: String) {
+        let extraArgs = [
+            "--category", String(categoryID),
+            "--name", name,
+            "--category-path", path,
+            "--category-comment", comment,
+            "--category-color", String(color),
+            "--category-priority", String(priority)
+        ]
+        let (envelope, raw) = try await invoke(op: "category-update", extraArgs: extraArgs, config: config)
+        return (envelope.message ?? "Category update requested", raw)
+    }
+
+    static func categoryDelete(categoryID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        let (envelope, raw) = try await invoke(
+            op: "category-delete",
+            extraArgs: ["--category", String(categoryID)],
+            config: config
+        )
+        return (envelope.message ?? "Category delete requested", raw)
+    }
+
+    static func downloadSetCategory(hash: String, categoryID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        let (envelope, raw) = try await invoke(
+            op: "download-set-category",
+            extraArgs: ["--hash", hash, "--category", String(categoryID)],
+            config: config
+        )
+        return (envelope.message ?? "Download category update requested", raw)
+    }
+
+    static func ipfilterReload(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        let (envelope, raw) = try await invoke(op: "ipfilter-reload", extraArgs: [], config: config)
+        return (envelope.message ?? "IP filter reload requested", raw)
+    }
+
+    static func ipfilterUpdate(url: String?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        var extraArgs: [String] = []
+        if let url, !url.isEmpty {
+            extraArgs = ["--ipfilter-url", url]
+        }
+        let (envelope, raw) = try await invoke(op: "ipfilter-update", extraArgs: extraArgs, config: config)
+        return (envelope.message ?? "IP filter update requested", raw)
+    }
+
+    static func friends(config: AMuleConnectionConfig) async throws -> ([BridgeFriendPayload], String) {
+        let (envelope, raw) = try await invoke(op: "friends", extraArgs: [], config: config)
+        return (envelope.friends ?? [], raw)
+    }
+
+    static func friendRemove(friendID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        let (envelope, raw) = try await invoke(
+            op: "friend-remove",
+            extraArgs: ["--friend-id", String(friendID)],
+            config: config
+        )
+        return (envelope.message ?? "Friend remove requested", raw)
+    }
+
+    static func friendSlot(friendID: Int, enabled: Bool, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        let (envelope, raw) = try await invoke(
+            op: "friend-slot",
+            extraArgs: ["--friend-id", String(friendID), "--friend-slot", enabled ? "1" : "0"],
+            config: config
+        )
+        return (envelope.message ?? "Friend slot update requested", raw)
+    }
+
+    static func statsTree(capping: Int?, config: AMuleConnectionConfig) async throws -> (BridgeStatsTreeNodePayload, String) {
+        var extraArgs: [String] = []
+        if let capping {
+            extraArgs = ["--stats-tree-capping", String(capping)]
+        }
+        let (envelope, raw) = try await invoke(op: "stats-tree", extraArgs: extraArgs, config: config)
+        guard let payload = envelope.stats?.tree else {
+            throw AMuleClientError.invalidResponse(raw)
+        }
+        return (payload, raw)
+    }
+
+    static func statsGraphs(width: Int, scale: Int, last: Double?, config: AMuleConnectionConfig) async throws -> (BridgeStatsGraphsPayload, String) {
+        var extraArgs: [String] = ["--stats-width", String(width), "--stats-scale", String(scale)]
+        if let last {
+            extraArgs += ["--stats-last", String(last)]
+        }
+        let (envelope, raw) = try await invoke(op: "stats-graphs", extraArgs: extraArgs, config: config)
+        guard let payload = envelope.stats?.graphs else {
+            throw AMuleClientError.invalidResponse(raw)
+        }
+        return (payload, raw)
+    }
+
     private static func invoke(
         op: String,
         extraArgs: [String],
@@ -460,14 +839,55 @@ enum AMuleECBridgeClient {
             "--op", op
         ] + extraArgs
 
-        let result = try await run(arguments: arguments, bridgePath: config.bridgePath)
+        let bridgePaths = candidateBridgePaths(primary: config.bridgePath)
+        var lastError: Error?
+
+        for (index, bridgePath) in bridgePaths.enumerated() {
+            do {
+                return try await invokeOnce(arguments: arguments, bridgePath: bridgePath)
+            } catch {
+                lastError = error
+                let hasFallback = index + 1 < bridgePaths.count
+                if !hasFallback || !shouldRetryWithFallback(after: error) {
+                    throw error
+                }
+            }
+        }
+
+        throw lastError ?? AMuleClientError.invalidResponse("No bridge response")
+    }
+
+    private static func invokeOnce(arguments: [String], bridgePath: String) async throws -> (BridgeEnvelope, String) {
+        let result = try await run(arguments: arguments, bridgePath: bridgePath)
         let envelope: BridgeEnvelope
 
         do {
-            envelope = try parseEnvelope(from: result.output)
+            let parseInputs = [result.stdout, result.stderr, result.combinedOutput]
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            var parsedEnvelope: BridgeEnvelope?
+            var parseError: Error?
+
+            for input in parseInputs {
+                do {
+                    parsedEnvelope = try parseEnvelope(from: input)
+                    break
+                } catch {
+                    parseError = error
+                }
+            }
+
+            if let parsedEnvelope {
+                envelope = parsedEnvelope
+            } else {
+                if result.status != 0 {
+                    throw AMuleClientError.processFailure(result.status, result.combinedOutput)
+                }
+                throw parseError ?? AMuleClientError.invalidResponse(result.combinedOutput)
+            }
         } catch {
             if result.status != 0 {
-                throw AMuleClientError.processFailure(result.status, result.output)
+                throw AMuleClientError.processFailure(result.status, result.combinedOutput)
             }
             throw error
         }
@@ -477,15 +897,50 @@ enum AMuleECBridgeClient {
         }
 
         if result.status != 0 {
-            throw AMuleClientError.processFailure(result.status, result.output)
+            throw AMuleClientError.processFailure(result.status, result.combinedOutput)
         }
 
-        return (envelope, result.output)
+        return (envelope, result.combinedOutput)
+    }
+
+    private static func candidateBridgePaths(primary: String) -> [String] {
+        let fallback = AMuleConnectionConfig.preferredDefaultPath()
+        if fallback == primary {
+            return [primary]
+        }
+        return [primary, fallback]
+    }
+
+    private static func shouldRetryWithFallback(after error: Error) -> Bool {
+        guard let clientError = error as? AMuleClientError else {
+            return false
+        }
+
+        switch clientError {
+        case .missingBridge:
+            return true
+        case .invalidResponse:
+            return true
+        case .processFailure:
+            return true
+        case let .bridgeFailure(message):
+            let lowered = message.lowercased()
+            return lowered.contains("not found") || lowered.contains("permission denied")
+        }
     }
 
     private struct ProcessResult {
         let status: Int32
-        let output: String
+        let stdout: String
+        let stderr: String
+
+        var combinedOutput: String {
+            let out = stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+            let err = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+            if out.isEmpty { return err }
+            if err.isEmpty { return out }
+            return out + "\n" + err
+        }
     }
 
     private static func run(arguments: [String], bridgePath: String) async throws -> ProcessResult {
@@ -499,24 +954,41 @@ enum AMuleECBridgeClient {
             process.arguments = arguments
             process.environment = utf8ProcessEnvironment()
 
-            let outputPipe = Pipe()
-            process.standardOutput = outputPipe
-            process.standardError = outputPipe
+            let stdoutPipe = Pipe()
+            let stderrPipe = Pipe()
+            process.standardOutput = stdoutPipe
+            process.standardError = stderrPipe
 
-            let collected = ThreadSafeDataBuffer()
-            outputPipe.fileHandleForReading.readabilityHandler = { handle in
+            let collectedStdout = ThreadSafeDataBuffer()
+            let collectedStderr = ThreadSafeDataBuffer()
+            stdoutPipe.fileHandleForReading.readabilityHandler = { handle in
                 let data = handle.availableData
                 guard !data.isEmpty else { return }
-                collected.append(data)
+                collectedStdout.append(data)
+            }
+            stderrPipe.fileHandleForReading.readabilityHandler = { handle in
+                let data = handle.availableData
+                guard !data.isEmpty else { return }
+                collectedStderr.append(data)
             }
 
             process.terminationHandler = { process in
-                outputPipe.fileHandleForReading.readabilityHandler = nil
-                let tail = outputPipe.fileHandleForReading.readDataToEndOfFile()
-                collected.append(tail)
-                let data = collected.snapshot()
-                let text = String(decoding: data, as: UTF8.self)
-                continuation.resume(returning: ProcessResult(status: process.terminationStatus, output: text))
+                stdoutPipe.fileHandleForReading.readabilityHandler = nil
+                stderrPipe.fileHandleForReading.readabilityHandler = nil
+                let stdoutTail = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+                let stderrTail = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+                collectedStdout.append(stdoutTail)
+                collectedStderr.append(stderrTail)
+
+                let stdoutText = String(decoding: collectedStdout.snapshot(), as: UTF8.self)
+                let stderrText = String(decoding: collectedStderr.snapshot(), as: UTF8.self)
+                continuation.resume(
+                    returning: ProcessResult(
+                        status: process.terminationStatus,
+                        stdout: stdoutText,
+                        stderr: stderrText
+                    )
+                )
             }
 
             do {
@@ -540,16 +1012,99 @@ enum AMuleECBridgeClient {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         candidates.append(contentsOf: lines.reversed())
+        candidates.append(contentsOf: extractJSONObjects(from: output))
 
         let decoder = JSONDecoder()
+        var seen = Set<String>()
         for candidate in candidates {
-            if let data = candidate.data(using: .utf8),
+            let normalized = candidate.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !normalized.isEmpty else { continue }
+            guard seen.insert(normalized).inserted else { continue }
+
+            if let data = normalized.data(using: .utf8),
                let envelope = try? decoder.decode(BridgeEnvelope.self, from: data) {
                 return envelope
             }
         }
 
+        if let likelyError = likelyBridgeError(from: output) {
+            throw AMuleClientError.bridgeFailure(likelyError)
+        }
+
         throw AMuleClientError.invalidResponse(output)
+    }
+
+    private static func extractJSONObjects(from output: String) -> [String] {
+        var results: [String] = []
+        var startIndex: String.Index?
+        var depth = 0
+        var inString = false
+        var isEscaped = false
+        var index = output.startIndex
+
+        while index < output.endIndex {
+            let ch = output[index]
+
+            if inString {
+                if isEscaped {
+                    isEscaped = false
+                } else if ch == "\\" {
+                    isEscaped = true
+                } else if ch == "\"" {
+                    inString = false
+                }
+            } else {
+                if ch == "\"" {
+                    inString = true
+                } else if ch == "{" {
+                    if depth == 0 {
+                        startIndex = index
+                    }
+                    depth += 1
+                } else if ch == "}", depth > 0 {
+                    depth -= 1
+                    if depth == 0, let startIndex {
+                        let candidate = output[startIndex...index]
+                            .trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !candidate.isEmpty {
+                            results.append(candidate)
+                        }
+                    }
+                }
+            }
+
+            index = output.index(after: index)
+        }
+
+        return results
+    }
+
+    private static func likelyBridgeError(from output: String) -> String? {
+        let hints = [
+            "could not connect",
+            "missing --password",
+            "wrong password",
+            "unsupported --op",
+            "not found",
+            "permission denied"
+        ]
+
+        let lines = output
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        for line in lines.reversed() {
+            let lowered = line.lowercased()
+            if hints.contains(where: lowered.contains) {
+                return line
+            }
+            if line.hasPrefix("Error:") {
+                return line
+            }
+        }
+
+        return nil
     }
 
     private static func resolveExecutablePath(_ bridgePath: String) -> String? {

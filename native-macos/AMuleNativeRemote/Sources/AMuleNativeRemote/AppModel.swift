@@ -16,6 +16,8 @@ final class AppModel: ObservableObject {
     @AppStorage("amule.host") var host: String = "127.0.0.1"
     @AppStorage("amule.port") var port: Int = 4712
     @AppStorage("amule.password") var password: String = ""
+    @AppStorage("amule.prefs.connection.maxDownload") var savedConnectionMaxDownload: Int = 0
+    @AppStorage("amule.prefs.connection.maxUpload") var savedConnectionMaxUpload: Int = 0
 
     @Published var status: StatusSnapshot = .init()
     @Published var isSessionConnected = false
@@ -34,6 +36,15 @@ final class AppModel: ObservableObject {
     @Published var outputLog = ""
     @Published var lastDownloadsRawOutput = ""
     @Published var lastSourcesRawOutput = ""
+    @Published var lastUploadsRawOutput = ""
+    @Published var lastSharedFilesRawOutput = ""
+    @Published var lastCoreLogRawOutput = ""
+    @Published var lastCoreDebugLogRawOutput = ""
+    @Published var lastConnectionPrefsRawOutput = ""
+    @Published var lastCategoriesRawOutput = ""
+    @Published var lastFriendsRawOutput = ""
+    @Published var lastStatsTreeRawOutput = ""
+    @Published var lastStatsGraphsRawOutput = ""
     @Published var lastServersRawOutput = ""
     @Published var lastError = ""
     @Published var isRefreshingSources = false
@@ -42,6 +53,22 @@ final class AppModel: ObservableObject {
     @Published var selectedDownloadID: String? = nil
     @Published var hudMessage: String = ""
     @Published var showHUD = false
+    @Published var bridgeSchemaVersion: Int?
+    @Published var bridgeOps: Set<String> = []
+    @Published var uploads: [BridgeUploadPayload] = []
+    @Published var sharedFiles: [BridgeSharedFilePayload] = []
+    @Published var coreLogLines: [String] = []
+    @Published var coreDebugLogLines: [String] = []
+    @Published var connectionMaxDownloadKBps: Int = 0
+    @Published var connectionMaxUploadKBps: Int = 0
+    @Published var connectionMaxDownloadInput: String = "0"
+    @Published var connectionMaxUploadInput: String = "0"
+    @Published var categories: [BridgeCategoryPayload] = []
+    @Published var friends: [BridgeFriendPayload] = []
+    @Published var statsTree: BridgeStatsTreeNodePayload?
+    @Published var statsGraphs: BridgeStatsGraphsPayload?
+    @Published var statsGraphsLastTimestamp: Double?
+    @Published var ipFilterURLInput: String = ""
 
     private var autoRefreshTask: Task<Void, Never>?
     private var hudDismissTask: Task<Void, Never>?
@@ -57,6 +84,36 @@ final class AppModel: ObservableObject {
 
     var config: AMuleConnectionConfig {
         .init(bridgePath: bridgePath, host: host, port: port, password: password)
+    }
+
+    init() {
+        connectionMaxDownloadKBps = savedConnectionMaxDownload
+        connectionMaxUploadKBps = savedConnectionMaxUpload
+        connectionMaxDownloadInput = String(savedConnectionMaxDownload)
+        connectionMaxUploadInput = String(savedConnectionMaxUpload)
+    }
+
+    func isBridgeOpSupported(_ op: String) -> Bool {
+        bridgeOps.isEmpty || bridgeOps.contains(op)
+    }
+
+    func refreshBridgeCapabilities(logOutput: Bool = false, suppressErrors: Bool = true) async {
+        do {
+            let (schemaVersion, capabilities, raw) = try await AMuleECBridgeClient.capabilities(config: config)
+            await MainActor.run {
+                self.bridgeSchemaVersion = schemaVersion
+                self.bridgeOps = Set(capabilities.ops)
+                if logOutput {
+                    self.appendLog("$ capabilities\n\(raw)")
+                }
+            }
+        } catch {
+            await MainActor.run {
+                if !suppressErrors {
+                    self.lastError = error.localizedDescription
+                }
+            }
+        }
     }
 
     func ensurePreferredBridgePath() {
@@ -449,6 +506,256 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func refreshUploads() {
+        guard isBridgeOpSupported("uploads") else { return }
+        run(label: "uploads") {
+            try await self.refreshUploadsNow()
+        }
+    }
+
+    func refreshSharedFiles() {
+        guard isBridgeOpSupported("shared-files") else { return }
+        run(label: "shared-files") {
+            try await self.refreshSharedFilesNow()
+        }
+    }
+
+    func reloadSharedFiles() {
+        guard isBridgeOpSupported("shared-files-reload") else { return }
+        run(label: "shared-files-reload") {
+            let (_, raw) = try await AMuleECBridgeClient.sharedFilesReload(config: self.config)
+            await MainActor.run {
+                self.appendLog("$ shared-files-reload\n\(raw)")
+            }
+            if self.isBridgeOpSupported("shared-files") {
+                try await self.refreshSharedFilesNow(logOutput: false, suppressErrors: true)
+            }
+        }
+    }
+
+    func refreshCoreLog() {
+        guard isBridgeOpSupported("log") else { return }
+        run(label: "log") {
+            try await self.refreshCoreLogNow()
+        }
+    }
+
+    func refreshCoreDebugLog() {
+        guard isBridgeOpSupported("debug-log") else { return }
+        run(label: "debug-log") {
+            try await self.refreshCoreDebugLogNow()
+        }
+    }
+
+    func startKad() {
+        guard isBridgeOpSupported("kad-start") else { return }
+        run(label: "kad-start") {
+            let (_, raw) = try await AMuleECBridgeClient.kadStart(config: self.config)
+            await MainActor.run {
+                self.appendLog("$ kad-start\n\(raw)")
+            }
+            await self.refreshStatus(logOutput: false, suppressErrors: true)
+        }
+    }
+
+    func stopKad() {
+        guard isBridgeOpSupported("kad-stop") else { return }
+        run(label: "kad-stop") {
+            let (_, raw) = try await AMuleECBridgeClient.kadStop(config: self.config)
+            await MainActor.run {
+                self.appendLog("$ kad-stop\n\(raw)")
+            }
+            await self.refreshStatus(logOutput: false, suppressErrors: true)
+        }
+    }
+
+    func bootstrapKad(ip rawIP: String, port rawPort: String) {
+        guard isBridgeOpSupported("kad-bootstrap") else { return }
+
+        let ip = rawIP.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard isValidIPv4(ip) else {
+            lastError = L3("Invalid Kad bootstrap IP address.")
+            return
+        }
+
+        let trimmedPort = rawPort.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let port = Int(trimmedPort), (1...65535).contains(port) else {
+            lastError = L3("Invalid Kad bootstrap port.")
+            return
+        }
+
+        run(label: "kad-bootstrap") {
+            let (_, raw) = try await AMuleECBridgeClient.kadBootstrap(ip: ip, port: port, config: self.config)
+            await MainActor.run {
+                self.appendLog("$ kad-bootstrap --server-ip \(ip) --server-port \(port)\n\(raw)")
+            }
+            await self.refreshStatus(logOutput: false, suppressErrors: true)
+        }
+    }
+
+    func refreshConnectionPrefs() {
+        guard isBridgeOpSupported("prefs-connection-get") else { return }
+        run(label: "prefs-connection-get") {
+            try await self.refreshConnectionPrefsNow()
+        }
+    }
+
+    func setConnectionSpeedLimits(maxDL rawMaxDL: String, maxUL rawMaxUL: String) {
+        guard isBridgeOpSupported("prefs-connection-set") else { return }
+
+        let maxDLText = rawMaxDL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let maxULText = rawMaxUL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let maxDL = Int(maxDLText), maxDL >= 0 else {
+            lastError = L3("Invalid download speed limit. Use a non-negative integer.")
+            return
+        }
+        guard let maxUL = Int(maxULText), maxUL >= 0 else {
+            lastError = L3("Invalid upload speed limit. Use a non-negative integer.")
+            return
+        }
+
+        run(label: "prefs-connection-set") {
+            let (_, raw) = try await AMuleECBridgeClient.prefsConnectionSet(
+                maxDownload: maxDL,
+                maxUpload: maxUL,
+                config: self.config
+            )
+            await MainActor.run {
+                self.appendLog("$ prefs-connection-set --max-dl \(maxDL) --max-ul \(maxUL)\n\(raw)")
+            }
+            if self.isBridgeOpSupported("prefs-connection-get") {
+                try await self.refreshConnectionPrefsNow(logOutput: false, suppressErrors: true)
+            }
+        }
+    }
+
+    func refreshCategories() {
+        guard isBridgeOpSupported("categories") else { return }
+        run(label: "categories") {
+            try await self.refreshCategoriesNow()
+        }
+    }
+
+    func createCategory(name: String, path: String, comment: String, color: Int, priority: Int) {
+        guard isBridgeOpSupported("category-create") else { return }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            lastError = L3("Category name is required.")
+            return
+        }
+
+        run(label: "category-create") {
+            let (_, raw) = try await AMuleECBridgeClient.categoryCreate(
+                name: trimmed,
+                path: path,
+                comment: comment,
+                color: color,
+                priority: priority,
+                config: self.config
+            )
+            await MainActor.run {
+                self.appendLog("$ category-create --name \(trimmed)\n\(raw)")
+            }
+            if self.isBridgeOpSupported("categories") {
+                try await self.refreshCategoriesNow(logOutput: false, suppressErrors: true)
+            }
+        }
+    }
+
+    func deleteCategory(id: Int) {
+        guard isBridgeOpSupported("category-delete") else { return }
+        run(label: "category-delete") {
+            let (_, raw) = try await AMuleECBridgeClient.categoryDelete(categoryID: id, config: self.config)
+            await MainActor.run {
+                self.appendLog("$ category-delete --category \(id)\n\(raw)")
+            }
+            if self.isBridgeOpSupported("categories") {
+                try await self.refreshCategoriesNow(logOutput: false, suppressErrors: true)
+            }
+        }
+    }
+
+    func refreshFriends() {
+        guard isBridgeOpSupported("friends") else { return }
+        run(label: "friends") {
+            try await self.refreshFriendsNow()
+        }
+    }
+
+    func removeFriend(id: Int) {
+        guard isBridgeOpSupported("friend-remove") else { return }
+        run(label: "friend-remove") {
+            let (_, raw) = try await AMuleECBridgeClient.friendRemove(friendID: id, config: self.config)
+            await MainActor.run {
+                self.appendLog("$ friend-remove --friend-id \(id)\n\(raw)")
+            }
+            if self.isBridgeOpSupported("friends") {
+                try await self.refreshFriendsNow(logOutput: false, suppressErrors: true)
+            }
+        }
+    }
+
+    func setFriendSlot(id: Int, enabled: Bool) {
+        guard isBridgeOpSupported("friend-slot") else { return }
+        run(label: "friend-slot") {
+            let (_, raw) = try await AMuleECBridgeClient.friendSlot(friendID: id, enabled: enabled, config: self.config)
+            await MainActor.run {
+                self.appendLog("$ friend-slot --friend-id \(id) --friend-slot \(enabled ? 1 : 0)\n\(raw)")
+            }
+            if self.isBridgeOpSupported("friends") {
+                try await self.refreshFriendsNow(logOutput: false, suppressErrors: true)
+            }
+        }
+    }
+
+    func reloadIpFilter() {
+        guard isBridgeOpSupported("ipfilter-reload") else { return }
+        run(label: "ipfilter-reload") {
+            let (_, raw) = try await AMuleECBridgeClient.ipfilterReload(config: self.config)
+            await MainActor.run {
+                self.appendLog("$ ipfilter-reload\n\(raw)")
+            }
+        }
+    }
+
+    func updateIpFilterFromURL(_ rawURL: String) {
+        guard isBridgeOpSupported("ipfilter-update") else { return }
+        let trimmed = rawURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            guard let url = URL(string: trimmed),
+                  let scheme = url.scheme?.lowercased(),
+                  scheme == "http" || scheme == "https" else {
+                lastError = L3("Invalid IP filter URL. Use http:// or https://.")
+                return
+            }
+        }
+
+        run(label: "ipfilter-update") {
+            let (_, raw) = try await AMuleECBridgeClient.ipfilterUpdate(url: trimmed.isEmpty ? nil : trimmed, config: self.config)
+            await MainActor.run {
+                if trimmed.isEmpty {
+                    self.appendLog("$ ipfilter-update\n\(raw)")
+                } else {
+                    self.appendLog("$ ipfilter-update --ipfilter-url \(trimmed)\n\(raw)")
+                }
+            }
+        }
+    }
+
+    func refreshStatsTree(capping: Int? = nil) {
+        guard isBridgeOpSupported("stats-tree") else { return }
+        run(label: "stats-tree") {
+            try await self.refreshStatsTreeNow(capping: capping)
+        }
+    }
+
+    func refreshStatsGraphs(width: Int = 480, scale: Int = 1) {
+        guard isBridgeOpSupported("stats-graphs") else { return }
+        run(label: "stats-graphs") {
+            try await self.refreshStatsGraphsNow(width: width, scale: scale)
+        }
+    }
+
     func resetLog() {
         outputLog = ""
     }
@@ -476,6 +783,26 @@ final class AppModel: ObservableObject {
     func copySourcesRawToClipboard() {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(lastSourcesRawOutput, forType: .string)
+    }
+
+    func copyUploadsRawToClipboard() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(lastUploadsRawOutput, forType: .string)
+    }
+
+    func copySharedFilesRawToClipboard() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(lastSharedFilesRawOutput, forType: .string)
+    }
+
+    func copyCoreLogRawToClipboard() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(lastCoreLogRawOutput, forType: .string)
+    }
+
+    func copyCoreDebugLogRawToClipboard() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(lastCoreDebugLogRawOutput, forType: .string)
     }
 
     func copyDownloadLinkToClipboard(_ item: DownloadItem) {
@@ -662,12 +989,204 @@ final class AppModel: ObservableObject {
         }
     }
 
+    private func refreshUploadsNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
+        do {
+            let (payload, raw) = try await AMuleECBridgeClient.uploads(config: config)
+            await MainActor.run {
+                self.uploads = payload
+                self.lastUploadsRawOutput = raw
+                if logOutput {
+                    self.appendLog("$ uploads\n\(raw)")
+                }
+            }
+        } catch {
+            await MainActor.run {
+                if !suppressErrors {
+                    self.lastError = error.localizedDescription
+                }
+            }
+            throw error
+        }
+    }
+
+    private func refreshSharedFilesNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
+        do {
+            let (payload, raw) = try await AMuleECBridgeClient.sharedFiles(config: config)
+            await MainActor.run {
+                self.sharedFiles = payload
+                self.lastSharedFilesRawOutput = raw
+                if logOutput {
+                    self.appendLog("$ shared-files\n\(raw)")
+                }
+            }
+        } catch {
+            await MainActor.run {
+                if !suppressErrors {
+                    self.lastError = error.localizedDescription
+                }
+            }
+            throw error
+        }
+    }
+
+    private func refreshCoreLogNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
+        do {
+            let (payload, raw) = try await AMuleECBridgeClient.log(config: config)
+            await MainActor.run {
+                self.coreLogLines = payload.lines
+                self.lastCoreLogRawOutput = raw
+                if logOutput {
+                    self.appendLog("$ log\n\(raw)")
+                }
+            }
+        } catch {
+            await MainActor.run {
+                if !suppressErrors {
+                    self.lastError = error.localizedDescription
+                }
+            }
+            throw error
+        }
+    }
+
+    private func refreshCoreDebugLogNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
+        do {
+            let (payload, raw) = try await AMuleECBridgeClient.debugLog(config: config)
+            await MainActor.run {
+                self.coreDebugLogLines = payload.lines
+                self.lastCoreDebugLogRawOutput = raw
+                if logOutput {
+                    self.appendLog("$ debug-log\n\(raw)")
+                }
+            }
+        } catch {
+            await MainActor.run {
+                if !suppressErrors {
+                    self.lastError = error.localizedDescription
+                }
+            }
+            throw error
+        }
+    }
+
+    private func refreshConnectionPrefsNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
+        do {
+            let (payload, raw) = try await AMuleECBridgeClient.prefsConnectionGet(config: config)
+            await MainActor.run {
+                self.connectionMaxDownloadKBps = payload.maxDownload
+                self.connectionMaxUploadKBps = payload.maxUpload
+                self.connectionMaxDownloadInput = String(payload.maxDownload)
+                self.connectionMaxUploadInput = String(payload.maxUpload)
+                self.savedConnectionMaxDownload = payload.maxDownload
+                self.savedConnectionMaxUpload = payload.maxUpload
+                self.lastConnectionPrefsRawOutput = raw
+                if logOutput {
+                    self.appendLog("$ prefs-connection-get\n\(raw)")
+                }
+            }
+        } catch {
+            await MainActor.run {
+                if !suppressErrors {
+                    self.lastError = error.localizedDescription
+                }
+            }
+            throw error
+        }
+    }
+
+    private func refreshCategoriesNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
+        do {
+            let (payload, raw) = try await AMuleECBridgeClient.categories(config: config)
+            await MainActor.run {
+                self.categories = payload
+                self.lastCategoriesRawOutput = raw
+                if logOutput {
+                    self.appendLog("$ categories\n\(raw)")
+                }
+            }
+        } catch {
+            await MainActor.run {
+                if !suppressErrors {
+                    self.lastError = error.localizedDescription
+                }
+            }
+            throw error
+        }
+    }
+
+    private func refreshFriendsNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
+        do {
+            let (payload, raw) = try await AMuleECBridgeClient.friends(config: config)
+            await MainActor.run {
+                self.friends = payload
+                self.lastFriendsRawOutput = raw
+                if logOutput {
+                    self.appendLog("$ friends\n\(raw)")
+                }
+            }
+        } catch {
+            await MainActor.run {
+                if !suppressErrors {
+                    self.lastError = error.localizedDescription
+                }
+            }
+            throw error
+        }
+    }
+
+    private func refreshStatsTreeNow(capping: Int? = nil, logOutput: Bool = true, suppressErrors: Bool = false) async throws {
+        do {
+            let (payload, raw) = try await AMuleECBridgeClient.statsTree(capping: capping, config: config)
+            await MainActor.run {
+                self.statsTree = payload
+                self.lastStatsTreeRawOutput = raw
+                if logOutput {
+                    self.appendLog("$ stats-tree\n\(raw)")
+                }
+            }
+        } catch {
+            await MainActor.run {
+                if !suppressErrors {
+                    self.lastError = error.localizedDescription
+                }
+            }
+            throw error
+        }
+    }
+
+    private func refreshStatsGraphsNow(width: Int, scale: Int, logOutput: Bool = true, suppressErrors: Bool = false) async throws {
+        do {
+            let (payload, raw) = try await AMuleECBridgeClient.statsGraphs(
+                width: width,
+                scale: scale,
+                last: statsGraphsLastTimestamp,
+                config: config
+            )
+            await MainActor.run {
+                self.statsGraphs = payload
+                self.statsGraphsLastTimestamp = payload.last
+                self.lastStatsGraphsRawOutput = raw
+                if logOutput {
+                    self.appendLog("$ stats-graphs --stats-width \(width) --stats-scale \(scale)\n\(raw)")
+                }
+            }
+        } catch {
+            await MainActor.run {
+                if !suppressErrors {
+                    self.lastError = error.localizedDescription
+                }
+            }
+            throw error
+        }
+    }
+
     private func connectNow() async throws {
         let (_, raw) = try await AMuleECBridgeClient.connect(config: self.config)
         await MainActor.run {
             self.appendLog("$ connect\n\(raw)")
             self.isSessionConnected = true
         }
+        await self.refreshBridgeCapabilities(logOutput: false, suppressErrors: true)
         await self.refreshStatus(logOutput: false)
         try await self.refreshDownloadsNow()
         try await self.refreshServersNow(logOutput: false, suppressErrors: true)
@@ -804,6 +1323,17 @@ final class AppModel: ObservableObject {
                 return false
             }
         }
+    }
+
+    private func isValidIPv4(_ value: String) -> Bool {
+        let parts = value.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 4 else { return false }
+        for part in parts {
+            guard let octet = Int(part), (0...255).contains(octet) else {
+                return false
+            }
+        }
+        return true
     }
 
     private func presentHUD(message: String) {
