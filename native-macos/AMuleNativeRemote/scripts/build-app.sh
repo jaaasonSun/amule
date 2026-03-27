@@ -82,6 +82,17 @@ cat > "$PLIST_PATH" <<PLIST
   <string>en</string>
   <key>LSMinimumSystemVersion</key>
   <string>${MIN_MACOS_VERSION}</string>
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLName</key>
+      <string>${BUNDLE_ID}.links</string>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>ed2k</string>
+      </array>
+    </dict>
+  </array>
   <key>LSUIElement</key>
   ${LS_UI_ELEMENT_PLIST}
   <key>NSHighResolutionCapable</key>

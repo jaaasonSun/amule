@@ -1,8 +1,43 @@
 import SwiftUI
 import AppKit
+import Carbon.HIToolbox
+
+final class DeepLinkAppDelegate: NSObject, NSApplicationDelegate {
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        let manager = NSAppleEventManager.shared()
+        manager.setEventHandler(
+            self,
+            andSelector: #selector(handleGetURL(event:withReplyEvent:)),
+            forEventClass: AEEventClass(kInternetEventClass),
+            andEventID: AEEventID(kAEGetURL)
+        )
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        NSAppleEventManager.shared().removeEventHandler(
+            forEventClass: AEEventClass(kInternetEventClass),
+            andEventID: AEEventID(kAEGetURL)
+        )
+    }
+
+    @objc private func handleGetURL(event: NSAppleEventDescriptor, withReplyEvent replyEvent: NSAppleEventDescriptor) {
+        guard let incomingURL = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue else {
+            return
+        }
+
+        Task { @MainActor in
+            PendingIncomingLinkInbox.shared.enqueue(incomingURL)
+            NSApp.activate(ignoringOtherApps: true)
+            for window in NSApp.windows {
+                window.makeKeyAndOrderFront(nil)
+            }
+        }
+    }
+}
 
 @main
 struct AMuleNativeRemoteApp: App {
+    @NSApplicationDelegateAdaptor private var deepLinkDelegate: DeepLinkAppDelegate
     @StateObject private var model = AppModel()
 
     var body: some Scene {

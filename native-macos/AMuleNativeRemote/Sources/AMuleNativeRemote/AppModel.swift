@@ -2,6 +2,10 @@ import Foundation
 import SwiftUI
 import AppKit
 
+extension Notification.Name {
+    static let amuleIncomingLinksDidChange = Notification.Name("AMuleIncomingLinksDidChange")
+}
+
 enum LinkImportSupport {
     static func parseLinks(from text: String) -> [String] {
         var unique = Set<String>()
@@ -77,6 +81,40 @@ enum LinkImportSupport {
                 return false
             }
         }
+    }
+}
+
+@MainActor
+final class PendingIncomingLinkInbox {
+    static let shared = PendingIncomingLinkInbox()
+
+    private var links: [String] = []
+    private var knownLinks = Set<String>()
+
+    var hasPendingLinks: Bool {
+        !links.isEmpty
+    }
+
+    func enqueue(_ rawInput: String) {
+        let parsed = LinkImportSupport.parseLinks(from: rawInput)
+        guard !parsed.isEmpty else { return }
+
+        var didInsert = false
+        for link in parsed where knownLinks.insert(link).inserted {
+            links.append(link)
+            didInsert = true
+        }
+
+        if didInsert {
+            NotificationCenter.default.post(name: .amuleIncomingLinksDidChange, object: nil)
+        }
+    }
+
+    func drain() -> [String] {
+        let drained = links
+        links.removeAll()
+        knownLinks.removeAll()
+        return drained
     }
 }
 
@@ -169,6 +207,10 @@ final class AppModel: ObservableObject {
         connectionMaxUploadKBps = savedConnectionMaxUpload
         connectionMaxDownloadInput = String(savedConnectionMaxDownload)
         connectionMaxUploadInput = String(savedConnectionMaxUpload)
+
+        for argument in CommandLine.arguments.dropFirst() {
+            PendingIncomingLinkInbox.shared.enqueue(argument)
+        }
     }
 
     func isBridgeOpSupported(_ op: String) -> Bool {
@@ -205,6 +247,17 @@ final class AppModel: ObservableObject {
 
     func requestAddLinksPanel() {
         addLinksPanelRequestID &+= 1
+    }
+
+    func flushIncomingLinksIfAny() {
+        guard isSessionConnected else { return }
+
+        let links = PendingIncomingLinkInbox.shared.drain()
+        guard !links.isEmpty else { return }
+
+        let rawInput = links.joined(separator: "\n")
+        appendLog("$ incoming-links\n\(rawInput)")
+        addLinks(rawInput)
     }
 
     func connectAll() {

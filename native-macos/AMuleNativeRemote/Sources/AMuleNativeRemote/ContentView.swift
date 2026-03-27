@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Combine
 
 private func L(_ key: String) -> String {
     NSLocalizedString(key, comment: "")
@@ -231,6 +232,7 @@ struct ContentView: View {
                 model.refreshServers()
                 refreshDisplayedDownloads()
                 showLoginSheet = !model.isSessionConnected
+                model.flushIncomingLinksIfAny()
             }
     }
 
@@ -239,6 +241,7 @@ struct ContentView: View {
             .onChange(of: model.isSessionConnected) { _, connected in
                 if connected {
                     showLoginSheet = false
+                    model.flushIncomingLinksIfAny()
                 }
             }
             .onChange(of: model.downloads) {
@@ -261,6 +264,9 @@ struct ContentView: View {
             }
             .onChange(of: model.addLinksPanelRequestID) {
                 showAddLinksSheet = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .amuleIncomingLinksDidChange)) { _ in
+                model.flushIncomingLinksIfAny()
             }
     }
 

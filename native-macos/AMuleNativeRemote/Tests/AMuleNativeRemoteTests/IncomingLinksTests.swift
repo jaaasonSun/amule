@@ -42,4 +42,43 @@ final class IncomingLinksTests: XCTestCase {
         )
     }
 
+    @MainActor
+    func testPendingIncomingLinkInboxDedupesAndDrains() {
+        _ = PendingIncomingLinkInbox.shared.drain()
+
+        PendingIncomingLinkInbox.shared.enqueue("""
+        ed2k://|file|alpha.bin|1|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|/
+        ed2k://|file|alpha.bin|1|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|/
+        magnet:?xt=urn:ed2k:BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB&dn=beta
+        https://example.com
+        """)
+
+        XCTAssertEqual(
+            PendingIncomingLinkInbox.shared.drain(),
+            [
+                "ed2k://|file|alpha.bin|1|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|/",
+                "magnet:?xt=urn:ed2k:BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB&dn=beta"
+            ]
+        )
+
+        XCTAssertTrue(PendingIncomingLinkInbox.shared.drain().isEmpty)
+    }
+
+    @MainActor
+    func testFlushIncomingLinksKeepsInboxWhenDisconnected() {
+        _ = PendingIncomingLinkInbox.shared.drain()
+
+        PendingIncomingLinkInbox.shared.enqueue("ed2k://|file|alpha.bin|1|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|/")
+
+        let model = AppModel()
+        model.isSessionConnected = false
+        model.flushIncomingLinksIfAny()
+
+        XCTAssertTrue(PendingIncomingLinkInbox.shared.hasPendingLinks)
+        XCTAssertEqual(
+            PendingIncomingLinkInbox.shared.drain(),
+            ["ed2k://|file|alpha.bin|1|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|/"]
+        )
+    }
+
 }
