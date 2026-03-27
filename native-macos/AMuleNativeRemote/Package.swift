@@ -12,6 +12,11 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "AMuleNativeRemote"
+        ),
+        .testTarget(
+            name: "AMuleNativeRemoteTests",
+            dependencies: ["AMuleNativeRemote"],
+            path: "Tests/AMuleNativeRemoteTests"
         )
     ]
 )
