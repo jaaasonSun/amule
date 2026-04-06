@@ -30,6 +30,31 @@ cd /path/to/amule/native-macos/AMuleNativeRemote
 open "dist/aMule Remote.app"
 ```
 
+### Rebuilding After Homebrew Upgrades
+
+If you run `brew upgrade` and update packages like `wxwidgets` or `cryptopp`, the bundled `amule-ec-bridge` binary may fail to start with "library not found" errors. This happens because the binary was linked against specific versioned library paths that no longer exist after the upgrade.
+
+To rebuild the bridge with updated library paths:
+
+```bash
+# From the repository root
+cd /path/to/amule
+
+# Clean CMake cache to force rediscovery of library paths
+rm -rf build-native-bridge/CMakeCache.txt build-native-bridge/CMakeFiles
+
+# Reconfigure and rebuild the bridge
+cmake -B build-native-bridge -S . -DCMAKE_BUILD_TYPE=Release -DBUILD_AMULE_EC_BRIDGE=ON -DBUILD_MONOLITHIC=OFF -DBUILD_DAEMON=OFF -DBUILD_REMOTEGUI=OFF
+cmake --build build-native-bridge --target amule-ec-bridge -j$(sysctl -n hw.ncpu)
+
+# Rebuild the macOS app with the updated bridge
+cd native-macos/AMuleNativeRemote
+rm -rf "dist/aMule Remote.app"
+AMULE_EC_BRIDGE_PATH=/path/to/amule/build-native-bridge/src/amule-ec-bridge ./scripts/build-app.sh
+```
+
+The rebuilt binary will use Homebrew's stable `/opt/homebrew/opt/` symlinks (e.g., `libwx_baseu-3.3.dylib` instead of `libwx_baseu-3.3.1.0.0.dylib`), making it resilient to minor version upgrades.
+
 Useful build env vars:
 - `AMULE_APP_VERSION` (default `0.1.0`)
 - `AMULE_BUILD_NUMBER` (default: same as version)
