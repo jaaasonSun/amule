@@ -927,6 +927,7 @@ struct AddLinksWindowView: View {
 
 struct DownloadDetailsWindowView: View {
     @EnvironmentObject private var model: AppModel
+    @AppStorage("amule.ui.alwaysShowSuggestedFilename") private var alwaysShowSuggestedFilename = false
 
     @State private var sourceSortOrder = [KeyPathComparator(\DownloadSourceItem.clientName, order: .forward)]
     @State private var downloadRenameDraft: String = ""
@@ -944,6 +945,54 @@ struct DownloadDetailsWindowView: View {
     private var canRenameSelectedDownload: Bool {
         guard let item = selectedDownload else { return false }
         return !item.isCompletedLike
+    }
+
+    private func shouldShowSuggestion(for item: DownloadItem, suggestion: String) -> Bool {
+        guard alwaysShowSuggestedFilename else { return false }
+        if item.usesDiagnosticNameEncodingFallback(alwaysShowDiagnostic: alwaysShowSuggestedFilename) {
+            return item.displayedNameEncodingValue(alwaysShowDiagnostic: alwaysShowSuggestedFilename) == suggestion
+        }
+        guard !item.nameEncodingSuspect else { return false }
+        guard item.displayedNameEncodingValue(alwaysShowDiagnostic: alwaysShowSuggestedFilename) == suggestion else { return false }
+        return true
+    }
+
+    private func useSuggestionForRename(_ item: DownloadItem, suggestion: String) {
+        downloadRenameDraft = suggestion
+        isEditingDownloadName = true
+    }
+
+    private func suggestionSectionTitle(for item: DownloadItem) -> String {
+        if item.usesDiagnosticNameEncodingFallback(alwaysShowDiagnostic: alwaysShowSuggestedFilename) {
+            return "Current Filename (Diagnostic)"
+        }
+        if alwaysShowSuggestedFilename && !item.nameEncodingSuspect {
+            return "Suggested Filename (Diagnostic)"
+        }
+        return "Suggested Filename"
+    }
+
+    private func suggestionHelpText(for item: DownloadItem) -> String {
+        if item.usesDiagnosticNameEncodingFallback(alwaysShowDiagnostic: alwaysShowSuggestedFilename) {
+            return "Diagnostic display only. No distinct filename suggestion was detected, so this shows the current/original filename."
+        }
+        if canRenameSelectedDownload {
+            return "Diagnostic guess only. The original filename stays unchanged until you apply a rename."
+        }
+        return "Diagnostic guess only. The original filename is preserved, and renaming is not available for this download."
+    }
+
+    private func suggestionHeaderTitle(for item: DownloadItem) -> String {
+        if item.usesDiagnosticNameEncodingFallback(alwaysShowDiagnostic: alwaysShowSuggestedFilename) {
+            return "Current Filename (Diagnostic)"
+        }
+        return item.nameEncodingSuspect ? "Suggested Filename" : "Diagnostic Suggestion"
+    }
+
+    private func suggestionHeaderColor(for item: DownloadItem) -> Color {
+        item.usesDiagnosticNameEncodingFallback(alwaysShowDiagnostic: alwaysShowSuggestedFilename)
+            ? .secondary
+            : (item.nameEncodingSuspect ? .orange : .secondary)
     }
 
     private var sourcesTableHeight: CGFloat {
@@ -983,10 +1032,33 @@ struct DownloadDetailsWindowView: View {
                         }
                     } else {
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            Text(item.name)
-                                .font(.title3)
-                                .lineLimit(2)
-                                .truncationMode(.middle)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(item.name)
+                                    .font(.title3)
+                                    .lineLimit(2)
+                                    .truncationMode(.middle)
+
+                                if let suggestion = item.displayedNameEncodingValue(alwaysShowDiagnostic: alwaysShowSuggestedFilename) {
+                                    HStack(spacing: 8) {
+                                        Label(suggestionHeaderTitle(for: item), systemImage: "wand.and.stars")
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundStyle(suggestionHeaderColor(for: item))
+                                        Text(suggestion)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                            .truncationMode(.middle)
+                                        if item.meaningfulNameEncodingSuggestion != nil && canRenameSelectedDownload {
+                                            Button("Use Suggested Filename") {
+                                                useSuggestionForRename(item, suggestion: suggestion)
+                                            }
+                                            .buttonStyle(.bordered)
+                                            .controlSize(.mini)
+                                            .disabled(model.isBusy)
+                                        }
+                                    }
+                                }
+                            }
                             Spacer()
                             if canRenameSelectedDownload {
                                 Button("Edit") {
@@ -1003,6 +1075,36 @@ struct DownloadDetailsWindowView: View {
                     Text(item.id)
                         .font(.callout.monospaced())
                         .foregroundStyle(.secondary)
+
+                    if let suggestion = item.displayedNameEncodingValue(alwaysShowDiagnostic: alwaysShowSuggestedFilename),
+                       shouldShowSuggestion(for: item, suggestion: suggestion) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(suggestionSectionTitle(for: item))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            HStack(alignment: .top, spacing: 10) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(suggestion)
+                                        .font(.body)
+                                        .textSelection(.enabled)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    Text(suggestionHelpText(for: item))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                if item.meaningfulNameEncodingSuggestion != nil && canRenameSelectedDownload {
+                                    Button("Use Suggested Filename") {
+                                        useSuggestionForRename(item, suggestion: suggestion)
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                    .disabled(model.isBusy)
+                                }
+                            }
+                        }
+
+                        Divider()
+                    }
 
                     VStack(alignment: .leading, spacing: 4) {
                         DownloadSegmentedProgressBar(
@@ -1208,6 +1310,9 @@ struct DownloadDetailsWindowView: View {
         .onChange(of: model.downloads) {
             syncSelectionState()
         }
+        .onChange(of: model.renameSuggestionRequestID) { _, _ in
+            applyPendingRenameSuggestionIfNeeded()
+        }
     }
 
     private func syncSelectionState() {
@@ -1223,6 +1328,15 @@ struct DownloadDetailsWindowView: View {
             isEditingDownloadName = false
         }
         model.refreshDownloadSources(for: selectedDownload)
+        applyPendingRenameSuggestionIfNeeded()
+    }
+
+    private func applyPendingRenameSuggestionIfNeeded() {
+        guard let selectedDownload else { return }
+        guard let suggestion = model.consumeRenameSuggestionRequest(for: selectedDownload.id) else { return }
+        guard canRenameSelectedDownload else { return }
+        guard suggestion != selectedDownload.name else { return }
+        useSuggestionForRename(selectedDownload, suggestion: suggestion)
     }
 
     private func detailRowLarge(_ title: String, _ value: String) -> some View {

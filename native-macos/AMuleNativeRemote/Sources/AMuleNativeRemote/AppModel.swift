@@ -2,6 +2,11 @@ import Foundation
 import SwiftUI
 import AppKit
 
+struct DownloadRenameSuggestionRequest: Equatable {
+    let downloadID: String
+    let suggestion: String
+}
+
 extension Notification.Name {
     static let amuleIncomingLinksDidChange = Notification.Name("AMuleIncomingLinksDidChange")
 }
@@ -167,6 +172,7 @@ final class AppModel: ObservableObject {
     @Published var shouldAutoRefreshDownloads = false
     @Published var addLinksPanelRequestID: Int = 0
     @Published var selectedDownloadID: String? = nil
+    @Published var renameSuggestionRequestID: Int = 0
     @Published var hudMessage: String = ""
     @Published var showHUD = false
     @Published var bridgeSchemaVersion: Int?
@@ -187,6 +193,7 @@ final class AppModel: ObservableObject {
     @Published var ipFilterURLInput: String = ""
 
     private var autoRefreshTask: Task<Void, Never>?
+    private(set) var pendingRenameSuggestionRequest: DownloadRenameSuggestionRequest?
     private var hudDismissTask: Task<Void, Never>?
     private var searchTask: Task<Void, Never>?
 
@@ -1008,6 +1015,22 @@ final class AppModel: ObservableObject {
             }
             try await self.refreshDownloadsNow(logOutput: false)
         }
+    }
+
+    func requestRenameSuggestion(_ item: DownloadItem, suggestion: String) {
+        let trimmed = suggestion.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != item.name else { return }
+        selectedDownloadID = item.id
+        pendingRenameSuggestionRequest = DownloadRenameSuggestionRequest(downloadID: item.id, suggestion: trimmed)
+        renameSuggestionRequestID &+= 1
+    }
+
+    func consumeRenameSuggestionRequest(for downloadID: String) -> String? {
+        guard let request = pendingRenameSuggestionRequest, request.downloadID == downloadID else {
+            return nil
+        }
+        pendingRenameSuggestionRequest = nil
+        return request.suggestion
     }
 
     func setDownloadPriority(_ item: DownloadItem, _ priority: String) {

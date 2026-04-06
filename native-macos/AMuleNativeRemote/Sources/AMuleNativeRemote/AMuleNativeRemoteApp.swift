@@ -2,7 +2,19 @@ import SwiftUI
 import AppKit
 import Carbon.HIToolbox
 
+@MainActor
 final class DeepLinkAppDelegate: NSObject, NSApplicationDelegate {
+    private func bringDownloadsWindowToFront() {
+        if let downloadsWindow = NSApp.windows.first(where: { $0.title == "Downloads" }) {
+            downloadsWindow.makeKeyAndOrderFront(nil)
+            return
+        }
+
+        if let mainWindow = NSApp.mainWindow {
+            mainWindow.makeKeyAndOrderFront(nil)
+        }
+    }
+
     func applicationWillFinishLaunching(_ notification: Notification) {
         let manager = NSAppleEventManager.shared()
         manager.setEventHandler(
@@ -25,13 +37,9 @@ final class DeepLinkAppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        Task { @MainActor in
-            PendingIncomingLinkInbox.shared.enqueue(incomingURL)
-            NSApp.activate(ignoringOtherApps: true)
-            for window in NSApp.windows {
-                window.makeKeyAndOrderFront(nil)
-            }
-        }
+        PendingIncomingLinkInbox.shared.enqueue(incomingURL)
+        NSApp.activate(ignoringOtherApps: true)
+        bringDownloadsWindowToFront()
     }
 }
 
@@ -123,6 +131,7 @@ struct AMuleNativeRemoteApp: App {
 private struct AppMenuCommands: Commands {
     @ObservedObject var model: AppModel
     @Environment(\.openWindow) private var openWindow
+    @AppStorage("amule.ui.alwaysShowSuggestedFilename") private var alwaysShowSuggestedFilename = false
 
     var body: some Commands {
         CommandGroup(after: .appInfo) {
@@ -149,6 +158,8 @@ private struct AppMenuCommands: Commands {
             }
             .keyboardShortcut("i", modifiers: [.command])
             .disabled(model.selectedDownloadID == nil)
+
+            Toggle("Always Show Suggested Filename", isOn: $alwaysShowSuggestedFilename)
 
             Button("Diagnostics") {
                 openWindow(id: "diagnostics-window")

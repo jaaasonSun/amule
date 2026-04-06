@@ -1,4 +1,5 @@
 add_library (mulecommon STATIC
+	FilenameEncoding.cpp
 	FileFunctions.cpp
 	Format.cpp
 	MD5Sum.cpp

@@ -9,6 +9,7 @@ noinst_LIBRARIES = \
 # Common to external apps and core/gui/monolithic
 
 libmulecommon_a_SOURCES = \
+	FilenameEncoding.cpp \
 	FileFunctions.cpp \
 	Format.cpp \
 	MD5Sum.cpp \
@@ -19,6 +20,7 @@ libmulecommon_a_SOURCES = \
 	TextFile.cpp
 
 noinst_HEADERS =  \
+	FilenameEncoding.h \
 	FileFunctions.h \
 	Format.h \
 	MD5Sum.h \

@@ -32,6 +32,8 @@ const int versionRevision	= 1;
 #include <iostream>
 #include <fstream>
 
+#include <wx/string.h>
+
 #ifdef __APPLE__
 	#include <CoreServices/CoreServices.h>
 #elif defined(_WIN32)
@@ -43,6 +45,7 @@ const int versionRevision	= 1;
 #include "FileLock.h"
 #include "MagnetURI.h"
 #include "MuleCollection.h"
+#include "libs/common/StringFunctions.h"
 
 using std::string;
 
@@ -294,13 +297,13 @@ static void writeLink( const string& uri, const string& config_dir )
  * @param uri The URI to check.
  * @return True if the URI was written, false otherwise.
  */
-static bool checkFileLink( const string& uri )
+static bool checkFileLink( const string& link )
 {
-	if ( uri.substr( 0, 13 ) == "ed2k://|file|" ) {
+	if ( link.substr( 0, 13 ) == "ed2k://|file|" ) {
 		size_t base_off = 12;
-		size_t name_off = uri.find( '|', base_off + 1 );
-		size_t size_off = uri.find( '|', name_off + 1 );
-		size_t hash_off = uri.find( '|', size_off + 1 );
+		size_t name_off = link.find( '|', base_off + 1 );
+		size_t size_off = link.find( '|', name_off + 1 );
+		size_t hash_off = link.find( '|', size_off + 1 );
 
 		bool valid = true;
 		valid &= ( base_off < name_off );
@@ -309,26 +312,26 @@ static bool checkFileLink( const string& uri )
 		valid &= ( hash_off != string::npos );
 
 		if ( !valid ) {
-			badLink( "file", "invalid link format", uri );
+			badLink( "file", "invalid link format", link );
 			return false;
 		}
 
-		string name = uri.substr( base_off + 1, name_off - base_off - 1 );
-		string size = uri.substr( name_off + 1, size_off - name_off - 1 );
-		string hash = uri.substr( size_off + 1, hash_off - size_off - 1 );
+		string name = link.substr( base_off + 1, name_off - base_off - 1 );
+		string size = link.substr( name_off + 1, size_off - name_off - 1 );
+		string hash = link.substr( size_off + 1, hash_off - size_off - 1 );
 
 		if ( name.empty() ) {
-			badLink( "file", "no name specified", uri );
+			badLink( "file", "no name specified", link );
 			return false;
 		}
 
 		if ( !isNumber( size ) ) {
-			badLink( "file", "invalid size", uri );
+			badLink( "file", "invalid size", link );
 			return false;
 		}
 
 		if ( !isMD4Hash( hash ) ) {
-			badLink( "file", "invalid MD4 hash", uri );
+			badLink( "file", "invalid MD4 hash", link );
 			return false;
 		}
 

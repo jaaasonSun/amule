@@ -9,6 +9,7 @@
 #include "GuiEvents.h"
 #include "NetworkFunctions.h"
 #include "RLE.h"
+#include "libs/common/FilenameEncoding.h"
 #include <protocol/ed2k/Constants.h>
 #include <protocol/ed2k/ClientSoftware.h>
 
@@ -21,6 +22,7 @@
 #include <cstdio>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -82,6 +84,8 @@ struct DownloadEntry {
 	uint32_t activeSeconds = 0;
 	uint32_t availableParts = 0;
 	bool shared = false;
+	bool hasNameEncodingSuggestion = false;
+	std::string nameEncodingSuggestion;
 	std::vector<AlternativeName> alternativeNames;
 	std::vector<uint32_t> progressColors;
 };
@@ -143,6 +147,73 @@ std::string ToUtf8(const wxString& value)
 {
 	const wxCharBuffer buffer = value.utf8_str();
 	return buffer ? std::string(buffer.data()) : std::string();
+}
+
+bool ShouldLogNameEncodingDiagnostics(const std::string& nameUtf8)
+{
+	const char* env = std::getenv("AMULE_EC_BRIDGE_FILENAME_DEBUG");
+	if (!env || !*env) {
+		return false;
+	}
+
+	if (std::strcmp(env, "1") == 0 || std::strcmp(env, "true") == 0 || std::strcmp(env, "all") == 0) {
+		return true;
+	}
+
+	return nameUtf8.find(env) != std::string::npos;
+}
+
+std::string HexBytes(const std::string& value)
+{
+	std::ostringstream out;
+	for (size_t i = 0; i < value.size(); ++i) {
+		if (i != 0) {
+			out << ' ';
+		}
+		char tmp[3];
+		snprintf(tmp, sizeof(tmp), "%02X", static_cast<unsigned char>(value[i]));
+		out << tmp;
+	}
+	return out.str();
+}
+
+std::string UnicodeCodepoints(const wxString& value)
+{
+	std::ostringstream out;
+	for (size_t i = 0; i < value.Length(); ++i) {
+		if (i != 0) {
+			out << ' ';
+		}
+		char tmp[11];
+		snprintf(tmp, sizeof(tmp), "U+%04X", static_cast<unsigned int>(value[i]));
+		out << tmp;
+	}
+	return out.str();
+}
+
+void LogNameEncodingDiagnostic(
+	uint32_t ecid,
+	const wxString& original,
+	const wxString& suggestion,
+	bool repaired)
+{
+	const std::string originalUtf8 = ToUtf8(original);
+	if (!ShouldLogNameEncodingDiagnostics(originalUtf8)) {
+		return;
+	}
+
+	const std::string suggestionUtf8 = ToUtf8(suggestion);
+	std::cerr
+		<< "[amule-ec-bridge] filename-encoding"
+		<< " ecid=" << ecid
+		<< " repaired=" << (repaired ? "true" : "false")
+		<< "\n  original_utf8=" << originalUtf8
+		<< "\n  original_bytes=" << HexBytes(originalUtf8)
+		<< "\n  original_codepoints=" << UnicodeCodepoints(original)
+		<< "\n  suggestion_utf8=" << suggestionUtf8
+		<< "\n  suggestion_bytes=" << HexBytes(suggestionUtf8)
+		<< "\n  suggestion_codepoints=" << UnicodeCodepoints(suggestion)
+		<< std::endl;
 }
 
 std::string JsonEscape(const std::string& in)
@@ -695,6 +766,16 @@ bool HandleDownloads(CRemoteConnect& conn, std::string& error)
 		e.ecid = tag->ID();
 		e.hash = ToUtf8(tag->FileHashString());
 		e.name = ToUtf8(tag->FileName());
+		{
+			bool repaired = false;
+			const wxString originalName = tag->FileName();
+			const wxString suggestion = RepairFileNameEncoding(originalName, &repaired);
+			LogNameEncodingDiagnostic(e.ecid, originalName, suggestion, repaired);
+			if (repaired) {
+				e.hasNameEncodingSuggestion = true;
+				e.nameEncodingSuggestion = ToUtf8(suggestion);
+			}
+		}
 		e.size = tag->SizeFull();
 		e.done = tag->SizeDone();
 		e.transferred = tag->SizeXfer();
@@ -768,6 +849,14 @@ bool HandleDownloads(CRemoteConnect& conn, std::string& error)
 			<< "\"ecid\":" << e.ecid << ","
 			<< "\"hash\":\"" << JsonEscape(e.hash) << "\"," 
 			<< "\"name\":\"" << JsonEscape(e.name) << "\"," 
+			<< "\"name_encoding_suspect\":" << (e.hasNameEncodingSuggestion ? "true" : "false") << ","
+			<< "\"name_encoding_suggestion\":";
+		if (e.hasNameEncodingSuggestion) {
+			std::cout << "\"" << JsonEscape(e.nameEncodingSuggestion) << "\",";
+		} else {
+			std::cout << "null,";
+		}
+		std::cout
 			<< "\"size\":" << e.size << ","
 			<< "\"done\":" << e.done << ","
 			<< "\"transferred\":" << e.transferred << ","

@@ -13,6 +13,7 @@ private func LF(_ key: String, _ args: CVarArg...) -> String {
 struct ContentView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.openWindow) private var openWindow
+    @AppStorage("amule.ui.alwaysShowSuggestedFilename") private var alwaysShowSuggestedFilename = false
 
     private enum PartFileStatusCode {
         static let ready = 0
@@ -402,6 +403,26 @@ struct ContentView: View {
                         Text(item.name)
                             .lineLimit(1)
                             .truncationMode(.middle)
+                        if item.hasDisplayedNameEncodingValue(alwaysShowDiagnostic: alwaysShowSuggestedFilename) {
+                            Label(
+                                item.usesDiagnosticNameEncodingFallback(alwaysShowDiagnostic: alwaysShowSuggestedFilename)
+                                    ? "Diagnostic filename value available"
+                                    : (item.nameEncodingSuspect ? "Suggested filename available" : "Diagnostic filename suggestion available"),
+                                systemImage: "wand.and.stars"
+                            )
+                                .labelStyle(.iconOnly)
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(
+                                    item.usesDiagnosticNameEncodingFallback(alwaysShowDiagnostic: alwaysShowSuggestedFilename) || !item.nameEncodingSuspect
+                                        ? Color.secondary
+                                        : Color.orange
+                                )
+                                .help(
+                                    item.usesDiagnosticNameEncodingFallback(alwaysShowDiagnostic: alwaysShowSuggestedFilename)
+                                        ? "Diagnostic filename value available"
+                                        : (item.nameEncodingSuspect ? "Suggested filename available" : "Diagnostic filename suggestion available")
+                                )
+                        }
                     }
                 }
                 .contextMenu { downloadContextMenu(item) }
@@ -982,6 +1003,13 @@ struct ContentView: View {
         Button("Details…") {
             openDownloadDetailsWindow(for: item, refreshSources: false)
         }
+        if let suggestion = item.meaningfulNameEncodingSuggestion {
+            Button("Use Suggested Filename…") {
+                model.requestRenameSuggestion(item, suggestion: suggestion)
+                openDownloadDetailsWindow(for: item, refreshSources: false)
+            }
+            .disabled(!canRenameDownload(item) || model.isBusy)
+        }
         Button("Copy eD2k Link") {
             model.copyDownloadLinkToClipboard(item)
         }
@@ -1197,6 +1225,10 @@ struct ContentView: View {
             return true
         }
         return false
+    }
+
+    private func canRenameDownload(_ item: DownloadItem) -> Bool {
+        !item.isCompletedLike
     }
 }
 

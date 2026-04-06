@@ -103,6 +103,8 @@ struct BridgeDownloadPayload: Decodable {
     let ecid: Int
     let hash: String
     let name: String
+    let nameEncodingSuspect: Bool
+    let nameEncodingSuggestion: String?
     let size: UInt64
     let done: UInt64
     let transferred: UInt64
@@ -130,6 +132,8 @@ struct BridgeDownloadPayload: Decodable {
         case ecid
         case hash
         case name
+        case nameEncodingSuspect = "name_encoding_suspect"
+        case nameEncodingSuggestion = "name_encoding_suggestion"
         case size
         case done
         case transferred
@@ -152,6 +156,95 @@ struct BridgeDownloadPayload: Decodable {
         case shared
         case alternativeNames = "alternative_names"
         case progressColors = "progress_colors"
+    }
+
+    init(
+        ecid: Int,
+        hash: String,
+        name: String,
+        nameEncodingSuspect: Bool,
+        nameEncodingSuggestion: String?,
+        size: UInt64,
+        done: UInt64,
+        transferred: UInt64,
+        progress: Double,
+        sourcesCurrent: Int,
+        sourcesTotal: Int,
+        sourcesTransferring: Int,
+        sourcesA4AF: Int,
+        statusCode: Int,
+        isCompleted: Bool,
+        status: String,
+        speed: Int,
+        priority: Int,
+        category: Int,
+        partMet: String,
+        lastSeenComplete: UInt64,
+        lastReceived: UInt64,
+        activeSeconds: Int,
+        availableParts: Int,
+        shared: Bool,
+        alternativeNames: [AlternativeName],
+        progressColors: [UInt32]?
+    ) {
+        self.ecid = ecid
+        self.hash = hash
+        self.name = name
+        self.nameEncodingSuspect = nameEncodingSuspect
+        self.nameEncodingSuggestion = nameEncodingSuggestion
+        self.size = size
+        self.done = done
+        self.transferred = transferred
+        self.progress = progress
+        self.sourcesCurrent = sourcesCurrent
+        self.sourcesTotal = sourcesTotal
+        self.sourcesTransferring = sourcesTransferring
+        self.sourcesA4AF = sourcesA4AF
+        self.statusCode = statusCode
+        self.isCompleted = isCompleted
+        self.status = status
+        self.speed = speed
+        self.priority = priority
+        self.category = category
+        self.partMet = partMet
+        self.lastSeenComplete = lastSeenComplete
+        self.lastReceived = lastReceived
+        self.activeSeconds = activeSeconds
+        self.availableParts = availableParts
+        self.shared = shared
+        self.alternativeNames = alternativeNames
+        self.progressColors = progressColors
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        ecid = try container.decode(Int.self, forKey: .ecid)
+        hash = try container.decode(String.self, forKey: .hash)
+        name = try container.decode(String.self, forKey: .name)
+        nameEncodingSuspect = try container.decodeIfPresent(Bool.self, forKey: .nameEncodingSuspect) ?? false
+        nameEncodingSuggestion = try container.decodeIfPresent(String.self, forKey: .nameEncodingSuggestion)
+        size = try container.decode(UInt64.self, forKey: .size)
+        done = try container.decode(UInt64.self, forKey: .done)
+        transferred = try container.decode(UInt64.self, forKey: .transferred)
+        progress = try container.decode(Double.self, forKey: .progress)
+        sourcesCurrent = try container.decode(Int.self, forKey: .sourcesCurrent)
+        sourcesTotal = try container.decode(Int.self, forKey: .sourcesTotal)
+        sourcesTransferring = try container.decode(Int.self, forKey: .sourcesTransferring)
+        sourcesA4AF = try container.decode(Int.self, forKey: .sourcesA4AF)
+        statusCode = try container.decode(Int.self, forKey: .statusCode)
+        isCompleted = try container.decode(Bool.self, forKey: .isCompleted)
+        status = try container.decode(String.self, forKey: .status)
+        speed = try container.decode(Int.self, forKey: .speed)
+        priority = try container.decode(Int.self, forKey: .priority)
+        category = try container.decode(Int.self, forKey: .category)
+        partMet = try container.decode(String.self, forKey: .partMet)
+        lastSeenComplete = try container.decode(UInt64.self, forKey: .lastSeenComplete)
+        lastReceived = try container.decode(UInt64.self, forKey: .lastReceived)
+        activeSeconds = try container.decode(Int.self, forKey: .activeSeconds)
+        availableParts = try container.decode(Int.self, forKey: .availableParts)
+        shared = try container.decode(Bool.self, forKey: .shared)
+        alternativeNames = try container.decode([AlternativeName].self, forKey: .alternativeNames)
+        progressColors = try container.decodeIfPresent([UInt32].self, forKey: .progressColors)
     }
 }
 

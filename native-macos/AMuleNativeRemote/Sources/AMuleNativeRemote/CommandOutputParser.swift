@@ -57,6 +57,8 @@ struct DownloadItem: Identifiable, Hashable {
     let ecid: Int
     let id: String
     let name: String
+    let nameEncodingSuspect: Bool
+    let nameEncodingSuggestion: String?
     let sizeBytes: UInt64
     let doneBytes: UInt64
     let transferredBytes: UInt64
@@ -79,6 +81,40 @@ struct DownloadItem: Identifiable, Hashable {
     let shared: Bool
     let alternativeNames: [DownloadAlternativeName]
     let progressColors: [UInt32]
+
+    var meaningfulNameEncodingSuggestion: String? {
+        guard let suggestion = nameEncodingSuggestion else { return nil }
+        let trimmedSuggestion = suggestion.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedSuggestion.isEmpty else { return nil }
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedSuggestion == trimmedName ? nil : trimmedSuggestion
+    }
+
+    var hasMeaningfulNameEncodingSuggestion: Bool {
+        meaningfulNameEncodingSuggestion != nil
+    }
+
+    var trimmedDisplayName: String? {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedName.isEmpty ? nil : trimmedName
+    }
+
+    func displayedNameEncodingValue(alwaysShowDiagnostic: Bool) -> String? {
+        if let suggestion = meaningfulNameEncodingSuggestion {
+            return suggestion
+        }
+
+        guard alwaysShowDiagnostic else { return nil }
+        return trimmedDisplayName
+    }
+
+    func usesDiagnosticNameEncodingFallback(alwaysShowDiagnostic: Bool) -> Bool {
+        meaningfulNameEncodingSuggestion == nil && displayedNameEncodingValue(alwaysShowDiagnostic: alwaysShowDiagnostic) != nil
+    }
+
+    func hasDisplayedNameEncodingValue(alwaysShowDiagnostic: Bool) -> Bool {
+        displayedNameEncodingValue(alwaysShowDiagnostic: alwaysShowDiagnostic) != nil
+    }
 
     var progressDisplayValue: Double {
         let clamped = max(0, min(progressValue, 100))
@@ -164,6 +200,8 @@ struct DownloadItem: Identifiable, Hashable {
                 ecid: $0.ecid,
                 id: $0.hash,
                 name: $0.name,
+                nameEncodingSuspect: $0.nameEncodingSuspect,
+                nameEncodingSuggestion: $0.nameEncodingSuggestion,
                 sizeBytes: $0.size,
                 doneBytes: $0.done,
                 transferredBytes: $0.transferred,

@@ -66,6 +66,23 @@ target_link_libraries (FileDataIOTest
 	muleunit
 )
 
+add_executable (FilenameEncodingTest
+	FilenameEncodingTest.cpp
+	${CMAKE_SOURCE_DIR}/src/libs/common/FilenameEncoding.cpp
+)
+
+add_test (NAME FilenameEncodingTest
+	COMMAND FilenameEncodingTest
+)
+
+target_include_directories (FilenameEncodingTest
+	PRIVATE ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries (FilenameEncodingTest
+	muleunit
+)
+
 add_executable (FormatTest
 	FormatTest.cpp
 	${CMAKE_SOURCE_DIR}/src/libs/common/Format.cpp

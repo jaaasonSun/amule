@@ -11,7 +11,7 @@ AM_LDFLAGS = $(MULELDFLAGS)
 LDADD = ../muleunit/libmuleunit.a $(WXBASE_LIBS)
 
 MAINTAINERCLEANFILES = Makefile.in
-TESTS = CUInt128Test RangeMapTest FormatTest StringFunctionsTest NetworkFunctionsTest FileDataIOTest PathTest TextFileTest CTagTest
+TESTS = CUInt128Test RangeMapTest FilenameEncodingTest FormatTest StringFunctionsTest NetworkFunctionsTest FileDataIOTest PathTest TextFileTest CTagTest
 check_PROGRAMS = $(TESTS)
 
 
@@ -23,6 +23,9 @@ RangeMapTest_SOURCES = RangeMapTest.cpp
 
 # Tests for the CFormat class
 FormatTest_SOURCES = FormatTest.cpp $(top_srcdir)/src/libs/common/Format.cpp $(top_srcdir)/src/libs/common/strerror_r.c
+
+# Tests for filename encoding repair.
+FilenameEncodingTest_SOURCES = FilenameEncodingTest.cpp $(top_srcdir)/src/libs/common/FilenameEncoding.cpp
 
 # Tests for the various string functions.
 StringFunctionsTest_SOURCES = StringFunctionsTest.cpp $(top_srcdir)/src/libs/common/StringFunctions.cpp $(top_srcdir)/src/libs/common/Path.cpp

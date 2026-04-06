@@ -207,8 +207,13 @@ if (BUILD_ED2K)
 
 	if (APPLE)
 		target_link_libraries (ed2k
+			PRIVATE mulecommon
 			PRIVATE "-framework CoreFoundation"
 			PRIVATE "-framework CoreServices"
+		)
+	else()
+		target_link_libraries (ed2k
+			PRIVATE mulecommon
 		)
 	endif()
 
