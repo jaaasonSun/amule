@@ -76,3 +76,9 @@ Makefile.user
 # Native macOS app / local build artifacts
 .swift-version
 build/
+build-native-bridge/
+build-filename/
+
+# Sisyphus / Agent logs
+.logs/
+.sisyphus/
