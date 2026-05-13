@@ -80,6 +80,7 @@ final class AppModel: ObservableObject {
     private var hudDismissTask: Task<Void, Never>?
     private var searchTask: Task<Void, Never>?
     private let pasteboardShare: PasteboardShare
+    private let bridge: BridgeProtocol
 
     var buildCommit: String {
         if let value = Bundle.main.object(forInfoDictionaryKey: "AMuleBuildCommit") as? String,
@@ -93,8 +94,12 @@ final class AppModel: ObservableObject {
         .init(bridgePath: bridgePath, host: host, port: port, password: password)
     }
 
-    init(pasteboardShare: PasteboardShare = platformDefaultPasteboardShare()) {
+    init(
+        pasteboardShare: PasteboardShare = platformDefaultPasteboardShare(),
+        bridge: BridgeProtocol = platformDefaultBridgeAdapter()
+    ) {
         self.pasteboardShare = pasteboardShare
+        self.bridge = bridge
         connectionMaxDownloadKBps = savedConnectionMaxDownload
         connectionMaxUploadKBps = savedConnectionMaxUpload
         connectionMaxDownloadInput = String(savedConnectionMaxDownload)
@@ -111,7 +116,7 @@ final class AppModel: ObservableObject {
 
     func refreshBridgeCapabilities(logOutput: Bool = false, suppressErrors: Bool = true) async {
         do {
-            let (schemaVersion, capabilities, raw) = try await AMuleECBridgeClient.capabilities(config: config)
+            let (schemaVersion, capabilities, raw) = try await bridge.capabilities(config: config)
             await MainActor.run {
                 self.bridgeSchemaVersion = schemaVersion
                 self.bridgeOps = Set(capabilities.ops)
@@ -160,7 +165,7 @@ final class AppModel: ObservableObject {
 
     func disconnectAll() {
         run(label: "disconnect") {
-            let (_, raw) = try await AMuleECBridgeClient.disconnect(config: self.config)
+            let (_, raw) = try await self.bridge.disconnect(config: self.config)
             await MainActor.run {
                 self.appendLog("$ disconnect\n\(raw)")
                 self.isSessionConnected = false
@@ -171,7 +176,7 @@ final class AppModel: ObservableObject {
 
     func refreshStatus(logOutput: Bool = true, suppressErrors: Bool = false) async {
         do {
-            let (bridgeStatus, raw) = try await AMuleECBridgeClient.status(config: config)
+            let (bridgeStatus, raw) = try await bridge.status(config: config)
             await MainActor.run {
                 self.status = StatusSnapshot.fromBridge(bridgeStatus)
                 if logOutput {
@@ -211,7 +216,7 @@ final class AppModel: ObservableObject {
             }
 
             do {
-                let (progress, payload, raw) = try await AMuleECBridgeClient.search(
+                let (progress, payload, raw) = try await self.bridge.search(
                     scope: scope,
                     query: query,
                     polls: 12,
@@ -244,7 +249,7 @@ final class AppModel: ObservableObject {
 
         Task {
             do {
-                let (_, raw) = try await AMuleECBridgeClient.searchStop(config: self.config)
+                let (_, raw) = try await self.bridge.searchStop(config: self.config)
                 await MainActor.run {
                     self.appendLog("$ search-stop\n\(raw)")
                     self.isSearchInProgress = false
@@ -275,7 +280,7 @@ final class AppModel: ObservableObject {
 
             for result in unique {
                 do {
-                    let (_, raw) = try await AMuleECBridgeClient.download(hash: result.hash, config: self.config)
+                    let (_, raw) = try await self.bridge.download(hash: result.hash, config: self.config)
                     await MainActor.run {
                         self.appendLog("$ download \(result.hash)\n\(raw)")
                     }
@@ -323,7 +328,7 @@ final class AppModel: ObservableObject {
             for (index, link) in links.enumerated() {
                 do {
                     let normalized = normalizedLinks[index]
-                    let (_, raw) = try await AMuleECBridgeClient.addLink(link: normalized, config: self.config)
+                    let (_, raw) = try await self.bridge.addLink(link: normalized, config: self.config)
                     await MainActor.run {
                         self.appendLog("$ add-link \(normalized)\n\(raw)")
                     }
@@ -446,7 +451,7 @@ final class AppModel: ObservableObject {
         run(label: "server-connect") {
             let ip = server?.ip
             let port = server?.port
-            let (_, raw) = try await AMuleECBridgeClient.serverConnect(ip: ip, port: port, config: self.config)
+            let (_, raw) = try await self.bridge.serverConnect(ip: ip, port: port, config: self.config)
             await MainActor.run {
                 if let server {
                     self.appendLog("$ server-connect \(server.address)\n\(raw)")
@@ -966,7 +971,7 @@ final class AppModel: ObservableObject {
 
     private func refreshDownloadsNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
         do {
-            let (payload, raw) = try await AMuleECBridgeClient.downloads(config: config)
+            let (payload, raw) = try await bridge.downloads(config: config)
             let parsed = DownloadItem.fromBridge(payload)
             await MainActor.run {
                 self.downloads = parsed
@@ -1210,7 +1215,7 @@ final class AppModel: ObservableObject {
     }
 
     private func connectNow() async throws {
-        let (_, raw) = try await AMuleECBridgeClient.connect(config: self.config)
+        let (_, raw) = try await bridge.connect(config: self.config)
         await MainActor.run {
             self.appendLog("$ connect\n\(raw)")
             self.isSessionConnected = true
@@ -1257,10 +1262,10 @@ final class AppModel: ObservableObject {
 
         switch action {
         case .pause:
-            raw = try await AMuleECBridgeClient.pause(hash: item.id, config: config).raw
+            raw = try await bridge.pause(hash: item.id, config: config).raw
             commandLabel = "pause \(item.id)"
         case .resume:
-            raw = try await AMuleECBridgeClient.resume(hash: item.id, config: config).raw
+            raw = try await bridge.resume(hash: item.id, config: config).raw
             commandLabel = "resume \(item.id)"
         case .cancel:
             raw = try await AMuleECBridgeClient.cancel(hash: item.id, config: config).raw
