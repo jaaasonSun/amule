@@ -920,7 +920,7 @@ enum AMuleECBridgeClient {
         return (payload, raw)
     }
 
-    private static func invoke(
+    static func invoke(
         op: String,
         extraArgs: [String],
         config: AMuleConnectionConfig

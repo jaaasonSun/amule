@@ -1,7 +1,10 @@
 // This file is part of the aMule Project.
 
-#include "config.h"
+#ifndef VERSION
+#define VERSION "GIT"
+#endif
 
+#include "AMuleECBridgeCore.h"
 #include "libs/ec/cpp/RemoteConnect.h"
 #include "libs/ec/cpp/ECSpecialTags.h"
 #include "libs/common/MD5Sum.h"
@@ -35,7 +38,7 @@ namespace {
 
 struct Options {
 	std::string host = "127.0.0.1";
-	int port = 4712;
+	int port = AMuleECBridge::DefaultPort();
 	std::string password;
 	std::string op;
 	std::string scope = "kad";
@@ -458,7 +461,7 @@ bool ParseArgs(int argc, char** argv, Options& options, std::string& error)
 			options.ecids.push_back(static_cast<uint32_t>(ecid));
 		} else if (arg == "--help") {
 			error =
-				"Usage: amule-ec-bridge --host <ip> --port <port> --password <plain_or_md5> --op <status|downloads|sources|search|search-stop|download|add-link|rename|connect|disconnect|pause|resume|cancel|priority|clear-completed|servers|server-connect|server-disconnect|server-add|server-remove|server-update-from-url|kad-update-from-url> [op args]";
+				"Usage: amule-ec-bridge --host <ip> --port <port> --password <plain_or_md5> --op <capabilities|status|downloads|sources|search|search-stop|download|add-link|rename|connect|disconnect|pause|resume|cancel|priority|clear-completed|servers|server-connect|server-disconnect|server-add|server-remove|server-update-from-url|kad-update-from-url> [op args]";
 			return false;
 		} else {
 			error = "Unknown argument: " + arg;
@@ -470,7 +473,7 @@ bool ParseArgs(int argc, char** argv, Options& options, std::string& error)
 		error = "Missing --op";
 		return false;
 	}
-	if (options.password.empty()) {
+	if (options.password.empty() && options.op != "capabilities") {
 		error = "Missing --password";
 		return false;
 	}
@@ -1564,17 +1567,22 @@ namespace MuleNotify
 
 int main(int argc, char** argv)
 {
-	wxInitializer initializer;
-	if (!initializer.IsOk()) {
-		PrintJsonError("Failed to initialize wxWidgets runtime");
-		return 2;
-	}
-
 	Options options;
 	std::string error;
 	if (!ParseArgs(argc, argv, options, error)) {
 		PrintJsonError(error);
 		return 1;
+	}
+
+	if (options.op == "capabilities") {
+		std::cout << AMuleECBridge::BuildCapabilitiesEnvelope() << std::endl;
+		return 0;
+	}
+
+	wxInitializer initializer;
+	if (!initializer.IsOk()) {
+		PrintJsonError("Failed to initialize wxWidgets runtime");
+		return 2;
 	}
 
 	wxString md5Password;

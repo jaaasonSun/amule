@@ -1,51 +1,9 @@
 import SwiftUI
 import AppKit
-import Carbon.HIToolbox
-
-@MainActor
-final class DeepLinkAppDelegate: NSObject, NSApplicationDelegate {
-    private func bringDownloadsWindowToFront() {
-        if let downloadsWindow = NSApp.windows.first(where: { $0.title == "Downloads" }) {
-            downloadsWindow.makeKeyAndOrderFront(nil)
-            return
-        }
-
-        if let mainWindow = NSApp.mainWindow {
-            mainWindow.makeKeyAndOrderFront(nil)
-        }
-    }
-
-    func applicationWillFinishLaunching(_ notification: Notification) {
-        let manager = NSAppleEventManager.shared()
-        manager.setEventHandler(
-            self,
-            andSelector: #selector(handleGetURL(event:withReplyEvent:)),
-            forEventClass: AEEventClass(kInternetEventClass),
-            andEventID: AEEventID(kAEGetURL)
-        )
-    }
-
-    func applicationWillTerminate(_ notification: Notification) {
-        NSAppleEventManager.shared().removeEventHandler(
-            forEventClass: AEEventClass(kInternetEventClass),
-            andEventID: AEEventID(kAEGetURL)
-        )
-    }
-
-    @objc private func handleGetURL(event: NSAppleEventDescriptor, withReplyEvent replyEvent: NSAppleEventDescriptor) {
-        guard let incomingURL = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue else {
-            return
-        }
-
-        PendingIncomingLinkInbox.shared.enqueue(incomingURL)
-        NSApp.activate(ignoringOtherApps: true)
-        bringDownloadsWindowToFront()
-    }
-}
 
 @main
 struct AMuleNativeRemoteApp: App {
-    @NSApplicationDelegateAdaptor private var deepLinkDelegate: DeepLinkAppDelegate
+    @NSApplicationDelegateAdaptor private var deepLinkDelegate: MacOSDeepLinkHandler
     @StateObject private var model = AppModel()
 
     var body: some Scene {

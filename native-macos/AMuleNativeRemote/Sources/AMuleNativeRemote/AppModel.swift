@@ -1,6 +1,5 @@
 import Foundation
 import SwiftUI
-import AppKit
 
 struct DownloadRenameSuggestionRequest: Equatable {
     let downloadID: String
@@ -196,6 +195,7 @@ final class AppModel: ObservableObject {
     private(set) var pendingRenameSuggestionRequest: DownloadRenameSuggestionRequest?
     private var hudDismissTask: Task<Void, Never>?
     private var searchTask: Task<Void, Never>?
+    private let pasteboardShare: PasteboardShare
 
     var buildCommit: String {
         if let value = Bundle.main.object(forInfoDictionaryKey: "AMuleBuildCommit") as? String,
@@ -209,7 +209,8 @@ final class AppModel: ObservableObject {
         .init(bridgePath: bridgePath, host: host, port: port, password: password)
     }
 
-    init() {
+    init(pasteboardShare: PasteboardShare = platformDefaultPasteboardShare()) {
+        self.pasteboardShare = pasteboardShare
         connectionMaxDownloadKBps = savedConnectionMaxDownload
         connectionMaxUploadKBps = savedConnectionMaxUpload
         connectionMaxDownloadInput = String(savedConnectionMaxDownload)
@@ -899,53 +900,43 @@ final class AppModel: ObservableObject {
     }
 
     func copyLogToClipboard() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(outputLog, forType: .string)
+        pasteboardShare.writeString(outputLog)
     }
 
     func copyDownloadsRawToClipboard() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(lastDownloadsRawOutput, forType: .string)
+        pasteboardShare.writeString(lastDownloadsRawOutput)
     }
 
     func copySearchRawToClipboard() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(lastSearchRawOutput, forType: .string)
+        pasteboardShare.writeString(lastSearchRawOutput)
     }
 
     func copyServersRawToClipboard() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(lastServersRawOutput, forType: .string)
+        pasteboardShare.writeString(lastServersRawOutput)
     }
 
     func copySourcesRawToClipboard() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(lastSourcesRawOutput, forType: .string)
+        pasteboardShare.writeString(lastSourcesRawOutput)
     }
 
     func copyUploadsRawToClipboard() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(lastUploadsRawOutput, forType: .string)
+        pasteboardShare.writeString(lastUploadsRawOutput)
     }
 
     func copySharedFilesRawToClipboard() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(lastSharedFilesRawOutput, forType: .string)
+        pasteboardShare.writeString(lastSharedFilesRawOutput)
     }
 
     func copyCoreLogRawToClipboard() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(lastCoreLogRawOutput, forType: .string)
+        pasteboardShare.writeString(lastCoreLogRawOutput)
     }
 
     func copyCoreDebugLogRawToClipboard() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(lastCoreDebugLogRawOutput, forType: .string)
+        pasteboardShare.writeString(lastCoreDebugLogRawOutput)
     }
 
     func copyDownloadLinkToClipboard(_ item: DownloadItem) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(item.ed2kLink, forType: .string)
+        pasteboardShare.writeString(item.ed2kLink)
     }
 
     func clearCompletedDownloads(_ items: [DownloadItem]) {
