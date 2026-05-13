@@ -1,0 +1,253 @@
+{
+  "builtTestProducts" : [
+
+  ],
+  "copyCommands" : {
+
+  },
+  "explicitTargetDependencyImportCheckingMode" : {
+    "none" : {
+
+    }
+  },
+  "generatedSourceTargetSet" : [
+
+  ],
+  "pluginDescriptions" : [
+
+  ],
+  "swiftCommands" : {
+    "C.AMuleRemoteiOSWrapper-arm64-apple-macosx-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/AMuleRemoteiOSWrapper.build/sources",
+      "importPath" : "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/AMuleRemoteiOS/AMuleRemoteiOSApp.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/AMuleRemoteiOS/IOSFakeBridge.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/AMuleRemoteiOS/IOSRootView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/AMuleRemoteiOSWrapper.build/sources"
+        }
+      ],
+      "isLibrary" : false,
+      "moduleName" : "AMuleRemoteiOSWrapper",
+      "moduleOutputPath" : "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/Modules/AMuleRemoteiOSWrapper.swiftmodule",
+      "objects" : [
+        "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/AMuleRemoteiOSWrapper.build/AMuleRemoteiOSApp.swift.o",
+        "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/AMuleRemoteiOSWrapper.build/IOSFakeBridge.swift.o",
+        "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/AMuleRemoteiOSWrapper.build/IOSRootView.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx10.13",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-Onone",
+        "-enable-testing",
+        "-j10",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-Xfrontend",
+        "-entry-point-function-name",
+        "-Xfrontend",
+        "AMuleRemoteiOSWrapper_main",
+        "-swift-version",
+        "6",
+        "-Xfrontend",
+        "-experimental-lazy-typecheck",
+        "-Xfrontend",
+        "-experimental-skip-all-function-bodies",
+        "-Xfrontend",
+        "-experimental-allow-module-with-compiler-errors",
+        "-Xfrontend",
+        "-empty-abi-descriptor",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "ios"
+      ],
+      "outputFileMapPath" : "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/AMuleRemoteiOSWrapper.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/Modules/AMuleRemoteiOSWrapper.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : true,
+      "sources" : [
+        "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/AMuleRemoteiOS/AMuleRemoteiOSApp.swift",
+        "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/AMuleRemoteiOS/IOSFakeBridge.swift",
+        "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/AMuleRemoteiOS/IOSRootView.swift"
+      ],
+      "tempsPath" : "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/AMuleRemoteiOSWrapper.build",
+      "wholeModuleOptimization" : false
+    }
+  },
+  "swiftFrontendCommands" : {
+
+  },
+  "swiftTargetScanArgs" : {
+    "AMuleRemoteiOSWrapper" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "AMuleRemoteiOSWrapper",
+      "-package-name",
+      "ios",
+      "-c",
+      "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/AMuleRemoteiOS/AMuleRemoteiOSApp.swift",
+      "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/AMuleRemoteiOS/IOSFakeBridge.swift",
+      "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/AMuleRemoteiOS/IOSRootView.swift",
+      "-I",
+      "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx10.13",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-Onone",
+      "-enable-testing",
+      "-j10",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-Xfrontend",
+      "-entry-point-function-name",
+      "-Xfrontend",
+      "AMuleRemoteiOSWrapper_main",
+      "-swift-version",
+      "6",
+      "-Xfrontend",
+      "-experimental-lazy-typecheck",
+      "-Xfrontend",
+      "-experimental-skip-all-function-bodies",
+      "-Xfrontend",
+      "-experimental-allow-module-with-compiler-errors",
+      "-Xfrontend",
+      "-empty-abi-descriptor",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "ios",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap" : {
+    "AMuleRemoteiOSWrapper" : [
+
+    ]
+  },
+  "testDiscoveryCommands" : {
+
+  },
+  "testEntryPointCommands" : {
+
+  },
+  "traitConfiguration" : {
+    "default" : {
+
+    }
+  },
+  "writeCommands" : {
+    "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/AMuleRemoteiOSWrapper.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/AMuleRemoteiOS/AMuleRemoteiOSApp.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/AMuleRemoteiOS/IOSFakeBridge.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/AMuleRemoteiOS/IOSRootView.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/AMuleRemoteiOSWrapper.build/sources"
+    },
+    "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt" : {
+      "alwaysOutOfDate" : true,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<swift-get-version>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath" : "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+    }
+  }
+}

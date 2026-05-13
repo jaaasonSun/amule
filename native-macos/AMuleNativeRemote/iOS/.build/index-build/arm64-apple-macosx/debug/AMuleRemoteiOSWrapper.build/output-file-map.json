@@ -1,0 +1,26 @@
+{
+  "": {
+    "swift-dependencies": "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/AMuleRemoteiOSWrapper.build/primary.swiftdeps"
+  },
+  "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/AMuleRemoteiOS/AMuleRemoteiOSApp.swift": {
+    "dependencies": "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/AMuleRemoteiOSWrapper.build/AMuleRemoteiOSApp.d",
+    "object": "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/AMuleRemoteiOSWrapper.build/AMuleRemoteiOSApp.swift.o",
+    "swiftmodule": "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/AMuleRemoteiOSWrapper.build/AMuleRemoteiOSApp~partial.swiftmodule",
+    "swift-dependencies": "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/AMuleRemoteiOSWrapper.build/AMuleRemoteiOSApp.swiftdeps",
+    "diagnostics": "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/AMuleRemoteiOSWrapper.build/AMuleRemoteiOSApp.dia"
+  },
+  "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/AMuleRemoteiOS/IOSFakeBridge.swift": {
+    "dependencies": "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/AMuleRemoteiOSWrapper.build/IOSFakeBridge.d",
+    "object": "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/AMuleRemoteiOSWrapper.build/IOSFakeBridge.swift.o",
+    "swiftmodule": "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/AMuleRemoteiOSWrapper.build/IOSFakeBridge~partial.swiftmodule",
+    "swift-dependencies": "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/AMuleRemoteiOSWrapper.build/IOSFakeBridge.swiftdeps",
+    "diagnostics": "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/AMuleRemoteiOSWrapper.build/IOSFakeBridge.dia"
+  },
+  "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/AMuleRemoteiOS/IOSRootView.swift": {
+    "dependencies": "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/AMuleRemoteiOSWrapper.build/IOSRootView.d",
+    "object": "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/AMuleRemoteiOSWrapper.build/IOSRootView.swift.o",
+    "swiftmodule": "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/AMuleRemoteiOSWrapper.build/IOSRootView~partial.swiftmodule",
+    "swift-dependencies": "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/AMuleRemoteiOSWrapper.build/IOSRootView.swiftdeps",
+    "diagnostics": "/Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS/.build/index-build/arm64-apple-macosx/debug/AMuleRemoteiOSWrapper.build/IOSRootView.dia"
+  }
+}
