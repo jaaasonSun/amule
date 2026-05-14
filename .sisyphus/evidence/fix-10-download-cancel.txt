@@ -1,0 +1,15 @@
+Task 10: Implement Real iOS Download Cancel/Remove Flow
+
+Changes:
+- Added BridgeProtocol.cancel(hash:config:).
+- Implemented iOS in-process cancel mapping to operation "cancel" with ["--hash", hash].
+- Added AMuleBridgeWrapperCopyCancelJSON wrapper for the existing C++ bridge cancel operation.
+- Implemented FakeBridgeAdapter.cancel, recording cancelled hashes and updating fake downloads after success.
+- Removed the local-only DownloadsView IOSAppModel.removeDownload extension.
+- Added IOSAppModel.removeDownload(_:) that calls bridge.cancel, refreshes downloads after success, and preserves state with lastError on failure.
+- Added tests for cancel argument forwarding and nonexistent-download bridge failure.
+
+Verification:
+- LSP diagnostics were invoked on changed Swift files; SourceKit reported environment/module-resolution errors for shared/test files (missing package modules in LSP), while UIKit app files reported no diagnostics.
+- swift test --package-path native-macos/AMuleNativeRemote/iOS
+  Result: passed. Executed 10 tests, 0 failures.

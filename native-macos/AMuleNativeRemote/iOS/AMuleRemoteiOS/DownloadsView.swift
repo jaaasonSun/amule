@@ -144,12 +144,6 @@ private struct AddLinksSheet: View {
     }
 }
 
-extension IOSAppModel {
-    func removeDownload(_ item: DownloadItem) {
-        downloads.removeAll { $0.id == item.id }
-    }
-}
-
 #Preview {
     NavigationStack {
         DownloadsView(model: IOSAppModel())

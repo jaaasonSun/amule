@@ -1,0 +1,21 @@
+import Foundation
+
+protocol BridgeProtocol: Sendable {
+    func connect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func disconnect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func capabilities(config: AMuleConnectionConfig) async throws -> (schemaVersion: Int?, capabilities: BridgeCapabilitiesPayload, raw: String)
+    func status(config: AMuleConnectionConfig) async throws -> (BridgeStatusPayload, String)
+    func downloads(config: AMuleConnectionConfig) async throws -> ([BridgeDownloadPayload], String)
+    func search(scope: String, query: String, polls: Int, pollIntervalMs: Int, config: AMuleConnectionConfig) async throws -> (progress: Int, results: [BridgeSearchPayload], raw: String)
+    func searchStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func download(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func addLink(link: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func pause(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func resume(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func cancel(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func serverConnect(ip: String?, port: Int?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func sources(hash: String, config: AMuleConnectionConfig) async throws -> ([DownloadSourceItem], String)
+    func prefsConnectionGet(config: AMuleConnectionConfig) async throws -> (BridgeConnectionPrefsPayload, String)
+    func prefsConnectionSet(maxDownload: Int, maxUpload: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+}
+
