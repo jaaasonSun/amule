@@ -53,6 +53,10 @@ struct Options {
 	std::string kadURL;
 	std::string serverIP;
 	int serverPort = 0;
+	int maxDownload = 0;
+	int maxUpload = 0;
+	bool hasMaxDownload = false;
+	bool hasMaxUpload = false;
 	int polls = 10;
 	int pollIntervalMs = 900;
 	std::vector<uint32_t> ecids;
@@ -393,6 +397,30 @@ void PrintJsonMessage(const std::string& message)
 	std::cout << "{\"ok\":true,\"message\":\"" << JsonEscape(message) << "\"}" << std::endl;
 }
 
+bool ParseNonNegativeInt(const std::string& text, const std::string& key, int& value, std::string& error)
+{
+	if (text.empty()) {
+		error = "Missing value for " + key;
+		return false;
+	}
+	char* end = NULL;
+	const long parsed = std::strtol(text.c_str(), &end, 10);
+	if (*end != '\0') {
+		error = "Invalid " + key + " value";
+		return false;
+	}
+	if (parsed < 0) {
+		error = key + " must be non-negative";
+		return false;
+	}
+	if (parsed > 0x7fffffffL) {
+		error = key + " value is too large";
+		return false;
+	}
+	value = static_cast<int>(parsed);
+	return true;
+}
+
 bool ParseArgs(int argc, char** argv, Options& options, std::string& error)
 {
 	for (int i = 1; i < argc; ++i) {
@@ -442,6 +470,16 @@ bool ParseArgs(int argc, char** argv, Options& options, std::string& error)
 			std::string serverPort;
 			if (!needValue(arg, serverPort)) return false;
 			options.serverPort = std::atoi(serverPort.c_str());
+		} else if (arg == "--max-dl") {
+			std::string maxDL;
+			if (!needValue(arg, maxDL)) return false;
+			if (!ParseNonNegativeInt(maxDL, arg, options.maxDownload, error)) return false;
+			options.hasMaxDownload = true;
+		} else if (arg == "--max-ul") {
+			std::string maxUL;
+			if (!needValue(arg, maxUL)) return false;
+			if (!ParseNonNegativeInt(maxUL, arg, options.maxUpload, error)) return false;
+			options.hasMaxUpload = true;
 		} else if (arg == "--polls") {
 			std::string polls;
 			if (!needValue(arg, polls)) return false;
@@ -461,7 +499,7 @@ bool ParseArgs(int argc, char** argv, Options& options, std::string& error)
 			options.ecids.push_back(static_cast<uint32_t>(ecid));
 		} else if (arg == "--help") {
 			error =
-				"Usage: amule-ec-bridge --host <ip> --port <port> --password <plain_or_md5> --op <capabilities|status|downloads|sources|search|search-stop|download|add-link|rename|connect|disconnect|pause|resume|cancel|priority|clear-completed|servers|server-connect|server-disconnect|server-add|server-remove|server-update-from-url|kad-update-from-url> [op args]";
+				"Usage: amule-ec-bridge --host <ip> --port <port> --password <plain_or_md5> --op <capabilities|status|downloads|sources|search|search-stop|download|add-link|rename|connect|disconnect|pause|resume|cancel|priority|clear-completed|servers|server-connect|server-disconnect|server-add|server-remove|server-update-from-url|kad-update-from-url|prefs-connection-get|prefs-connection-set> [--max-dl <kB/s>] [--max-ul <kB/s>] [op args]";
 			return false;
 		} else {
 			error = "Unknown argument: " + arg;
@@ -1369,6 +1407,62 @@ bool HandleConnectDisconnect(CRemoteConnect& conn, const Options& options, std::
 	return true;
 }
 
+bool HandlePrefsConnectionGet(CRemoteConnect& conn, std::string& error)
+{
+	CECPacket req(EC_OP_GET_PREFERENCES, EC_DETAIL_CMD);
+	req.AddTag(CECTag(EC_TAG_SELECT_PREFS, static_cast<uint32>(EC_PREFS_CONNECTIONS)));
+	std::unique_ptr<const CECPacket> reply = SendRecvChecked(conn, req, error);
+	if (!reply) {
+		return false;
+	}
+
+	const CECTag* prefs = reply->GetTagByName(EC_TAG_PREFS_CONNECTIONS);
+	if (!prefs) {
+		error = "Connection preferences missing from core reply";
+		return false;
+	}
+
+	uint32 maxDL = 0;
+	uint32 maxUL = 0;
+	if (!TagUInt(*prefs, EC_TAG_CONN_MAX_DL, maxDL) || !TagUInt(*prefs, EC_TAG_CONN_MAX_UL, maxUL)) {
+		error = "Connection transfer limits missing from core reply";
+		return false;
+	}
+
+	std::cout
+		<< "{\"ok\":true,\"prefs_connection\":{"
+		<< "\"max_dl\":" << maxDL << ","
+		<< "\"max_ul\":" << maxUL
+		<< "}}" << std::endl;
+	return true;
+}
+
+bool HandlePrefsConnectionSet(CRemoteConnect& conn, const Options& options, std::string& error)
+{
+	if (!options.hasMaxDownload && !options.hasMaxUpload) {
+		error = "Missing --max-dl or --max-ul";
+		return false;
+	}
+
+	CECPacket req(EC_OP_SET_PREFERENCES, EC_DETAIL_FULL);
+	req.AddTag(CECTag(EC_TAG_SELECT_PREFS, static_cast<uint32>(EC_PREFS_CONNECTIONS)));
+	CECEmptyTag prefs(EC_TAG_PREFS_CONNECTIONS);
+	if (options.hasMaxDownload) {
+		prefs.AddTag(CECTag(EC_TAG_CONN_MAX_DL, static_cast<uint32>(options.maxDownload)));
+	}
+	if (options.hasMaxUpload) {
+		prefs.AddTag(CECTag(EC_TAG_CONN_MAX_UL, static_cast<uint32>(options.maxUpload)));
+	}
+	req.AddTag(prefs);
+
+	std::unique_ptr<const CECPacket> reply = SendRecvChecked(conn, req, error);
+	if (!reply) {
+		return false;
+	}
+	PrintJsonMessage("Connection speed limits updated");
+	return true;
+}
+
 bool HandleServers(CRemoteConnect& conn, std::string& error)
 {
 	CECPacket req(EC_OP_GET_SERVER_LIST, EC_DETAIL_FULL);
@@ -1558,22 +1652,10 @@ bool HandleKadUpdateFromURL(CRemoteConnect& conn, const Options& options, std::s
 
 } // namespace
 
-// Stubs needed for ASIO socket notifications in non-GUI tools.
-namespace MuleNotify
-{
-	void HandleNotification(const CMuleNotiferBase&) {}
-	void HandleNotificationAlways(const CMuleNotiferBase&) {}
-}
+namespace {
 
-int main(int argc, char** argv)
+int ExecuteBridgeOperation(const Options& options, std::string& error)
 {
-	Options options;
-	std::string error;
-	if (!ParseArgs(argc, argv, options, error)) {
-		PrintJsonError(error);
-		return 1;
-	}
-
 	if (options.op == "capabilities") {
 		std::cout << AMuleECBridge::BuildCapabilitiesEnvelope() << std::endl;
 		return 0;
@@ -1581,13 +1663,13 @@ int main(int argc, char** argv)
 
 	wxInitializer initializer;
 	if (!initializer.IsOk()) {
-		PrintJsonError("Failed to initialize wxWidgets runtime");
+		error = "Failed to initialize wxWidgets runtime";
 		return 2;
 	}
 
 	wxString md5Password;
 	if (!NormalizePassword(options.password, md5Password)) {
-		PrintJsonError("Could not normalize password");
+		error = "Could not normalize password";
 		return 1;
 	}
 
@@ -1601,7 +1683,7 @@ int main(int argc, char** argv)
 		wxT("aMuleNativeBridge"),
 		wxT(VERSION)
 	)) {
-		PrintJsonError(ToUtf8(conn.GetServerReply()));
+		error = ToUtf8(conn.GetServerReply());
 		return 2;
 	}
 
@@ -1630,6 +1712,10 @@ int main(int argc, char** argv)
 		ok = HandlePartFileAction(conn, options, error);
 	} else if (options.op == "clear-completed") {
 		ok = HandleClearCompleted(conn, options, error);
+	} else if (options.op == "prefs-connection-get") {
+		ok = HandlePrefsConnectionGet(conn, error);
+	} else if (options.op == "prefs-connection-set") {
+		ok = HandlePrefsConnectionSet(conn, options, error);
 	} else if (options.op == "server-connect") {
 		ok = HandleServerConnect(conn, options, error);
 	} else if (options.op == "server-disconnect") {
@@ -1646,10 +1732,36 @@ int main(int argc, char** argv)
 		error = "Unsupported --op value";
 	}
 
-	if (!ok) {
-		PrintJsonError(error.empty() ? "Unknown error" : error);
+	return ok ? 0 : 1;
+}
+
+} // namespace
+
+#ifndef AMULE_EC_BRIDGE_CORE_EMBEDDED
+
+// Stubs needed for ASIO socket notifications in non-GUI tools.
+namespace MuleNotify
+{
+	void HandleNotification(const CMuleNotiferBase&) {}
+	void HandleNotificationAlways(const CMuleNotiferBase&) {}
+}
+
+int main(int argc, char** argv)
+{
+	Options options;
+	std::string error;
+	if (!ParseArgs(argc, argv, options, error)) {
+		PrintJsonError(error);
 		return 1;
+	}
+
+	const int code = ExecuteBridgeOperation(options, error);
+	if (code != 0) {
+		PrintJsonError(error.empty() ? "Unknown error" : error);
+		return code;
 	}
 
 	return 0;
 }
+
+#endif // AMULE_EC_BRIDGE_CORE_EMBEDDED

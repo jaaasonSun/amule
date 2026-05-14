@@ -1,0 +1,15 @@
+Task 11: C++ backend support for connection transfer limits
+
+Implemented:
+- Added prefs-connection-get and prefs-connection-set to AMuleECBridge::SupportedOps().
+- Added --max-dl and --max-ul parsing with non-negative validation.
+- Added prefs-connection-get handler using EC_OP_GET_PREFERENCES + EC_TAG_SELECT_PREFS=EC_PREFS_CONNECTIONS and returning prefs_connection.max_dl/max_ul JSON.
+- Added prefs-connection-set handler using EC_OP_SET_PREFERENCES with EC_TAG_PREFS_CONNECTIONS and only EC_TAG_CONN_MAX_DL / EC_TAG_CONN_MAX_UL fields.
+- Set requests use EC_DETAIL_FULL so missing boolean connection preference tags are left unchanged by CEC_Prefs_Packet::Apply().
+- Extended iOS in-process bridge tests for capabilities, argument forwarding, success/error envelopes, and negative limit rejection.
+
+Verification:
+- lsp_diagnostics native-macos/AMuleNativeRemote/iOS/Tests/AMuleRemoteIOSTests/IOSInProcessBridgeAdapterTests.swift: clean.
+- lsp_diagnostics src/AMuleECBridge.cpp and src/AMuleECBridgeCore.cpp: clangd cannot load repository build config in this workspace (config.h not found); cmake build below is authoritative.
+- cmake --build build-native-bridge --target amule-ec-bridge: exit 0.
+- swift test --package-path native-macos/AMuleNativeRemote/iOS: exit 0, 11 tests passed.
