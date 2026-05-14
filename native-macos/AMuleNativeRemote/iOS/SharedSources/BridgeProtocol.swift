@@ -13,9 +13,13 @@ protocol BridgeProtocol: Sendable {
     func pause(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func resume(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func cancel(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func servers(config: AMuleConnectionConfig) async throws -> ([BridgeServerPayload], String)
     func serverConnect(ip: String?, port: Int?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func serverDisconnect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func serverAdd(address: String, name: String?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func serverRemove(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func serverUpdateFromURL(url: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func sources(hash: String, config: AMuleConnectionConfig) async throws -> ([DownloadSourceItem], String)
     func prefsConnectionGet(config: AMuleConnectionConfig) async throws -> (BridgeConnectionPrefsPayload, String)
     func prefsConnectionSet(maxDownload: Int, maxUpload: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
 }
-

@@ -25,6 +25,7 @@ const char* AMuleBridgeWrapperCopyAddLinkJSON(const char* host, int port, const 
 const char* AMuleBridgeWrapperCopyPauseJSON(const char* host, int port, const char* password, const char* hash);
 const char* AMuleBridgeWrapperCopyResumeJSON(const char* host, int port, const char* password, const char* hash);
 const char* AMuleBridgeWrapperCopyCancelJSON(const char* host, int port, const char* password, const char* hash);
+const char* AMuleBridgeWrapperCopyServersJSON(const char* host, int port, const char* password);
 const char* AMuleBridgeWrapperCopyServerConnectJSON(
     const char* host,
     int port,
@@ -32,6 +33,10 @@ const char* AMuleBridgeWrapperCopyServerConnectJSON(
     const char* serverIP,
     int serverPort
 );
+const char* AMuleBridgeWrapperCopyServerDisconnectJSON(const char* host, int port, const char* password);
+const char* AMuleBridgeWrapperCopyServerAddJSON(const char* host, int port, const char* password, const char* address, const char* name);
+const char* AMuleBridgeWrapperCopyServerRemoveJSON(const char* host, int port, const char* password, const char* serverIP, int serverPort);
+const char* AMuleBridgeWrapperCopyServerUpdateFromURLJSON(const char* host, int port, const char* password, const char* url);
 const char* AMuleBridgeWrapperCopySourcesJSON(const char* host, int port, const char* password, const char* hash);
 const char* AMuleBridgeWrapperCopyPrefsConnectionGetJSON(const char* host, int port, const char* password);
 const char* AMuleBridgeWrapperCopyPrefsConnectionSetJSON(const char* host, int port, const char* password, int maxDownload, int maxUpload);

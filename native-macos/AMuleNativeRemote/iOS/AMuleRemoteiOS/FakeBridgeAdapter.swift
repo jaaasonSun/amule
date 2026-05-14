@@ -8,6 +8,7 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
     var capabilitiesResult: (schemaVersion: Int?, capabilities: BridgeCapabilitiesPayload, raw: String)
     var statusResult: (BridgeStatusPayload, String)
     var downloadsResult: ([BridgeDownloadPayload], String)
+    var serversResult: ([BridgeServerPayload], String)
     var searchResult: (progress: Int, results: [BridgeSearchPayload], raw: String)
     var prefsConnectionResult: BridgeConnectionPrefsPayload
     var messageRaw: String
@@ -27,9 +28,9 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
                 clientName: "aMule Fake",
                 defaultHost: "127.0.0.1",
                 defaultPort: 4712,
-                ops: ["capabilities", "status", "downloads", "search", "add-link", "pause", "resume", "server-connect"]
+                ops: ["capabilities", "status", "downloads", "search", "add-link", "pause", "resume", "servers", "server-connect", "server-disconnect", "server-add", "server-remove", "server-update-from-url"]
             ),
-            #"{"ok":true,"schema_version":1,"capabilities":{"bridge_version":"fake-1.0","client_name":"aMule Fake","default_host":"127.0.0.1","default_port":4712,"ops":["capabilities","status","downloads","search","add-link","pause","resume","server-connect"]}}"#
+            #"{"ok":true,"schema_version":1,"capabilities":{"bridge_version":"fake-1.0","client_name":"aMule Fake","default_host":"127.0.0.1","default_port":4712,"ops":["capabilities","status","downloads","search","add-link","pause","resume","servers","server-connect","server-disconnect","server-add","server-remove","server-update-from-url"]}}"#
         )
         self.statusResult = statusResult ?? (
             BridgeStatusPayload(
@@ -47,6 +48,7 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
             Self.sampleDownloads,
             #"{"ok":true,"downloads":[]}"#
         )
+        self.serversResult = (Self.sampleServers, #"{"ok":true,"servers":[]}"#)
         self.searchResult = searchResult ?? (
             100,
             Self.sampleSearchResults,
@@ -109,7 +111,27 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
         return ("Cancel requested", messageRaw)
     }
 
+    func servers(config: AMuleConnectionConfig) async throws -> ([BridgeServerPayload], String) {
+        serversResult
+    }
+
     func serverConnect(ip: String?, port: Int?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        ("ok", messageRaw)
+    }
+
+    func serverDisconnect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        ("ok", messageRaw)
+    }
+
+    func serverAdd(address: String, name: String?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        ("ok", messageRaw)
+    }
+
+    func serverRemove(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        ("ok", messageRaw)
+    }
+
+    func serverUpdateFromURL(url: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         ("ok", messageRaw)
     }
 
@@ -197,6 +219,25 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
             name: "Linux Mint 21.3 Cinnamon.iso",
             size: 2_800_000_000, sources: 35, completeSources: 10,
             statusCode: 1, status: "Available", parentID: 0, alreadyHave: false
+        )
+    ]
+
+    private static let sampleServers: [BridgeServerPayload] = [
+        BridgeServerPayload(
+            id: 1,
+            name: "Fake eD2k Server",
+            description: "Local development server",
+            version: "17.15",
+            address: "192.0.2.10:4661",
+            ip: "192.0.2.10",
+            port: 4661,
+            users: 1200,
+            maxUsers: 5000,
+            files: 1000000,
+            ping: 42,
+            failed: 0,
+            priority: 1,
+            isStatic: false
         )
     ]
 

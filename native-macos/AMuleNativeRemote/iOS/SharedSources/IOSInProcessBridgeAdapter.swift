@@ -87,6 +87,11 @@ struct IOSInProcessBridgeAdapter: BridgeProtocol {
         return (envelope.message ?? "Cancel requested", raw)
     }
 
+    func servers(config: AMuleConnectionConfig) async throws -> ([BridgeServerPayload], String) {
+        let (envelope, raw) = try await invoke(operation: "servers", arguments: [], config: config)
+        return (envelope.servers ?? [], raw)
+    }
+
     func serverConnect(ip: String?, port: Int?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         var arguments: [String] = []
         if let ip, !ip.isEmpty, let port {
@@ -94,6 +99,30 @@ struct IOSInProcessBridgeAdapter: BridgeProtocol {
         }
         let (envelope, raw) = try await invoke(operation: "server-connect", arguments: arguments, config: config)
         return (envelope.message ?? "Server connect requested", raw)
+    }
+
+    func serverDisconnect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        let (envelope, raw) = try await invoke(operation: "server-disconnect", arguments: [], config: config)
+        return (envelope.message ?? "Server disconnect requested", raw)
+    }
+
+    func serverAdd(address: String, name: String?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        var arguments = ["--server-address", address]
+        if let name, !name.isEmpty {
+            arguments += ["--server-name", name]
+        }
+        let (envelope, raw) = try await invoke(operation: "server-add", arguments: arguments, config: config)
+        return (envelope.message ?? "Server add requested", raw)
+    }
+
+    func serverRemove(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        let (envelope, raw) = try await invoke(operation: "server-remove", arguments: ["--server-ip", ip, "--server-port", String(port)], config: config)
+        return (envelope.message ?? "Server remove requested", raw)
+    }
+
+    func serverUpdateFromURL(url: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        let (envelope, raw) = try await invoke(operation: "server-update-from-url", arguments: ["--server-url", url], config: config)
+        return (envelope.message ?? "Server list update requested", raw)
     }
 
     func sources(hash: String, config: AMuleConnectionConfig) async throws -> ([DownloadSourceItem], String) {
@@ -177,10 +206,32 @@ struct IOSInProcessBridgeAdapter: BridgeProtocol {
             return AMuleBridgeWrapperCopyResumeJSON(config.host, Int32(config.port), config.password, argumentValue("--hash", in: arguments) ?? "")
         case "cancel":
             return AMuleBridgeWrapperCopyCancelJSON(config.host, Int32(config.port), config.password, argumentValue("--hash", in: arguments) ?? "")
+        case "servers":
+            return AMuleBridgeWrapperCopyServersJSON(config.host, Int32(config.port), config.password)
         case "server-connect":
             let serverIP = argumentValue("--server-ip", in: arguments)
             let serverPort = Int32(argumentValue("--server-port", in: arguments).flatMap(Int.init) ?? 0)
             return AMuleBridgeWrapperCopyServerConnectJSON(config.host, Int32(config.port), config.password, serverIP, serverPort)
+        case "server-disconnect":
+            return AMuleBridgeWrapperCopyServerDisconnectJSON(config.host, Int32(config.port), config.password)
+        case "server-add":
+            return AMuleBridgeWrapperCopyServerAddJSON(
+                config.host,
+                Int32(config.port),
+                config.password,
+                argumentValue("--server-address", in: arguments) ?? "",
+                argumentValue("--server-name", in: arguments)
+            )
+        case "server-remove":
+            return AMuleBridgeWrapperCopyServerRemoveJSON(
+                config.host,
+                Int32(config.port),
+                config.password,
+                argumentValue("--server-ip", in: arguments) ?? "",
+                Int32(argumentValue("--server-port", in: arguments).flatMap(Int.init) ?? 0)
+            )
+        case "server-update-from-url":
+            return AMuleBridgeWrapperCopyServerUpdateFromURLJSON(config.host, Int32(config.port), config.password, argumentValue("--server-url", in: arguments) ?? "")
         case "sources":
             return AMuleBridgeWrapperCopySourcesJSON(config.host, Int32(config.port), config.password, argumentValue("--hash", in: arguments) ?? "")
         case "prefs-connection-get":

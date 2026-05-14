@@ -120,6 +120,7 @@ final class IOSAppModel: ObservableObject {
                 let (_, capabilities, _) = try await bridge.capabilities(config: config)
                 let (bridgeStatus, _) = try await bridge.status(config: config)
                 let (downloadPayloads, _) = try await bridge.downloads(config: config)
+                let remoteServerPayloads = try await self.remoteServersIfSupported(by: capabilities.ops)
 await MainActor.run {
                     self.isSessionConnected = true
                     self.bridgeOps = Set(capabilities.ops)
@@ -129,6 +130,7 @@ await MainActor.run {
                     self.bridgeDefaultPort = capabilities.defaultPort
                     self.status = StatusSnapshot.fromBridge(bridgeStatus)
                     self.downloads = DownloadItem.fromBridge(downloadPayloads)
+                    self.servers = ServerItem.fromBridge(remoteServerPayloads)
                     self.isBusy = false
                     self.startAutoRefresh()
                     self.flushIncomingLinks()
@@ -158,11 +160,7 @@ await MainActor.run {
                     self.bridgeDefaultHost = ""
                     self.bridgeDefaultPort = 0
                     self.status = StatusSnapshot()
-                    self.bridgeOps = []
-                    self.bridgeVersion = ""
-                    self.bridgeClientName = ""
-                    self.bridgeDefaultHost = ""
-                    self.bridgeDefaultPort = 0
+                    self.servers = []
                     self.isBusy = false
                     self.stopAutoRefresh()
                 }
@@ -200,6 +198,25 @@ await MainActor.run {
                 let (payloads, _) = try await bridge.downloads(config: config)
                 await MainActor.run {
                     self.downloads = DownloadItem.fromBridge(payloads)
+                }
+            } catch {
+                await MainActor.run {
+                    self.lastError = self.localNetworkErrors.userFacingMessage(for: error)
+                }
+            }
+        }
+    }
+
+    func refreshServers() {
+        guard isBridgeOpSupported("servers") else {
+            servers = []
+            return
+        }
+        Task {
+            do {
+                let (payloads, _) = try await bridge.servers(config: config)
+                await MainActor.run {
+                    self.servers = ServerItem.fromBridge(payloads)
                 }
             } catch {
                 await MainActor.run {
@@ -373,7 +390,11 @@ await MainActor.run {
         }
     }
 
-func connectServer(_ server: ServerItem?) {
+    func connectServer(_ server: ServerItem?) {
+        guard isBridgeOpSupported("server-connect") else {
+            lastError = "Connecting to daemon servers is not supported by this bridge."
+            return
+        }
         Task {
             do {
                 let _ = try await bridge.serverConnect(ip: server?.ip, port: server?.port, config: config)
@@ -387,6 +408,10 @@ func connectServer(_ server: ServerItem?) {
     }
 
     func connectUserServer(_ server: UserServer) {
+        guard isBridgeOpSupported("server-connect") else {
+            lastError = "Connecting to local bookmarks is not supported by this bridge."
+            return
+        }
         Task {
             do {
                 let _ = try await bridge.serverConnect(ip: server.ip, port: server.port, config: config)
@@ -400,9 +425,13 @@ func connectServer(_ server: ServerItem?) {
     }
 
     func disconnectServer() {
+        guard isBridgeOpSupported("server-disconnect") else {
+            lastError = "Disconnecting from daemon servers is not supported by this bridge."
+            return
+        }
         Task {
             do {
-                let _ = try await bridge.serverConnect(ip: nil, port: nil, config: config)
+                let _ = try await bridge.serverDisconnect(config: config)
                 await refreshStatus()
             } catch {
                 await MainActor.run {
@@ -413,9 +442,32 @@ func connectServer(_ server: ServerItem?) {
     }
 
     func addServer(name: String, ip: String, port: Int) {
+        let endpoint = normalizedEndpoint(ip: ip, port: port)
+        guard !endpoint.isEmpty else { return }
+        guard !userServers.contains(where: { normalizedEndpoint(ip: $0.ip, port: $0.port) == endpoint }) else {
+            lastError = "That local server bookmark already exists."
+            return
+        }
         let server = UserServer(name: name, ip: ip, port: port)
         userServers.append(server)
         persistUserServers()
+    }
+
+    func addRemoteServer(address: String, name: String?) {
+        guard isBridgeOpSupported("server-add") else {
+            lastError = "Adding daemon servers is not supported by this bridge."
+            return
+        }
+        Task {
+            do {
+                let _ = try await bridge.serverAdd(address: address, name: name, config: config)
+                await MainActor.run { self.refreshServers() }
+            } catch {
+                await MainActor.run {
+                    self.lastError = self.localNetworkErrors.userFacingMessage(for: error)
+                }
+            }
+        }
     }
 
     func editUserServer(_ server: UserServer, newName: String, newIP: String, newPort: Int) {
@@ -427,6 +479,42 @@ func connectServer(_ server: ServerItem?) {
     func removeUserServer(_ server: UserServer) {
         userServers.removeAll { $0 == server }
         persistUserServers()
+    }
+
+    func removeRemoteServer(_ server: ServerItem) {
+        guard isBridgeOpSupported("server-remove") else {
+            lastError = "Removing daemon servers is not supported by this bridge."
+            return
+        }
+        Task {
+            do {
+                let _ = try await bridge.serverRemove(ip: server.ip, port: server.port, config: config)
+                await MainActor.run { self.refreshServers() }
+            } catch {
+                await MainActor.run {
+                    self.lastError = self.localNetworkErrors.userFacingMessage(for: error)
+                }
+            }
+        }
+    }
+
+    func updateRemoteServers(from url: String) {
+        let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        guard isBridgeOpSupported("server-update-from-url") else {
+            lastError = "Updating daemon servers from URL is not supported by this bridge."
+            return
+        }
+        Task {
+            do {
+                let _ = try await bridge.serverUpdateFromURL(url: trimmed, config: config)
+                await MainActor.run { self.refreshServers() }
+            } catch {
+                await MainActor.run {
+                    self.lastError = self.localNetworkErrors.userFacingMessage(for: error)
+                }
+            }
+        }
     }
 
     func isBridgeOpSupported(_ op: String) -> Bool {
@@ -532,6 +620,18 @@ func connectServer(_ server: ServerItem?) {
         }
     }
 
+    private func normalizedEndpoint(ip: String, port: Int) -> String {
+        let trimmedIP = ip.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !trimmedIP.isEmpty, port > 0 else { return "" }
+        return "\(trimmedIP):\(port)"
+    }
+
+    private func remoteServersIfSupported(by ops: [String]) async throws -> [BridgeServerPayload] {
+        guard BridgeCapabilityGate.isSupported("servers", by: Set(ops)) else { return [] }
+        let (payloads, _) = try await bridge.servers(config: config)
+        return payloads
+    }
+
     private func startAutoRefresh(intervalNanoseconds: UInt64 = 5_000_000_000) {
         autoRefreshTask?.cancel()
         autoRefreshTask = Task {
@@ -563,9 +663,16 @@ func connectServer(_ server: ServerItem?) {
     private func refreshSessionSnapshot() async throws {
         let (bridgeStatus, _) = try await bridge.status(config: config)
         let (payloads, _) = try await bridge.downloads(config: config)
+        let serverPayloads: [BridgeServerPayload]
+        if isBridgeOpSupported("servers") {
+            serverPayloads = try await bridge.servers(config: config)
+        } else {
+            serverPayloads = []
+        }
         await MainActor.run {
             self.status = StatusSnapshot.fromBridge(bridgeStatus)
             self.downloads = DownloadItem.fromBridge(payloads)
+            self.servers = ServerItem.fromBridge(serverPayloads)
             self.isSessionConnected = bridgeStatus.connected
         }
     }

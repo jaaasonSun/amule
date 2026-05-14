@@ -1,0 +1,29 @@
+iOS Server Operation Parity Evidence
+====================================
+
+Implemented bridge parity for daemon server operations:
+- servers
+- server-disconnect
+- server-add
+- server-remove
+- server-update-from-url
+
+Key changes:
+- Extended iOS BridgeProtocol and IOSInProcessBridgeAdapter with server list, disconnect, add, remove, and update-from-url methods.
+- Added C wrapper declarations/forwarders for the same operations through AMuleECBridgeCore.
+- Updated FakeBridgeAdapter capabilities and fake server-operation implementations.
+- IOSAppModel now fetches daemon servers through bridge.servers(config:) when the bridge advertises support.
+- disconnectServer now uses explicit serverDisconnect instead of substituting serverConnect(nil, nil).
+- Local userServers remain local bookmarks; duplicate local endpoint bookmarks are rejected.
+- ServersView labels daemon server list separately from local bookmarks and makes daemon mutations explicit.
+
+Verification:
+- lsp_diagnostics: no errors for changed SharedSources, IOSAppModel.swift, and ServersView.swift. Test file LSP could not resolve AMuleRemoteIOSShared in standalone SourceKit context, but SwiftPM compiled it successfully.
+- swift test --package-path native-macos/AMuleNativeRemote/iOS exited 0.
+- SwiftPM test run executed 13 tests with 0 failures.
+
+Test coverage added:
+- server operation argument forwarding for servers, server-disconnect, server-add, server-remove, and server-update-from-url.
+- server list decode with duplicate remote endpoints preserved.
+- unsupported operation error surfaced for server-disconnect.
+- wrapper connection-refused envelopes now cover the new server operations.
