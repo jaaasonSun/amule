@@ -491,17 +491,19 @@ public:
 
 	// Callback function
 	static int Callback(
-#if UPNP_VERSION >= 10800 && UPNP_VERSION < 11800
-		Upnp_EventType_e EventType,
+		Upnp_EventType EventType,
 		const void *Event,
 		void *Cookie);
-#else
+	static int Callback(
 		Upnp_EventType EventType,
-		void* Event,
-		void* Cookie);
-#endif
+		void *Event,
+		void *Cookie);
 
 private:
+	static int CallbackImpl(
+		Upnp_EventType EventType,
+		const void *Event,
+		void *Cookie);
 	void OnEventReceived(
 		const std::string &Sid,
 		int EventKey,

@@ -1128,12 +1128,20 @@ bool CUPnPControlPoint::PrivateDeletePortMapping(
 }
 
 
+int CUPnPControlPoint::Callback(Upnp_EventType EventType, const void *Event, void *Cookie)
+{
+	return CallbackImpl(EventType, Event, Cookie);
+}
+
+
+int CUPnPControlPoint::Callback(Upnp_EventType EventType, void *Event, void *Cookie)
+{
+	return CallbackImpl(EventType, Event, Cookie);
+}
+
+
 // This function is static
-#if UPNP_VERSION >= 10800 && UPNP_VERSION < 11800
-int CUPnPControlPoint::Callback(Upnp_EventType_e EventType, const void *Event, void * /*Cookie*/)
-#else
-int CUPnPControlPoint::Callback(Upnp_EventType EventType, void *Event, void * /*Cookie*/)
-#endif
+int CUPnPControlPoint::CallbackImpl(Upnp_EventType EventType, const void *Event, void * /*Cookie*/)
 {
 	std::ostringstream msg;
 	std::ostringstream msg2;
@@ -1156,9 +1164,9 @@ int CUPnPControlPoint::Callback(Upnp_EventType EventType, void *Event, void * /*
 		// UPnP Discovery
 upnpDiscovery:
 #if UPNP_VERSION >= 10800
-		UpnpDiscovery *d_event = (UpnpDiscovery *)Event;
+		const UpnpDiscovery *d_event = (const UpnpDiscovery *)Event;
 #else
-		struct Upnp_Discovery *d_event = (struct Upnp_Discovery *)Event;
+		const struct Upnp_Discovery *d_event = (const struct Upnp_Discovery *)Event;
 #endif
 		IXML_Document *doc = NULL;
 #if UPNP_VERSION >= 10800
@@ -1252,11 +1260,11 @@ upnpDiscovery:
 		//fprintf(stderr, "Callback: UPNP_DISCOVERY_ADVERTISEMENT_BYEBYE\n");
 		// UPnP Device Removed
 #if UPNP_VERSION >= 10800
-		UpnpDiscovery *dab_event = (UpnpDiscovery *)Event;
+		const UpnpDiscovery *dab_event = (const UpnpDiscovery *)Event;
 		int errCode = UpnpDiscovery_get_ErrCode(dab_event);
 		if (errCode != UPNP_E_SUCCESS) {
 #else
-		struct Upnp_Discovery *dab_event = (struct Upnp_Discovery *)Event;
+		const struct Upnp_Discovery *dab_event = (const struct Upnp_Discovery *)Event;
 		if (dab_event->ErrCode != UPNP_E_SUCCESS) {
 #endif
 			msg << "error(UPNP_DISCOVERY_ADVERTISEMENT_BYEBYE): " <<
@@ -1292,13 +1300,13 @@ upnpDiscovery:
 		//fprintf(stderr, "Callback: UPNP_EVENT_RECEIVED\n");
 		// Event reveived
 #if UPNP_VERSION >= 10800
-		UpnpEvent *e_event = (UpnpEvent *)Event;
+		const UpnpEvent *e_event = (const UpnpEvent *)Event;
 		int eventKey = UpnpEvent_get_EventKey(e_event);
 		IXML_Document *changedVariables =
 			UpnpEvent_get_ChangedVariables(e_event);
 		const std::string sid = UpnpEvent_get_SID_cstr(e_event);
 #else
-		struct Upnp_Event *e_event = (struct Upnp_Event *)Event;
+		const struct Upnp_Event *e_event = (const struct Upnp_Event *)Event;
 		const std::string Sid = e_event->Sid;
 #endif
 		// Parses the event
@@ -1322,12 +1330,12 @@ upnpDiscovery:
 		msg << "error(UPNP_EVENT_RENEWAL_COMPLETE): ";
 upnpEventRenewalComplete:
 #if UPNP_VERSION >= 10800
-		UpnpEventSubscribe *es_event = (UpnpEventSubscribe *)Event;
+		const UpnpEventSubscribe *es_event = (const UpnpEventSubscribe *)Event;
 		int errCode = UpnpEventSubscribe_get_ErrCode(es_event);
 		if (errCode != UPNP_E_SUCCESS) {
 #else
-		struct Upnp_Event_Subscribe *es_event =
-			(struct Upnp_Event_Subscribe *)Event;
+		const struct Upnp_Event_Subscribe *es_event =
+			(const struct Upnp_Event_Subscribe *)Event;
 		if (es_event->ErrCode != UPNP_E_SUCCESS) {
 #endif
 			msg << "Error in Event Subscribe Callback";
@@ -1368,10 +1376,10 @@ upnpEventRenewalComplete:
 		msg2 << "UPNP_EVENT_SUBSCRIPTION_EXPIRED: ";
 upnpEventSubscriptionExpired:
 #if UPNP_VERSION >= 10800
-		UpnpEventSubscribe *es_event = (UpnpEventSubscribe *)Event;
+		const UpnpEventSubscribe *es_event = (const UpnpEventSubscribe *)Event;
 #else
-		struct Upnp_Event_Subscribe *es_event =
-			(struct Upnp_Event_Subscribe *)Event;
+		const struct Upnp_Event_Subscribe *es_event =
+			(const struct Upnp_Event_Subscribe *)Event;
 #endif
 		Upnp_SID newSID;
 		memset(newSID, 0, sizeof(Upnp_SID));
@@ -1436,14 +1444,14 @@ upnpEventSubscriptionExpired:
 		//fprintf(stderr, "Callback: UPNP_CONTROL_ACTION_COMPLETE\n");
 		// This is here if we choose to do this asynchronously
 #if UPNP_VERSION >= 10800
-		UpnpActionComplete *a_event = (UpnpActionComplete *)Event;
+		const UpnpActionComplete *a_event = (const UpnpActionComplete *)Event;
 		int errCode = UpnpActionComplete_get_ErrCode(a_event);
 		IXML_Document *actionResult =
 			UpnpActionComplete_get_ActionResult(a_event);
 		if (errCode != UPNP_E_SUCCESS) {
 #else
-		struct Upnp_Action_Complete *a_event =
-			(struct Upnp_Action_Complete *)Event;
+		const struct Upnp_Action_Complete *a_event =
+			(const struct Upnp_Action_Complete *)Event;
 		if (a_event->ErrCode != UPNP_E_SUCCESS) {
 #endif
 			UPnP::ProcessErrorMessage(
@@ -1474,12 +1482,12 @@ upnpEventSubscriptionExpired:
 		//fprintf(stderr, "Callback: UPNP_CONTROL_GET_VAR_COMPLETE\n");
 		msg << "error(UPNP_CONTROL_GET_VAR_COMPLETE): ";
 #if UPNP_VERSION >= 10800
-		UpnpStateVarComplete *sv_event = (UpnpStateVarComplete *)Event;
+		const UpnpStateVarComplete *sv_event = (const UpnpStateVarComplete *)Event;
 		int errCode = UpnpStateVarComplete_get_ErrCode(sv_event);
 		if (errCode != UPNP_E_SUCCESS) {
 #else
-		struct Upnp_State_Var_Complete *sv_event =
-			(struct Upnp_State_Var_Complete *)Event;
+		const struct Upnp_State_Var_Complete *sv_event =
+			(const struct Upnp_State_Var_Complete *)Event;
 		if (sv_event->ErrCode != UPNP_E_SUCCESS) {
 #endif
 			msg << "m_UpnpGetServiceVarStatusAsync";
