@@ -8,12 +8,16 @@ on:
 
 jobs:
   swift:
-    runs-on: macos-latest
-    env:
-      AMULE_SPM_BUILD_PATH: ${{ runner.temp }}/amule-spm-build
+    runs-on: macos-26
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+
+      - name: Select shared build path and show toolchain
+        run: |
+          echo "AMULE_SPM_BUILD_PATH=${RUNNER_TEMP}/amule-spm-build" >> "$GITHUB_ENV"
+          xcodebuild -version
+          swift --version
 
       - name: SwiftEC tests
         run: native-macos/AMuleNativeRemote/scripts/swiftpm.sh test --package-path native-macos/AMuleNativeRemote/SwiftEC

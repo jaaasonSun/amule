@@ -27,14 +27,19 @@ concurrency:
 
 jobs:
   build-release:
-    runs-on: macos-latest
+    runs-on: macos-26
     env:
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
       RELEASE_NOTES: ${{ github.event_name == 'workflow_dispatch' && inputs.release_notes || 'AltStore build.' }}
       PAGES_BASE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
 
       - name: Build unsigned AltStore IPA and source
         run: |
