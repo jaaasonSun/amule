@@ -1162,18 +1162,27 @@ struct DownloadDetailsWindowView: View {
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                                 ForEach(item.alternativeNames.sorted(by: { $0.count > $1.count })) { alt in
-                                    HStack(spacing: 10) {
-                                        Text(alt.name)
-                                            .font(.body)
-                                            .lineLimit(1)
-                                            .truncationMode(.middle)
+                                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            Text(alt.name)
+                                                .font(.body)
+                                                .lineLimit(1)
+                                                .truncationMode(.middle)
+                                            if let suggestion = alt.meaningfulNameEncodingSuggestion {
+                                                Label(suggestion, systemImage: "wand.and.stars")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.orange)
+                                                    .lineLimit(1)
+                                                    .truncationMode(.middle)
+                                            }
+                                        }
                                         Spacer()
                                         Text("x\(alt.count)")
                                             .font(.body)
                                             .foregroundStyle(.secondary)
                                         if canRenameSelectedDownload {
                                             Button("Use") {
-                                                downloadRenameDraft = alt.name
+                                                downloadRenameDraft = alt.meaningfulNameEncodingSuggestion ?? alt.name
                                                 isEditingDownloadName = true
                                             }
                                             .buttonStyle(.bordered)

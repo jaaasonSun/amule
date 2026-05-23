@@ -52,8 +52,8 @@ struct ServersView: View {
                         "No Servers",
                         systemImage: "server.rack",
                         description: Text(model.isSessionConnected
-                            ? "Tap + to add a local bookmark."
-                            : "Connect to aMule to see daemon servers, or tap + to add a local bookmark.")
+                            ? L("Tap + to add a local bookmark.")
+                            : L("Connect to aMule to see daemon servers, or tap + to add a local bookmark."))
                     )
                 } else {
                     ForEach(model.userServers) { server in
@@ -149,7 +149,7 @@ struct ServersView: View {
                 serverToDelete = nil
             }
         } message: { server in
-            Text("Remove \(server.name.isEmpty ? server.ip : server.name) from your server list?")
+            Text(LF("Remove %@ from your server list?", server.name.isEmpty ? server.ip : server.name))
         }
         .alert("Remove Remote Server?", isPresented: $showingRemoteDeleteConfirmation, presenting: remoteServerToDelete) { server in
             Button("Remove from Daemon", role: .destructive) {
@@ -160,7 +160,7 @@ struct ServersView: View {
                 remoteServerToDelete = nil
             }
         } message: { server in
-            Text("Remove \(server.name.isEmpty ? server.endpointText : server.name) from the connected daemon server list? This does not delete local bookmarks.")
+            Text(LF("Remove %@ from the connected daemon server list? This does not delete local bookmarks.", server.name.isEmpty ? server.endpointText : server.name))
         }
         .alert("Update Daemon Servers", isPresented: $showingUpdateURLPrompt) {
             TextField("server.met URL", text: $serverListURL)
@@ -205,7 +205,7 @@ private struct ServerRow: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                 if server.files > 0 {
-                    Text("\(server.files) files")
+                    Text(LF("%lld files", server.files))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

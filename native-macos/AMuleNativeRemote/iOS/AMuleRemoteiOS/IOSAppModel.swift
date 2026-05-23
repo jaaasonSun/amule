@@ -1,6 +1,7 @@
 #if canImport(UIKit)
 import SwiftUI
 import AMuleRemoteIOSShared
+import SharedUI
 
 struct UserServer: Identifiable, Hashable, Codable {
     let id: UUID
@@ -17,6 +18,15 @@ struct UserServer: Identifiable, Hashable, Codable {
 
     var endpointText: String {
         port > 0 ? "\(ip):\(port)" : ip
+    }
+}
+
+private struct IOSConnectionStartupError: LocalizedError {
+    let step: String
+    let underlying: Error
+
+    var errorDescription: String? {
+        LF("Connection failed while trying to %@.\n\n%@", L(step), underlying.localizedDescription)
     }
 }
 
@@ -55,7 +65,7 @@ final class IOSAppModel: ObservableObject {
 
     private let bridge: BridgeProtocol
     private let credentialStorage: CredentialStorage
-    private let deepLinkHandler: IOSDeepLinkHandler
+    private let deepLinkHandler: DeepLinkHandling
     private let appLifecycle: AppLifecycleProtocol
     private let localNetworkErrors: LocalNetworkErrorPresentation
     private let pasteboardShare: PasteboardShare
@@ -71,7 +81,7 @@ final class IOSAppModel: ObservableObject {
     init(
         bridge: BridgeProtocol = platformDefaultBridgeAdapter(),
         credentialStorage: CredentialStorage = platformDefaultCredentialStorage(),
-        deepLinkHandler: IOSDeepLinkHandler = platformDefaultDeepLinkHandler() as! IOSDeepLinkHandler,
+        deepLinkHandler: DeepLinkHandling = platformDefaultDeepLinkHandler(),
         appLifecycle: AppLifecycleProtocol = platformDefaultAppLifecycleService(),
         localNetworkErrors: LocalNetworkErrorPresentation = platformDefaultLocalNetworkErrorPresentation(),
         pasteboardShare: PasteboardShare = platformDefaultPasteboardShare(),
@@ -90,6 +100,7 @@ final class IOSAppModel: ObservableObject {
 
     func startLifecycleServices() {
         appLifecycle.start()
+        reconnectAfterForegroundTransition()
     }
 
     func stopLifecycleServices() {
@@ -100,13 +111,13 @@ final class IOSAppModel: ObservableObject {
     func connect() {
         let trimmedHost = host.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedHost.isEmpty else {
-            lastError = "Host is required."
+            lastError = L("Host is required.")
             isSessionConnected = false
             return
         }
 
         guard (1...65535).contains(port) else {
-            lastError = "Invalid port. Enter a value between 1 and 65535."
+            lastError = L("Invalid port. Enter a value between 1 and 65535.")
             isSessionConnected = false
             return
         }
@@ -114,13 +125,27 @@ final class IOSAppModel: ObservableObject {
         host = trimmedHost
         isBusy = true
         lastError = ""
+        let config = self.config
+        let bridge = self.bridge
         Task {
             do {
-                let _ = try await bridge.connect(config: config)
-                let (_, capabilities, _) = try await bridge.capabilities(config: config)
-                let (bridgeStatus, _) = try await bridge.status(config: config)
-                let (downloadPayloads, _) = try await bridge.downloads(config: config)
-                let remoteServerPayloads = try await self.remoteServersIfSupported(by: capabilities.ops)
+                let _ = try await self.runStartupStep("authenticate") {
+                    try await bridge.connect(config: config)
+                }
+                let (_, capabilities, _) = try await self.runStartupStep("load capabilities") {
+                    try await bridge.capabilities(config: config)
+                }
+                let (bridgeStatus, _) = try await self.runStartupStep("load status") {
+                    try await bridge.status(config: config)
+                }
+                let (downloadPayloads, _) = try await self.runStartupStep("load downloads") {
+                    try await bridge.downloads(config: config)
+                }
+                let remoteServerPayloads = try await self.runStartupStep(
+                    "load servers"
+                ) {
+                    try await self.remoteServersIfSupported(by: capabilities.ops, config: config)
+                }
 await MainActor.run {
                     self.isSessionConnected = true
                     self.bridgeOps = Set(capabilities.ops)
@@ -147,8 +172,18 @@ await MainActor.run {
         }
     }
 
+    private func runStartupStep<T>(_ label: String, _ operation: () async throws -> T) async throws -> T {
+        do {
+            return try await operation()
+        } catch {
+            throw IOSConnectionStartupError(step: label, underlying: error)
+        }
+    }
+
     func disconnect() {
         isBusy = true
+        let config = self.config
+        let bridge = self.bridge
         Task {
             do {
                 let _ = try await bridge.disconnect(config: config)
@@ -174,6 +209,8 @@ await MainActor.run {
     }
 
     func refreshStatus() {
+        let config = self.config
+        let bridge = self.bridge
         Task {
             do {
                 let (bridgeStatus, _) = try await bridge.status(config: config)
@@ -193,6 +230,8 @@ await MainActor.run {
     }
 
     func refreshDownloads() {
+        let config = self.config
+        let bridge = self.bridge
         Task {
             do {
                 let (payloads, _) = try await bridge.downloads(config: config)
@@ -212,6 +251,8 @@ await MainActor.run {
             servers = []
             return
         }
+        let config = self.config
+        let bridge = self.bridge
         Task {
             do {
                 let (payloads, _) = try await bridge.servers(config: config)
@@ -227,19 +268,25 @@ await MainActor.run {
     }
 
     func addLinks(_ rawInput: String) {
-        let links = LinkImportSupport.parseLinks(from: rawInput)
-        guard !links.isEmpty else {
-            lastError = "No valid links found."
+        guard let importPlan = LinkImportPlan(rawInput: rawInput) else {
+            lastError = L("No valid links found.")
             return
         }
 
         isBusy = true
+        lastError = ""
+        downloadFeedback = LF("%lld link(s) queued for import", Int64(importPlan.count))
+        let config = self.config
+        let bridge = self.bridge
         Task {
-            for link in links {
+            var successCount = 0
+            var failureCount = 0
+            for normalized in importPlan.normalizedLinks {
                 do {
-                    let normalized = LinkImportSupport.normalizeLink(link)
                     let _ = try await bridge.addLink(link: normalized, config: config)
+                    successCount += 1
                 } catch {
+                    failureCount += 1
                     await MainActor.run {
                         self.lastError = self.localNetworkErrors.userFacingMessage(for: error)
                     }
@@ -250,10 +297,16 @@ await MainActor.run {
                 let (payloads, _) = try await bridge.downloads(config: config)
                 await MainActor.run {
                     self.downloads = DownloadItem.fromBridge(payloads)
+                    self.downloadFeedback = Self.linkImportFeedback(
+                        LinkImportOutcome(successCount: successCount, failureCount: failureCount)
+                    )
                     self.isBusy = false
                 }
             } catch {
                 await MainActor.run {
+                    self.downloadFeedback = Self.linkImportFeedback(
+                        LinkImportOutcome(successCount: successCount, failureCount: failureCount)
+                    )
                     self.isBusy = false
                 }
             }
@@ -297,15 +350,17 @@ await MainActor.run {
 
     func downloadSearchResult(_ result: SearchResult) {
         guard !result.hash.isEmpty else {
-            lastError = "Cannot download: missing file hash."
+            lastError = L("Cannot download: missing file hash.")
             return
         }
         isBusy = true
+        let config = self.config
+        let bridge = self.bridge
         Task {
             do {
                 let _ = try await bridge.download(hash: result.hash, config: config)
                 await MainActor.run {
-                    self.downloadFeedback = "Added to downloads: \(result.name)"
+                    self.downloadFeedback = LF("Added to downloads: %@", result.name)
                     self.isBusy = false
                 }
                 self.refreshDownloads()
@@ -328,6 +383,8 @@ await MainActor.run {
         searchProgress = 0
         lastError = ""
 
+        let config = self.config
+        let bridge = self.bridge
         Task {
             do {
                 let (progress, results, _) = try await bridge.search(
@@ -352,6 +409,8 @@ await MainActor.run {
     }
 
     func pauseDownload(_ item: DownloadItem) {
+        let config = self.config
+        let bridge = self.bridge
         Task {
             let _ = try await bridge.pause(hash: item.id, config: config)
             await refreshDownloads()
@@ -359,20 +418,84 @@ await MainActor.run {
     }
 
     func resumeDownload(_ item: DownloadItem) {
+        let config = self.config
+        let bridge = self.bridge
         Task {
             let _ = try await bridge.resume(hash: item.id, config: config)
             await refreshDownloads()
         }
     }
 
+    func renameDownload(_ item: DownloadItem, to newName: String) {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !item.id.isEmpty else {
+            lastError = L("Cannot rename download: missing file hash.")
+            return
+        }
+        guard !trimmed.isEmpty else {
+            lastError = L("New file name is required.")
+            return
+        }
+        guard trimmed != item.name else { return }
+
+        isBusy = true
+        lastError = ""
+        let config = self.config
+        let bridge = self.bridge
+        Task {
+            do {
+                let _ = try await bridge.rename(hash: item.id, name: trimmed, config: config)
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                let (payloads, _) = try await bridge.downloads(config: config)
+                let refreshedDownloads = DownloadItem.fromBridge(payloads)
+                let didApply = RenameVerification.wasApplied(
+                    downloadID: item.id,
+                    newName: trimmed,
+                    downloads: refreshedDownloads
+                )
+                await MainActor.run {
+                    self.downloads = refreshedDownloads
+                    self.lastError = didApply
+                        ? ""
+                        : L("Rename request was sent, but the filename was not changed.")
+                    self.isBusy = false
+                }
+            } catch {
+                do {
+                    let (payloads, _) = try await bridge.downloads(config: config)
+                    let refreshedDownloads = DownloadItem.fromBridge(payloads)
+                    let didApply = RenameVerification.wasApplied(
+                        downloadID: item.id,
+                        newName: trimmed,
+                        downloads: refreshedDownloads
+                    )
+                    await MainActor.run {
+                        self.downloads = refreshedDownloads
+                        self.lastError = didApply
+                            ? ""
+                            : "\(self.localNetworkErrors.userFacingMessage(for: error)) \(L("The filename was not changed."))"
+                        self.isBusy = false
+                    }
+                } catch {
+                    await MainActor.run {
+                        self.lastError = self.localNetworkErrors.userFacingMessage(for: error)
+                        self.isBusy = false
+                    }
+                }
+            }
+        }
+    }
+
     func removeDownload(_ item: DownloadItem) {
         guard !item.id.isEmpty else {
-            lastError = "Cannot remove download: missing file hash."
+            lastError = L("Cannot remove download: missing file hash.")
             return
         }
 
         isBusy = true
         lastError = ""
+        let config = self.config
+        let bridge = self.bridge
         Task {
             do {
                 let _ = try await bridge.cancel(hash: item.id, config: config)
@@ -392,9 +515,11 @@ await MainActor.run {
 
     func connectServer(_ server: ServerItem?) {
         guard isBridgeOpSupported("server-connect") else {
-            lastError = "Connecting to daemon servers is not supported by this bridge."
+            lastError = L("Connecting to daemon servers is not supported by this bridge.")
             return
         }
+        let config = self.config
+        let bridge = self.bridge
         Task {
             do {
                 let _ = try await bridge.serverConnect(ip: server?.ip, port: server?.port, config: config)
@@ -409,9 +534,11 @@ await MainActor.run {
 
     func connectUserServer(_ server: UserServer) {
         guard isBridgeOpSupported("server-connect") else {
-            lastError = "Connecting to local bookmarks is not supported by this bridge."
+            lastError = L("Connecting to local bookmarks is not supported by this bridge.")
             return
         }
+        let config = self.config
+        let bridge = self.bridge
         Task {
             do {
                 let _ = try await bridge.serverConnect(ip: server.ip, port: server.port, config: config)
@@ -426,9 +553,11 @@ await MainActor.run {
 
     func disconnectServer() {
         guard isBridgeOpSupported("server-disconnect") else {
-            lastError = "Disconnecting from daemon servers is not supported by this bridge."
+            lastError = L("Disconnecting from daemon servers is not supported by this bridge.")
             return
         }
+        let config = self.config
+        let bridge = self.bridge
         Task {
             do {
                 let _ = try await bridge.serverDisconnect(config: config)
@@ -455,9 +584,11 @@ await MainActor.run {
 
     func addRemoteServer(address: String, name: String?) {
         guard isBridgeOpSupported("server-add") else {
-            lastError = "Adding daemon servers is not supported by this bridge."
+            lastError = L("Adding daemon servers is not supported by this bridge.")
             return
         }
+        let config = self.config
+        let bridge = self.bridge
         Task {
             do {
                 let _ = try await bridge.serverAdd(address: address, name: name, config: config)
@@ -483,9 +614,11 @@ await MainActor.run {
 
     func removeRemoteServer(_ server: ServerItem) {
         guard isBridgeOpSupported("server-remove") else {
-            lastError = "Removing daemon servers is not supported by this bridge."
+            lastError = L("Removing daemon servers is not supported by this bridge.")
             return
         }
+        let config = self.config
+        let bridge = self.bridge
         Task {
             do {
                 let _ = try await bridge.serverRemove(ip: server.ip, port: server.port, config: config)
@@ -502,9 +635,11 @@ await MainActor.run {
         let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         guard isBridgeOpSupported("server-update-from-url") else {
-            lastError = "Updating daemon servers from URL is not supported by this bridge."
+            lastError = L("Updating daemon servers from URL is not supported by this bridge.")
             return
         }
+        let config = self.config
+        let bridge = self.bridge
         Task {
             do {
                 let _ = try await bridge.serverUpdateFromURL(url: trimmed, config: config)
@@ -534,6 +669,8 @@ await MainActor.run {
         }
 
         isRefreshingSources = true
+        let config = self.config
+        let bridge = self.bridge
         Task {
             do {
                 let (sourceItems, _) = try await bridge.sources(hash: item.id, config: config)
@@ -552,6 +689,8 @@ await MainActor.run {
 
     func fetchTransferLimits() {
         guard isBridgeOpSupported("prefs-connection-get") else { return }
+        let config = self.config
+        let bridge = self.bridge
         Task {
             do {
                 let (payload, _) = try await bridge.prefsConnectionGet(config: config)
@@ -569,10 +708,12 @@ await MainActor.run {
 
     func setTransferLimits(uploadKBps: Int, downloadKBps: Int) {
         guard isBridgeOpSupported("prefs-connection-set") else {
-            lastError = "Setting transfer limits is not supported by this server."
+            lastError = L("Setting transfer limits is not supported by this server.")
             return
         }
         isBusy = true
+        let config = self.config
+        let bridge = self.bridge
         Task {
             do {
                 let _ = try await bridge.prefsConnectionSet(maxDownload: downloadKBps, maxUpload: uploadKBps, config: config)
@@ -591,6 +732,29 @@ await MainActor.run {
                 }
             }
         }
+    }
+
+    func setTransferLimits(uploadText: String, downloadText: String) {
+        guard isBridgeOpSupported("prefs-connection-set") else {
+            lastError = L("Setting transfer limits is not supported by this server.")
+            return
+        }
+
+        let limits: TransferLimitSettings
+        do {
+            limits = try TransferLimitSettings(downloadText: downloadText, uploadText: uploadText)
+        } catch TransferLimitValidationError.invalidDownload {
+            lastError = L("Invalid download speed limit. Use a non-negative integer.")
+            return
+        } catch TransferLimitValidationError.invalidUpload {
+            lastError = L("Invalid upload speed limit. Use a non-negative integer.")
+            return
+        } catch {
+            lastError = localNetworkErrors.userFacingMessage(for: error)
+            return
+        }
+
+        setTransferLimits(uploadKBps: limits.maxUpload, downloadKBps: limits.maxDownload)
     }
 
     func copyDownloadLinkToClipboard(_ item: DownloadItem) {
@@ -626,7 +790,7 @@ await MainActor.run {
         return "\(trimmedIP):\(port)"
     }
 
-    private func remoteServersIfSupported(by ops: [String]) async throws -> [BridgeServerPayload] {
+    private func remoteServersIfSupported(by ops: [String], config: AMuleConnectionConfig) async throws -> [BridgeServerPayload] {
         guard BridgeCapabilityGate.isSupported("servers", by: Set(ops)) else { return [] }
         let (payloads, _) = try await bridge.servers(config: config)
         return payloads
@@ -661,11 +825,14 @@ await MainActor.run {
     }
 
     private func refreshSessionSnapshot() async throws {
+        let config = self.config
+        let bridge = self.bridge
         let (bridgeStatus, _) = try await bridge.status(config: config)
         let (payloads, _) = try await bridge.downloads(config: config)
         let serverPayloads: [BridgeServerPayload]
         if isBridgeOpSupported("servers") {
-            serverPayloads = try await bridge.servers(config: config)
+            let (servers, _) = try await bridge.servers(config: config)
+            serverPayloads = servers
         } else {
             serverPayloads = []
         }
@@ -678,8 +845,10 @@ await MainActor.run {
     }
 
     private func reconnectAfterForegroundTransition() {
+        guard !isBusy else { return }
+
         guard appLifecycle.isNetworkReachable else {
-            lastError = "Connection timed out. Please check the host and port."
+            lastError = L("Connection timed out. Please check the host and port.")
             return
         }
 
@@ -690,6 +859,19 @@ await MainActor.run {
             flushIncomingLinks()
         } else {
             connect()
+        }
+    }
+
+    private static func linkImportFeedback(_ outcome: LinkImportOutcome) -> String? {
+        switch (outcome.successCount, outcome.failureCount) {
+        case (0, 0):
+            return nil
+        case (let success, 0):
+            return LF("%lld link(s) added", Int64(success))
+        case (0, let failure):
+            return LF("%lld link(s) failed", Int64(failure))
+        case (let success, let failure):
+            return LF("%lld link(s) added, %lld failed", Int64(success), Int64(failure))
         }
     }
 }

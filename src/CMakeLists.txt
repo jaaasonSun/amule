@@ -103,6 +103,10 @@ endif (BUILD_AMULECMD)
 if (BUILD_AMULE_EC_BRIDGE)
 	add_library (amule-ec-bridge-core STATIC
 		AMuleECBridgeCore.cpp
+		LoggerConsole.cpp
+		NetworkFunctions.cpp
+		OtherFunctions.cpp
+		RLE.cpp
 	)
 
 	target_include_directories (amule-ec-bridge-core
@@ -110,12 +114,18 @@ if (BUILD_AMULE_EC_BRIDGE)
 		PRIVATE ${CMAKE_BINARY_DIR}
 	)
 
+	target_compile_definitions (amule-ec-bridge-core
+		PRIVATE wxUSE_GUI=0
+	)
+
+	target_link_libraries (amule-ec-bridge-core
+		PRIVATE mulecommon
+		PRIVATE mulesocket
+		PRIVATE ec
+	)
+
 	add_executable (amule-ec-bridge
 		AMuleECBridge.cpp
-		LoggerConsole.cpp
-		NetworkFunctions.cpp
-		OtherFunctions.cpp
-		RLE.cpp
 	)
 
 	target_compile_definitions (amule-ec-bridge

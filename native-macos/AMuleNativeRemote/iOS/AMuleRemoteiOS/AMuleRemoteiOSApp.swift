@@ -1,13 +1,12 @@
 #if canImport(UIKit)
 import SwiftUI
+import AMuleRemoteIOSShared
 
 @main
 struct AMuleRemoteiOSApp: App {
-    @State private var bridge = IOSFakeBridge()
-
     var body: some Scene {
         WindowGroup {
-            IOSRootView(bridge: bridge)
+            ContentView(model: IOSAppModel())
         }
     }
 }

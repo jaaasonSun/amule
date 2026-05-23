@@ -9,14 +9,23 @@ let package = Package(
     products: [
         .executable(name: "AMuleNativeRemote", targets: ["AMuleNativeRemote"])
     ],
+    dependencies: [
+        .package(path: "SharedUI"),
+        .package(path: "SwiftEC")
+    ],
     targets: [
         .executableTarget(
-            name: "AMuleNativeRemote"
+            name: "AMuleNativeRemote",
+            dependencies: [
+                "SharedUI",
+                .product(name: "AMuleECClient", package: "SwiftEC"),
+                .product(name: "AMuleECBridgeAdapter", package: "SwiftEC")
+            ]
         ),
         .testTarget(
             name: "AMuleNativeRemoteTests",
             dependencies: ["AMuleNativeRemote"],
             path: "Tests/AMuleNativeRemoteTests"
-        )
+        ),
     ]
 )

@@ -1,4 +1,5 @@
 import Foundation
+import SharedUI
 
 protocol BridgeInvocation: Sendable {
     func invokeBridge(

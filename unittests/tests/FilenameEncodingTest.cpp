@@ -23,6 +23,11 @@ TEST(FilenameEncoding, RepairsClassicUtf8Mojibake)
 	ASSERT_EQUALS(wxT("Français.iso"), RepairFileNameEncoding(decoded));
 }
 
+TEST(FilenameEncoding, RepairsRepeatedUtf8Mojibake)
+{
+	ASSERT_EQUALS(wxT("Français.iso"), RepairFileNameEncoding(wxT("FranÃƒÂ§ais.iso")));
+}
+
 TEST(FilenameEncoding, ReportsWhenRepairWasApplied)
 {
 	bool repaired = false;
@@ -61,6 +66,31 @@ TEST(FilenameEncoding, LeavesInvalidEscapesSafe)
 {
 	const wxString decoded = UnescapeHTML(wxT("bad%zzname.iso"));
 	ASSERT_EQUALS(decoded, RepairFileNameEncoding(decoded));
+}
+
+TEST(FilenameEncoding, RepairsPercentEncodedUtf8Name)
+{
+	ASSERT_EQUALS(wxT("中文.avi"), RepairFileNameEncoding(wxT("%E4%B8%AD%E6%96%87.avi")));
+}
+
+TEST(FilenameEncoding, RepairsRepeatedHtmlEntities)
+{
+	ASSERT_EQUALS(wxT("Rock & Roll.mkv"), RepairFileNameEncoding(wxT("Rock &amp;amp; Roll.mkv")));
+	ASSERT_EQUALS(wxT("Tom & Jerry.mkv"), RepairFileNameEncoding(wxT("Tom &amp; Jerry.mkv")));
+}
+
+TEST(FilenameEncoding, RepairsNumericHtmlEntities)
+{
+	ASSERT_EQUALS(wxT("Rock & Roll.mkv"), RepairFileNameEncoding(wxT("Rock &#38; Roll.mkv")));
+	ASSERT_EQUALS(wxT("Café.mp3"), RepairFileNameEncoding(wxT("Caf&#xE9;.mp3")));
+}
+
+TEST(FilenameEncoding, RepairsMixedEscapingAndMojibake)
+{
+	ASSERT_EQUALS(
+		wxT("Français & Café.iso"),
+		RepairFileNameEncoding(wxT("Fran%C3%83%C2%A7ais%20&amp;amp;%20Caf%C3%A9.iso"))
+	);
 }
 
 TEST(FilenameEncoding, RepairsJapaneseMojibake)

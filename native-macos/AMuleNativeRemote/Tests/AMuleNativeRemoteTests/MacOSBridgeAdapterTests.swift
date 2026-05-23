@@ -14,9 +14,19 @@ final class MacOSBridgeAdapterTests: XCTestCase {
         _ = try await adapter.downloads(config: config)
         _ = try await adapter.search(scope: "global", query: "ubuntu iso", polls: 0, pollIntervalMs: 1, config: config)
         _ = try await adapter.addLink(link: "ed2k://|file|alpha.bin|1|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|/", config: config)
+        _ = try await adapter.rename(hash: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", name: "renamed.bin", config: config)
         _ = try await adapter.pause(hash: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", config: config)
         _ = try await adapter.resume(hash: "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB", config: config)
+        _ = try await adapter.cancel(hash: "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC", config: config)
+        _ = try await adapter.servers(config: config)
         _ = try await adapter.serverConnect(ip: "1.2.3.4", port: 4661, config: config)
+        _ = try await adapter.serverDisconnect(config: config)
+        _ = try await adapter.serverAdd(address: "5.6.7.8:4661", name: "Example", config: config)
+        _ = try await adapter.serverRemove(ip: "5.6.7.8", port: 4661, config: config)
+        _ = try await adapter.serverUpdateFromURL(url: "https://example.invalid/server.met", config: config)
+        _ = try await adapter.sources(hash: "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD", config: config)
+        _ = try await adapter.prefsConnectionGet(config: config)
+        _ = try await adapter.prefsConnectionSet(maxDownload: 1024, maxUpload: 128, config: config)
 
         XCTAssertEqual(try fixture.recordedArgumentLines(), [
             "--host 127.0.0.1 --port 4712 --password secret --op capabilities",
@@ -24,9 +34,19 @@ final class MacOSBridgeAdapterTests: XCTestCase {
             "--host 127.0.0.1 --port 4712 --password secret --op downloads",
             "--host 127.0.0.1 --port 4712 --password secret --op search --scope global --query ubuntu iso --polls 1 --poll-interval-ms 100",
             "--host 127.0.0.1 --port 4712 --password secret --op add-link --link ed2k://|file|alpha.bin|1|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|/",
+            "--host 127.0.0.1 --port 4712 --password secret --op rename --hash AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA --name renamed.bin",
             "--host 127.0.0.1 --port 4712 --password secret --op pause --hash AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
             "--host 127.0.0.1 --port 4712 --password secret --op resume --hash BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
-            "--host 127.0.0.1 --port 4712 --password secret --op server-connect --server-ip 1.2.3.4 --server-port 4661"
+            "--host 127.0.0.1 --port 4712 --password secret --op cancel --hash CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+            "--host 127.0.0.1 --port 4712 --password secret --op servers",
+            "--host 127.0.0.1 --port 4712 --password secret --op server-connect --server-ip 1.2.3.4 --server-port 4661",
+            "--host 127.0.0.1 --port 4712 --password secret --op server-disconnect",
+            "--host 127.0.0.1 --port 4712 --password secret --op server-add --server-address 5.6.7.8:4661 --server-name Example",
+            "--host 127.0.0.1 --port 4712 --password secret --op server-remove --server-ip 5.6.7.8 --server-port 4661",
+            "--host 127.0.0.1 --port 4712 --password secret --op server-update-from-url --server-url https://example.invalid/server.met",
+            "--host 127.0.0.1 --port 4712 --password secret --op sources --hash DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD",
+            "--host 127.0.0.1 --port 4712 --password secret --op prefs-connection-get",
+            "--host 127.0.0.1 --port 4712 --password secret --op prefs-connection-set --max-dl 1024 --max-ul 128"
         ])
     }
 
@@ -110,6 +130,9 @@ private struct BridgeScriptFixture {
             ;;
           search)
             printf '%s\n' '{"ok":true,"progress":100,"results":[]}'
+            ;;
+          prefs-connection-get)
+            printf '%s\n' '{"ok":true,"prefs_connection":{"max_dl":0,"max_ul":0}}'
             ;;
           *)
             printf '%s\n' '{"ok":true,"message":"ok"}'

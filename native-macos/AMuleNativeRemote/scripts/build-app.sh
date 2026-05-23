@@ -10,7 +10,8 @@ BUILD_NUMBER="${AMULE_BUILD_NUMBER:-$APP_VERSION}"
 MIN_MACOS_VERSION="${AMULE_MIN_MACOS:-13.0}"
 LS_UI_ELEMENT="${AMULE_LSUIELEMENT:-false}"
 BUILD_COMMIT="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo dev)"
-BUILD_DIR="$ROOT_DIR/.build/release"
+SWIFTPM_BUILD_PATH="${AMULE_SPM_BUILD_PATH:-${TMPDIR:-/tmp}/amule-spm-build}"
+BUILD_DIR="$SWIFTPM_BUILD_PATH/release"
 APP_DIR="$ROOT_DIR/dist/${APP_NAME}.app"
 MACOS_DIR="$APP_DIR/Contents/MacOS"
 RES_DIR="$APP_DIR/Contents/Resources"
@@ -40,20 +41,17 @@ case "$LS_UI_ELEMENT_NORMALIZED" in
 esac
 
 mkdir -p "$ROOT_DIR/dist"
-swift build -c release --package-path "$ROOT_DIR"
+"$ROOT_DIR/scripts/swiftpm.sh" build -c release --package-path "$ROOT_DIR"
 
 rm -rf "$APP_DIR"
 mkdir -p "$MACOS_DIR" "$RES_DIR"
 cp "$BUILD_DIR/AMuleNativeRemote" "$MACOS_DIR/$APP_NAME"
 chmod +x "$MACOS_DIR/$APP_NAME"
 
-if [[ ! -x "$BRIDGE_SRC" ]]; then
-  echo "ERROR: amule-ec-bridge executable not found at: $BRIDGE_SRC" >&2
-  echo "Build bridge first (cmake --build \"$REPO_ROOT/build\" --target amule-ec-bridge) or set AMULE_EC_BRIDGE_PATH." >&2
-  exit 1
+if [[ -x "$BRIDGE_SRC" ]]; then
+  cp "$BRIDGE_SRC" "$RES_DIR/amule-ec-bridge"
+  chmod +x "$RES_DIR/amule-ec-bridge"
 fi
-cp "$BRIDGE_SRC" "$RES_DIR/amule-ec-bridge"
-chmod +x "$RES_DIR/amule-ec-bridge"
 
 cat > "$PLIST_PATH" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -108,7 +106,7 @@ if [[ -f "$ICON_SRC" ]]; then
 elif [[ -d "$ICON_SRC" && "$ICON_SRC" == *.icon ]]; then
   if command -v xcrun >/dev/null 2>&1; then
     ICON_NAME="${AMULE_ICON_NAME:-$(basename "$ICON_SRC" .icon)}"
-    PARTIAL_ICON_PLIST="$ROOT_DIR/.build/icon-partial.plist"
+    PARTIAL_ICON_PLIST="$SWIFTPM_BUILD_PATH/icon-partial.plist"
     rm -f "$PARTIAL_ICON_PLIST"
     xcrun actool \
       --compile "$RES_DIR" \

@@ -1,0 +1,37 @@
+name: Native Apple CI
+
+on:
+  push:
+    branches: ["*"]
+  pull_request:
+    branches: ["*"]
+
+jobs:
+  swift:
+    runs-on: macos-latest
+    env:
+      AMULE_SPM_BUILD_PATH: ${{ runner.temp }}/amule-spm-build
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: SwiftEC tests
+        run: native-macos/AMuleNativeRemote/scripts/swiftpm.sh test --package-path native-macos/AMuleNativeRemote/SwiftEC
+
+      - name: SwiftEC dependency boundary check
+        run: cd native-macos/AMuleNativeRemote/SwiftEC && ./Scripts/check-forbidden-deps.sh
+
+      - name: SharedUI tests
+        run: native-macos/AMuleNativeRemote/scripts/swiftpm.sh test --package-path native-macos/AMuleNativeRemote/SharedUI
+
+      - name: iOS shared package tests
+        run: native-macos/AMuleNativeRemote/scripts/swiftpm.sh test --package-path native-macos/AMuleNativeRemote/iOS
+
+      - name: Native macOS tests
+        run: native-macos/AMuleNativeRemote/scripts/swiftpm.sh test --package-path native-macos/AMuleNativeRemote
+
+      - name: Native macOS strict build
+        run: native-macos/AMuleNativeRemote/scripts/swiftpm.sh build --package-path native-macos/AMuleNativeRemote -Xswiftc -warnings-as-errors
+
+      - name: Packaging smoke
+        run: cd native-macos/AMuleNativeRemote && AMULE_EC_BRIDGE_PATH=/usr/bin/true ./scripts/build-app.sh && plutil -lint "dist/aMule Remote.app/Contents/Info.plist"

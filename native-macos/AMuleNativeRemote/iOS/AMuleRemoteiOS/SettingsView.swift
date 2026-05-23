@@ -8,8 +8,6 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            ConnectionSection(model: model)
-
             Section {
                 LabeledContent("eD2k") {
                     connectionLabel(model.status.ed2k)
@@ -29,7 +27,7 @@ struct SettingsView: View {
                 Text("Status")
             }
 
-TransferLimitsSection(model: model)
+            TransferLimitsSection(model: model)
 
             CapabilitiesSection(model: model)
 
@@ -51,8 +49,18 @@ TransferLimitsSection(model: model)
         case .disconnected: color = .red
         case .transitional, .unknown: color = .orange
         }
-        return Text(value.isEmpty ? "Unknown" : value)
+        return Text(value.isEmpty ? L("Unknown") : value)
             .foregroundStyle(color)
+    }
+}
+
+struct ConnectionSettingsView: View {
+    @ObservedObject var model: IOSAppModel
+
+    var body: some View {
+        Form {
+            ConnectionSection(model: model)
+        }
     }
 }
 
@@ -85,6 +93,10 @@ private struct ConnectionSection: View {
                 .keyboardType(.numberPad)
 
             SecureField("Password", text: $model.password)
+                .textContentType(.password)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .keyboardType(.asciiCapable)
         } header: {
             Text("Connection")
         }
@@ -149,7 +161,7 @@ private struct TransferLimitsSection: View {
 
     private func formatLimit(_ kbps: Int) -> String {
         if kbps == 0 {
-            return "Unlimited"
+            return L("Unlimited")
         } else if kbps >= 1024 {
             let mbps = Double(kbps) / 1024.0
             if mbps == floor(mbps) {
@@ -202,7 +214,6 @@ private struct TransferLimitsSection: View {
                 Button("Apply") {
                     applyLimits()
                 }
-                .buttonStyle(.borderedProminent)
                 .disabled(model.isBusy || !model.isBridgeOpSupported("prefs-connection-set"))
             }
         } header: {
@@ -219,10 +230,8 @@ private struct TransferLimitsSection: View {
     }
 
     private func applyLimits() {
-        let dl = Int(downloadInput) ?? 0
-        let ul = Int(uploadInput) ?? 0
         hasEdited = true
-        model.setTransferLimits(uploadKBps: max(0, ul), downloadKBps: max(0, dl))
+        model.setTransferLimits(uploadText: uploadInput, downloadText: downloadInput)
     }
 }
 
@@ -249,7 +258,7 @@ private struct CapabilitiesSection: View {
                     Text(model.bridgeDefaultPort > 0 ? String(model.bridgeDefaultPort) : "—")
                 }
                 LabeledContent("Operations") {
-                    Text("\(model.bridgeOps.count) supported")
+                    Text(LF("%lld supported", model.bridgeOps.count))
                 }
 
                 if !opsSorted.isEmpty {

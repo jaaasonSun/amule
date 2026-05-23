@@ -2,6 +2,7 @@
 import AppKit
 import Carbon.HIToolbox
 import Foundation
+import SharedUI
 
 struct MacOSBridgeInvocation: BridgeInvocation {
     func invokeBridge(
@@ -35,12 +36,19 @@ final class MacOSDeepLinkHandler: NSObject, NSApplicationDelegate, DeepLinkHandl
     private let inbox: PendingIncomingLinkInbox
     private let lifecycle: LifecycleBackground
 
+    override init() {
+        self.inbox = .shared
+        self.lifecycle = MacOSLifecycleBackground()
+        super.init()
+    }
+
     init(
         inbox: PendingIncomingLinkInbox = .shared,
         lifecycle: LifecycleBackground = MacOSLifecycleBackground()
     ) {
         self.inbox = inbox
         self.lifecycle = lifecycle
+        super.init()
     }
 
     func applicationWillFinishLaunching(_ notification: Notification) {

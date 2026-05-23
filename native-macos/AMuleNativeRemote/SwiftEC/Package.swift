@@ -1,0 +1,52 @@
+// swift-tools-version: 6.2
+import PackageDescription
+
+let package = Package(
+    name: "SwiftEC",
+    platforms: [
+        .macOS(.v10_15),
+        .iOS(.v13),
+    ],
+    products: [
+        .library(name: "AMuleECProtocol", targets: ["AMuleECProtocol"]),
+        .library(name: "AMuleECClient", targets: ["AMuleECClient"]),
+        .library(name: "AMuleECBridgeAdapter", targets: ["AMuleECBridgeAdapter"]),
+    ],
+    targets: [
+        .target(
+            name: "AMuleECProtocol",
+            path: "Sources/AMuleECProtocol"
+        ),
+        .target(
+            name: "AMuleECClient",
+            dependencies: ["AMuleECProtocol"],
+            path: "Sources/AMuleECClient"
+        ),
+        .target(
+            name: "AMuleECBridgeAdapter",
+            dependencies: ["AMuleECClient", "AMuleECProtocol"],
+            path: "Sources/AMuleECBridgeAdapter"
+        ),
+        .testTarget(
+            name: "AMuleECProtocolTests",
+            dependencies: ["AMuleECProtocol", "Fixtures"],
+            path: "Tests/AMuleECProtocolTests"
+        ),
+        .target(
+            name: "Fixtures",
+            path: "Tests/Fixtures",
+            exclude: ["ECJsonEnvelopeFixtures.swift", "ECPacketHeaderFixtures.swift"],
+            sources: ["ECTagFixtures.swift", "ECAuthFixtures.swift"]
+        ),
+        .testTarget(
+            name: "AMuleECClientTests",
+            dependencies: ["AMuleECClient"],
+            path: "Tests/AMuleECClientTests"
+        ),
+        .testTarget(
+            name: "AMuleECBridgeAdapterTests",
+            dependencies: ["AMuleECBridgeAdapter"],
+            path: "Tests/AMuleECBridgeAdapterTests"
+        ),
+    ]
+)

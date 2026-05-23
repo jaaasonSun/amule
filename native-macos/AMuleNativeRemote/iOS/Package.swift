@@ -2,17 +2,36 @@
 import PackageDescription
 
 let package = Package(
-    name: "AMuleRemoteiOSWrapper",
+    name: "AMuleRemoteIOSShared",
     platforms: [
-        .iOS(.v26)
+        .iOS(.v26),
+        .macOS(.v13)
     ],
     products: [
-        .executable(name: "AMuleRemoteiOSWrapper", targets: ["AMuleRemoteiOSWrapper"])
+        .library(name: "AMuleRemoteIOSShared", targets: ["AMuleRemoteIOSShared"])
+    ],
+    dependencies: [
+        .package(path: "../SwiftEC"),
+        .package(path: "../SharedUI")
     ],
     targets: [
-        .executableTarget(
-            name: "AMuleRemoteiOSWrapper",
-            path: "AMuleRemoteiOS"
+        .target(
+            name: "AMuleRemoteIOSShared",
+            dependencies: [
+                .product(name: "AMuleECClient", package: "SwiftEC"),
+                .product(name: "AMuleECBridgeAdapter", package: "SwiftEC"),
+                .product(name: "SharedUI", package: "SharedUI")
+            ],
+            path: "Sources"
+        ),
+        .testTarget(
+            name: "AMuleRemoteIOSTests",
+            dependencies: [
+                "AMuleRemoteIOSShared",
+                .product(name: "AMuleECClient", package: "SwiftEC")
+            ],
+            path: "Tests/AMuleRemoteIOSTests",
+            exclude: ["IOSInProcessBridgeAdapterTests.swift"]
         )
     ]
 )

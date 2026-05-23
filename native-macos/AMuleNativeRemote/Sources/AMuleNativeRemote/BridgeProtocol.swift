@@ -10,9 +10,19 @@ protocol BridgeProtocol: Sendable {
     func searchStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func download(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func addLink(link: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func rename(hash: String, name: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func pause(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func resume(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func cancel(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func servers(config: AMuleConnectionConfig) async throws -> ([BridgeServerPayload], String)
     func serverConnect(ip: String?, port: Int?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func serverDisconnect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func serverAdd(address: String, name: String?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func serverRemove(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func serverUpdateFromURL(url: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func sources(hash: String, config: AMuleConnectionConfig) async throws -> ([DownloadSourceItem], String)
+    func prefsConnectionGet(config: AMuleConnectionConfig) async throws -> (BridgeConnectionPrefsPayload, String)
+    func prefsConnectionSet(maxDownload: Int, maxUpload: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
 }
 
 struct MacOSBridgeAdapter: BridgeProtocol {
@@ -52,6 +62,10 @@ struct MacOSBridgeAdapter: BridgeProtocol {
         try await AMuleECBridgeClient.addLink(link: link, config: config)
     }
 
+    func rename(hash: String, name: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await AMuleECBridgeClient.rename(hash: hash, name: name, config: config)
+    }
+
     func pause(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await AMuleECBridgeClient.pause(hash: hash, config: config)
     }
@@ -60,8 +74,45 @@ struct MacOSBridgeAdapter: BridgeProtocol {
         try await AMuleECBridgeClient.resume(hash: hash, config: config)
     }
 
+    func cancel(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await AMuleECBridgeClient.cancel(hash: hash, config: config)
+    }
+
+    func servers(config: AMuleConnectionConfig) async throws -> ([BridgeServerPayload], String) {
+        try await AMuleECBridgeClient.servers(config: config)
+    }
+
     func serverConnect(ip: String?, port: Int?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await AMuleECBridgeClient.serverConnect(ip: ip, port: port, config: config)
+    }
+
+    func serverDisconnect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await AMuleECBridgeClient.serverDisconnect(config: config)
+    }
+
+    func serverAdd(address: String, name: String?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await AMuleECBridgeClient.serverAdd(address: address, name: name, config: config)
+    }
+
+    func serverRemove(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await AMuleECBridgeClient.serverRemove(ip: ip, port: port, config: config)
+    }
+
+    func serverUpdateFromURL(url: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await AMuleECBridgeClient.serverUpdateFromURL(url: url, config: config)
+    }
+
+    func sources(hash: String, config: AMuleConnectionConfig) async throws -> ([DownloadSourceItem], String) {
+        let (payloads, raw) = try await AMuleECBridgeClient.sources(hash: hash, config: config)
+        return (DownloadSourceItem.fromBridge(payloads), raw)
+    }
+
+    func prefsConnectionGet(config: AMuleConnectionConfig) async throws -> (BridgeConnectionPrefsPayload, String) {
+        try await AMuleECBridgeClient.prefsConnectionGet(config: config)
+    }
+
+    func prefsConnectionSet(maxDownload: Int, maxUpload: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await AMuleECBridgeClient.prefsConnectionSet(maxDownload: maxDownload, maxUpload: maxUpload, config: config)
     }
 }
 
@@ -83,7 +134,7 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
                 clientName: "fake",
                 defaultHost: "127.0.0.1",
                 defaultPort: 4712,
-                ops: ["capabilities", "status", "downloads", "search", "add-link", "pause", "resume", "server-connect"]
+                ops: ["capabilities", "status", "downloads", "search", "add-link", "rename", "pause", "resume", "cancel", "servers", "server-connect", "server-disconnect", "server-add", "server-remove", "server-update-from-url", "sources", "prefs-connection-get", "prefs-connection-set"]
             ),
             #"{"ok":true,"schema_version":1,"capabilities":{"bridge_version":"fake","client_name":"fake","default_host":"127.0.0.1","default_port":4712,"ops":[]}}"#
         )
@@ -110,9 +161,21 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
     func searchStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func download(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func addLink(link: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func rename(hash: String, name: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func pause(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func resume(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func cancel(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func servers(config: AMuleConnectionConfig) async throws -> ([BridgeServerPayload], String) { ([], #"{"ok":true,"servers":[]}"#) }
     func serverConnect(ip: String?, port: Int?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func serverDisconnect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func serverAdd(address: String, name: String?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func serverRemove(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func serverUpdateFromURL(url: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func sources(hash: String, config: AMuleConnectionConfig) async throws -> ([DownloadSourceItem], String) { ([], #"{"ok":true,"sources":[]}"#) }
+    func prefsConnectionGet(config: AMuleConnectionConfig) async throws -> (BridgeConnectionPrefsPayload, String) {
+        (BridgeConnectionPrefsPayload(maxDownload: 0, maxUpload: 0), #"{"ok":true,"prefs_connection":{"max_dl":0,"max_ul":0}}"#)
+    }
+    func prefsConnectionSet(maxDownload: Int, maxUpload: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
 }
 
 func platformDefaultBridgeAdapter() -> BridgeProtocol {

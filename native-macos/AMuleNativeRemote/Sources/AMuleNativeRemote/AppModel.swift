@@ -1,4 +1,5 @@
 import Foundation
+import SharedUI
 import SwiftUI
 
 struct DownloadRenameSuggestionRequest: Equatable {
@@ -309,25 +310,22 @@ final class AppModel: ObservableObject {
     }
 
     func addLinks(_ rawInput: String) {
-        let links = LinkImportSupport.parseLinks(from: rawInput)
-        guard !links.isEmpty else {
+        guard let importPlan = LinkImportPlan(rawInput: rawInput) else {
             lastError = L3("No valid links found.")
             return
         }
 
-        presentHUD(message: LF3("Adding %lld link(s)...", Int64(links.count)), autoDismissAfter: nil)
+        presentHUD(message: LF3("Adding %lld link(s)...", Int64(importPlan.count)), autoDismissAfter: nil)
 
         run(label: "add-link") {
-            let normalizedLinks = links.map { LinkImportSupport.normalizeLink($0) }
-            let requestedHashes = Set(normalizedLinks.compactMap { LinkImportSupport.extractEd2kHash(from: $0) })
             let beforeHashes = Set(self.downloads.map { $0.id.uppercased() })
 
             var successCount = 0
             var failureCount = 0
 
-            for (index, link) in links.enumerated() {
+            for (index, link) in importPlan.links.enumerated() {
                 do {
-                    let normalized = normalizedLinks[index]
+                    let normalized = importPlan.normalizedLinks[index]
                     let (_, raw) = try await self.bridge.addLink(link: normalized, config: self.config)
                     await MainActor.run {
                         self.appendLog("$ add-link \(normalized)\n\(raw)")
@@ -346,10 +344,10 @@ final class AppModel: ObservableObject {
                 try await self.refreshDownloadsNow(logOutput: false)
                 let afterHashes = Set(self.downloads.map { $0.id.uppercased() })
 
-                if requestedHashes.isEmpty {
+                if importPlan.requestedHashes.isEmpty {
                     actualAddedCount = max(0, afterHashes.count - beforeHashes.count)
                 } else {
-                    actualAddedCount = requestedHashes.reduce(into: 0) { total, hash in
+                    actualAddedCount = importPlan.requestedHashes.reduce(into: 0) { total, hash in
                         if !beforeHashes.contains(hash) && afterHashes.contains(hash) {
                             total += 1
                         }
@@ -631,25 +629,28 @@ final class AppModel: ObservableObject {
     func setConnectionSpeedLimits(maxDL rawMaxDL: String, maxUL rawMaxUL: String) {
         guard isBridgeOpSupported("prefs-connection-set") else { return }
 
-        let maxDLText = rawMaxDL.trimmingCharacters(in: .whitespacesAndNewlines)
-        let maxULText = rawMaxUL.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let maxDL = Int(maxDLText), maxDL >= 0 else {
+        let limits: TransferLimitSettings
+        do {
+            limits = try TransferLimitSettings(downloadText: rawMaxDL, uploadText: rawMaxUL)
+        } catch TransferLimitValidationError.invalidDownload {
             lastError = L3("Invalid download speed limit. Use a non-negative integer.")
             return
-        }
-        guard let maxUL = Int(maxULText), maxUL >= 0 else {
+        } catch TransferLimitValidationError.invalidUpload {
             lastError = L3("Invalid upload speed limit. Use a non-negative integer.")
+            return
+        } catch {
+            lastError = error.localizedDescription
             return
         }
 
         run(label: "prefs-connection-set") {
             let (_, raw) = try await AMuleECBridgeClient.prefsConnectionSet(
-                maxDownload: maxDL,
-                maxUpload: maxUL,
+                maxDownload: limits.maxDownload,
+                maxUpload: limits.maxUpload,
                 config: self.config
             )
             await MainActor.run {
-                self.appendLog("$ prefs-connection-set --max-dl \(maxDL) --max-ul \(maxUL)\n\(raw)")
+                self.appendLog("$ prefs-connection-set --max-dl \(limits.maxDownload) --max-ul \(limits.maxUpload)\n\(raw)")
             }
             if self.isBridgeOpSupported("prefs-connection-get") {
                 try await self.refreshConnectionPrefsNow(logOutput: false, suppressErrors: true)

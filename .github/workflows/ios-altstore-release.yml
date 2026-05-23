@@ -1,0 +1,89 @@
+name: iOS AltStore Release
+
+on:
+  push:
+    tags:
+      - "ios-v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to publish, for example ios-v0.1.0"
+        required: true
+        type: string
+      release_notes:
+        description: "AltStore release notes"
+        required: false
+        default: "AltStore build."
+        type: string
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: ios-altstore-release
+  cancel-in-progress: false
+
+jobs:
+  build-release:
+    runs-on: macos-latest
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+      RELEASE_NOTES: ${{ github.event_name == 'workflow_dispatch' && inputs.release_notes || 'AltStore build.' }}
+      PAGES_BASE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build unsigned AltStore IPA and source
+        run: |
+          cd native-macos/AMuleNativeRemote
+          AMULE_IOS_CODE_SIGNING_ALLOWED=NO \
+          AMULE_IOS_CODE_SIGNING_REQUIRED=NO \
+          AMULE_ALTSTORE_BASE_URL="https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}" \
+          AMULE_ALTSTORE_ICON_URL="${PAGES_BASE_URL}/aMule.png" \
+          AMULE_ALTSTORE_VERSION_DESCRIPTION="${RELEASE_NOTES}" \
+          ./scripts/build-ios-altstore.sh
+
+      - name: Find IPA
+        id: ipa
+        shell: bash
+        run: |
+          ipa_path="$(find native-macos/AMuleNativeRemote/dist/ios-altstore -maxdepth 1 -name '*.ipa' -print -quit)"
+          if [[ -z "$ipa_path" ]]; then
+            echo "No IPA produced" >&2
+            exit 1
+          fi
+          echo "path=$ipa_path" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: aMule Remote ${{ env.RELEASE_TAG }}
+          body: ${{ env.RELEASE_NOTES }}
+          files: ${{ steps.ipa.outputs.path }}
+
+      - name: Prepare GitHub Pages source
+        run: |
+          mkdir -p public
+          cp native-macos/AMuleNativeRemote/dist/ios-altstore/altstore-source.json public/altstore-source.json
+          cp native-macos/AMuleNativeRemote/dist/ios-altstore/aMule.png public/aMule.png
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy-pages:
+    needs: build-release
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy AltStore source to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

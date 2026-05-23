@@ -10,7 +10,7 @@ echo "[1/4] Build bridge (amule-ec-bridge)"
 cmake --build "$REPO_ROOT/build" --target amule-ec-bridge -j8
 
 echo "[2/4] Swift strict build"
-swift build -Xswiftc -warnings-as-errors --package-path "$ROOT_DIR"
+"$ROOT_DIR/scripts/swiftpm.sh" build -Xswiftc -warnings-as-errors --package-path "$ROOT_DIR"
 
 echo "[3/4] Build release app bundle"
 "$ROOT_DIR/scripts/build-app.sh"
