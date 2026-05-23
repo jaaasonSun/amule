@@ -27,12 +27,11 @@ const int versionMajor		= 1;
 const int versionMinor		= 5;
 const int versionRevision	= 1;
 
+#include <cctype>
 #include <cstdlib>
 #include <sstream>
 #include <iostream>
 #include <fstream>
-
-#include <wx/string.h>
 
 #ifdef __APPLE__
 	#include <CoreServices/CoreServices.h>
@@ -45,7 +44,6 @@ const int versionRevision	= 1;
 #include "FileLock.h"
 #include "MagnetURI.h"
 #include "MuleCollection.h"
-#include "libs/common/StringFunctions.h"
 
 using std::string;
 
