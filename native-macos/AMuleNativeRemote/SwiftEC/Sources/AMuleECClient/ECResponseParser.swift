@@ -413,7 +413,7 @@ public enum ECResponseParser {
             sourcesA4AF: tag.child(named: TagName.partFileSourceCountA4AF)?.intValue ?? 0,
             statusCode: statusCode,
             isCompleted: statusCode == 9,
-            status: partFileStatusText(statusCode),
+            status: partFileStatusText(statusCode, sourcesTransferring: tag.child(named: TagName.partFileSourceCountTransfer)?.intValue ?? 0),
             speed: tag.child(named: TagName.partFileSpeed)?.intValue ?? 0,
             priority: tag.child(named: TagName.partFilePriority)?.intValue ?? 0,
             category: tag.child(named: TagName.partFileCategory)?.intValue ?? 0,
@@ -611,10 +611,10 @@ public enum ECResponseParser {
         return port > 0 ? "\(ip):\(port)" : ip
     }
 
-    private static func partFileStatusText(_ status: Int) -> String {
+    private static func partFileStatusText(_ status: Int, sourcesTransferring: Int) -> String {
         switch status {
-        case 0: return "Ready"
-        case 1: return "Empty"
+        case 0, 1:
+            return sourcesTransferring > 0 ? "Downloading" : "Waiting"
         case 2: return "Waiting for hash"
         case 3: return "Hashing"
         case 4: return "Erroneous"

@@ -249,6 +249,8 @@ final class DownloadStatusSymbolTests: XCTestCase {
         XCTAssertEqual(DownloadStatusSymbol.circleSymbolName(for: "Paused"), "pause.circle")
         XCTAssertEqual(DownloadStatusSymbol.circleSymbolName(for: "Downloading"), "arrow.down.circle")
         XCTAssertEqual(DownloadStatusSymbol.circleSymbolName(for: "Waiting"), "clock")
+        XCTAssertEqual(DownloadStatusSymbol.circleSymbolName(for: "Ready"), "clock")
+        XCTAssertEqual(DownloadStatusSymbol.circleSymbolName(for: "Empty"), "clock")
     }
 
     func testCategorySymbolVariantsMatchDownloadFilters() {

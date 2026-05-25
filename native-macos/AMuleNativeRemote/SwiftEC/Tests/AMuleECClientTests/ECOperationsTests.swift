@@ -355,6 +355,44 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertFalse(download.isCompleted)
     }
 
+    func testPartFileStatusTextDownloadingWhenTransferring() throws {
+        let hash = Data((0..<16).map(UInt8.init))
+        let packet = ECPacket(opcode: 0x1F, tags: [
+            ECTag(name: 0x0300, type: .uint32, value: .uint(42), children: [
+                ECTag(name: 0x031E, type: .hash16, value: .hash16(hash)),
+                ECTag(name: 0x0301, type: .string, value: .string("active.iso")),
+                .integer(name: 0x0303, value: 1000),
+                .integer(name: 0x0306, value: 250),
+                .integer(name: 0x0308, value: 0),
+                .integer(name: 0x030D, value: 3),
+            ]),
+        ])
+
+        let download = try XCTUnwrap(ECResponseParser.parseDownloads(packet).first)
+        XCTAssertEqual(download.statusCode, 0)
+        XCTAssertEqual(download.status, "Downloading")
+        XCTAssertFalse(download.isCompleted)
+    }
+
+    func testPartFileStatusTextWaitingWhenNotTransferring() throws {
+        let hash = Data((0..<16).map(UInt8.init))
+        let packet = ECPacket(opcode: 0x1F, tags: [
+            ECTag(name: 0x0300, type: .uint32, value: .uint(42), children: [
+                ECTag(name: 0x031E, type: .hash16, value: .hash16(hash)),
+                ECTag(name: 0x0301, type: .string, value: .string("pending.iso")),
+                .integer(name: 0x0303, value: 1000),
+                .integer(name: 0x0306, value: 0),
+                .integer(name: 0x0308, value: 0),
+                .integer(name: 0x030D, value: 0),
+            ]),
+        ])
+
+        let download = try XCTUnwrap(ECResponseParser.parseDownloads(packet).first)
+        XCTAssertEqual(download.statusCode, 0)
+        XCTAssertEqual(download.status, "Waiting")
+        XCTAssertFalse(download.isCompleted)
+    }
+
     func testServersParserAndEnvelopeMatchBridgeShape() throws {
         let packet = ECPacket(opcode: 0x2D, tags: [
             ECTag(name: 0x0500, type: .ipv4, value: .ipv4(ECIPv4Address(1, 2, 3, 4, port: 4661)), children: [

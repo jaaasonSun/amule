@@ -121,7 +121,7 @@ public enum DownloadStatusSymbol {
         if hasAny(lowercase, ["downloading"]) || hasAny(raw, ["下载"]) {
             return "arrow.down.circle"
         }
-        if hasAny(lowercase, ["waiting"]) || hasAny(raw, ["等待"]) {
+        if hasAny(lowercase, ["waiting", "ready", "empty"]) || hasAny(raw, ["等待"]) {
             return "clock"
         }
         return "questionmark.circle"
