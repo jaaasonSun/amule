@@ -391,13 +391,14 @@ public enum ECResponseParser {
     }
 
     private static func parseDownloadTag(_ tag: ECTag) -> ECDownload? {
-        guard tag.name == TagName.partFile || tag.child(named: TagName.partFileStatus) != nil else { return nil }
-        guard tag.child(named: TagName.partFileStatus) != nil, tag.child(named: TagName.partFileHash) != nil else { return nil }
+        guard tag.name == TagName.partFile || tag.child(named: TagName.partFileHash) != nil else { return nil }
+        guard tag.child(named: TagName.partFileHash) != nil else { return nil }
         let size = tag.child(named: TagName.partFileSizeFull)?.uintValue ?? 0
-        let done = tag.child(named: TagName.partFileSizeDone)?.uintValue ?? 0
+        let hasStatus = tag.child(named: TagName.partFileStatus) != nil
+        let statusCode = tag.child(named: TagName.partFileStatus)?.intValue ?? 9
+        let done = tag.child(named: TagName.partFileSizeDone)?.uintValue ?? (hasStatus ? 0 : size)
         let sourceTotal = tag.child(named: TagName.partFileSourceCount)?.intValue ?? 0
         let sourceNotCurrent = tag.child(named: TagName.partFileSourceCountNotCurrent)?.intValue ?? 0
-        let statusCode = tag.child(named: TagName.partFileStatus)?.intValue ?? 0
         let name = tag.child(named: TagName.partFileName)?.stringValue ?? ""
         return ECDownload(
             ecid: tag.intValue,
@@ -405,26 +406,26 @@ public enum ECResponseParser {
             name: name,
             size: size,
             done: done,
-            transferred: tag.child(named: TagName.partFileSizeTransfer)?.uintValue ?? 0,
+            transferred: tag.child(named: TagName.partFileSizeTransfer)?.uintValue ?? (hasStatus ? 0 : size),
             progress: size > 0 ? 100.0 * Double(done) / Double(size) : 0,
-            sourcesCurrent: sourceTotal - sourceNotCurrent,
-            sourcesTotal: sourceTotal,
-            sourcesTransferring: tag.child(named: TagName.partFileSourceCountTransfer)?.intValue ?? 0,
-            sourcesA4AF: tag.child(named: TagName.partFileSourceCountA4AF)?.intValue ?? 0,
+            sourcesCurrent: hasStatus ? sourceTotal - sourceNotCurrent : 0,
+            sourcesTotal: hasStatus ? sourceTotal : 0,
+            sourcesTransferring: hasStatus ? (tag.child(named: TagName.partFileSourceCountTransfer)?.intValue ?? 0) : 0,
+            sourcesA4AF: hasStatus ? (tag.child(named: TagName.partFileSourceCountA4AF)?.intValue ?? 0) : 0,
             statusCode: statusCode,
             isCompleted: statusCode == 9,
-            status: partFileStatusText(statusCode, sourcesTransferring: tag.child(named: TagName.partFileSourceCountTransfer)?.intValue ?? 0),
-            speed: tag.child(named: TagName.partFileSpeed)?.intValue ?? 0,
-            priority: tag.child(named: TagName.partFilePriority)?.intValue ?? 0,
-            category: tag.child(named: TagName.partFileCategory)?.intValue ?? 0,
-            partMet: tag.child(named: TagName.partFilePartMetID)?.stringValue ?? "",
-            lastSeenComplete: tag.child(named: TagName.partFileLastSeenComplete)?.uintValue ?? 0,
-            lastReceived: tag.child(named: TagName.partFileLastReceived)?.uintValue ?? 0,
+            status: partFileStatusText(statusCode, sourcesTransferring: hasStatus ? (tag.child(named: TagName.partFileSourceCountTransfer)?.intValue ?? 0) : 0),
+            speed: hasStatus ? (tag.child(named: TagName.partFileSpeed)?.intValue ?? 0) : 0,
+            priority: hasStatus ? (tag.child(named: TagName.partFilePriority)?.intValue ?? 0) : 0,
+            category: hasStatus ? (tag.child(named: TagName.partFileCategory)?.intValue ?? 0) : 0,
+            partMet: hasStatus ? (tag.child(named: TagName.partFilePartMetID)?.stringValue ?? "") : "",
+            lastSeenComplete: hasStatus ? (tag.child(named: TagName.partFileLastSeenComplete)?.uintValue ?? 0) : 0,
+            lastReceived: hasStatus ? (tag.child(named: TagName.partFileLastReceived)?.uintValue ?? 0) : 0,
             activeSeconds: 0,
-            availableParts: tag.child(named: TagName.partFileAvailableParts)?.intValue ?? 0,
-            shared: (tag.child(named: TagName.partFileShared)?.intValue ?? 0) != 0,
+            availableParts: hasStatus ? (tag.child(named: TagName.partFileAvailableParts)?.intValue ?? 0) : 0,
+            shared: hasStatus ? ((tag.child(named: TagName.partFileShared)?.intValue ?? 0) != 0) : false,
             alternativeNames: parseAlternativeNames(in: tag, currentName: name),
-            progressColors: buildProgressSegments(from: tag, fileSize: size)
+            progressColors: hasStatus ? buildProgressSegments(from: tag, fileSize: size) : []
         )
     }
 

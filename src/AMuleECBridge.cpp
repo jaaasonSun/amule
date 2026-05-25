@@ -798,10 +798,11 @@ bool HandleDownloads(CRemoteConnect& conn, std::string& error)
 		if (top.GetTagName() == EC_TAG_CLIENT || top.GetTagName() == EC_TAG_SERVER || top.GetTagName() == EC_TAG_FRIEND) {
 			continue;
 		}
-		// Keep only partfile-like entries (shared known files don't carry partfile status).
-		if (!top.GetTagByName(EC_TAG_PARTFILE_STATUS) || !top.GetTagByName(EC_TAG_PARTFILE_HASH)) {
+		// Keep entries with a file hash: partfiles and completed downloads encoded as shared files.
+		if (!top.GetTagByName(EC_TAG_PARTFILE_HASH)) {
 			continue;
 		}
+		const bool hasPartFileStatus = top.GetTagByName(EC_TAG_PARTFILE_STATUS) != nullptr;
 		const CEC_PartFile_Tag* tag = static_cast<const CEC_PartFile_Tag*>(&top);
 		DownloadEntry e;
 		e.ecid = tag->ID();
@@ -818,26 +819,49 @@ bool HandleDownloads(CRemoteConnect& conn, std::string& error)
 			}
 		}
 		e.size = tag->SizeFull();
-		e.done = tag->SizeDone();
-		e.transferred = tag->SizeXfer();
-		e.progress = e.size ? (100.0 * static_cast<double>(e.done) / static_cast<double>(e.size)) : 0.0;
-		e.sourceCurrent = static_cast<int>(tag->SourceCount()) - static_cast<int>(tag->SourceNotCurrCount());
-		e.sourceTotal = static_cast<int>(tag->SourceCount());
-		e.sourceTransferring = static_cast<int>(tag->SourceXferCount());
-		e.sourceA4AF = static_cast<int>(tag->SourceCountA4AF());
-		e.statusCode = static_cast<uint32_t>(tag->FileStatus());
-		e.isCompleted = (e.statusCode == PS_COMPLETE);
-		e.status = ToUtf8(tag->GetFileStatusString());
-		e.speed = tag->Speed();
-		e.priority = tag->DownPrio();
-		e.category = tag->FileCat();
-		e.partMetName = ToUtf8(tag->PartMetName());
-		e.lastSeenComplete = static_cast<uint64_t>(tag->LastSeenComplete());
-		e.lastReceived = static_cast<uint64_t>(tag->LastDateChanged());
-		e.activeSeconds = tag->DownloadActiveTime();
-		e.availableParts = tag->AvailablePartCount();
-		e.shared = tag->Shared();
-		e.progressColors = BuildProgressSegments(*tag);
+		if (hasPartFileStatus) {
+			e.done = tag->SizeDone();
+			e.transferred = tag->SizeXfer();
+			e.progress = e.size ? (100.0 * static_cast<double>(e.done) / static_cast<double>(e.size)) : 0.0;
+			e.sourceCurrent = static_cast<int>(tag->SourceCount()) - static_cast<int>(tag->SourceNotCurrCount());
+			e.sourceTotal = static_cast<int>(tag->SourceCount());
+			e.sourceTransferring = static_cast<int>(tag->SourceXferCount());
+			e.sourceA4AF = static_cast<int>(tag->SourceCountA4AF());
+			e.statusCode = static_cast<uint32_t>(tag->FileStatus());
+			e.isCompleted = (e.statusCode == PS_COMPLETE);
+			e.status = ToUtf8(tag->GetFileStatusString());
+			e.speed = tag->Speed();
+			e.priority = tag->DownPrio();
+			e.category = tag->FileCat();
+			e.partMetName = ToUtf8(tag->PartMetName());
+			e.lastSeenComplete = static_cast<uint64_t>(tag->LastSeenComplete());
+			e.lastReceived = static_cast<uint64_t>(tag->LastDateChanged());
+			e.activeSeconds = tag->DownloadActiveTime();
+			e.availableParts = tag->AvailablePartCount();
+			e.shared = tag->Shared();
+		} else {
+			// Cleared completed downloads are encoded as shared files without partfile tags.
+			e.done = e.size;
+			e.transferred = e.size;
+			e.progress = 100.0;
+			e.sourceCurrent = 0;
+			e.sourceTotal = 0;
+			e.sourceTransferring = 0;
+			e.sourceA4AF = 0;
+			e.statusCode = PS_COMPLETE;
+			e.isCompleted = true;
+			e.status = "Complete";
+			e.speed = 0;
+			e.priority = 0;
+			e.category = 0;
+			e.partMetName = "";
+			e.lastSeenComplete = 0;
+			e.lastReceived = 0;
+			e.activeSeconds = 0;
+			e.availableParts = 0;
+			e.shared = false;
+		}
+		e.progressColors = hasPartFileStatus ? BuildProgressSegments(*tag) : std::vector<uint32_t>();
 
 		const CECTag* srcNamesTag = tag->GetTagByName(EC_TAG_PARTFILE_SOURCE_NAMES);
 		if (srcNamesTag) {
