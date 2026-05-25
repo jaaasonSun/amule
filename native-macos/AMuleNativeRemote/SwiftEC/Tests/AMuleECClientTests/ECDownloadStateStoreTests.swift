@@ -72,6 +72,46 @@ final class ECDownloadStateStoreTests: XCTestCase {
         XCTAssertEqual(store.downloads, [])
     }
 
+    func testFullSnapshotReplacesVisibleDownloadList() throws {
+        var store = ECDownloadStateStore()
+        store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(ECPacket(opcode: 0x1F, tags: [
+            Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
+        ])))
+        store.applyIncrementalUpdate(ECPacket(opcode: 0x22, tags: [
+            Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
+                Self.sourceNameEntry(id: 7, name: "better.iso", count: 3),
+            ]),
+        ]))
+
+        let replacementHash = "ffeeddccbbaa99887766554433221100"
+        store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(ECPacket(opcode: 0x1F, tags: [
+            Self.partFile(ecid: 99, hash: replacementHash, name: "replacement.iso"),
+        ])))
+
+        XCTAssertEqual(store.downloads.map(\.ecid), [99])
+        XCTAssertEqual(store.downloads.first?.alternativeNames, [])
+    }
+
+    func testSnapshotSourcePacketSeedsIDsForCountOnlyUpdate() throws {
+        var store = ECDownloadStateStore()
+        let snapshotPacket = ECPacket(opcode: 0x1F, tags: [
+            Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
+                Self.sourceNameEntry(id: 7, name: "better.iso", count: 3),
+            ]),
+        ])
+        store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(snapshotPacket), sourcePacket: snapshotPacket)
+
+        store.applyIncrementalUpdate(ECPacket(opcode: 0x22, tags: [
+            Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
+                Self.sourceNameEntry(id: 7, name: nil, count: 5),
+            ]),
+        ]))
+
+        XCTAssertEqual(store.downloads.first?.alternativeNames, [
+            ECDownload.AlternativeName(name: "better.iso", count: 5),
+        ])
+    }
+
     private static let hash = "00112233445566778899aabbccddeeff"
 
     private static func partFile(ecid: Int, hash: String, name: String, sourceNameEntries: [ECTag] = []) -> ECTag {

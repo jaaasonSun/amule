@@ -4,6 +4,10 @@ import XCTest
 @testable import AMuleNativeRemote
 
 final class MacOSBridgeAdapterTests: XCTestCase {
+    func testPlatformDefaultBridgeAdapterUsesSwiftECOnMacOS() {
+        XCTAssertEqual(String(describing: type(of: platformDefaultBridgeAdapter())), "MacOSPersistentSwiftECBridgeAdapter")
+    }
+
     func testMacOSBridgeAdapterPreservesOperationArguments() async throws {
         let fixture = try BridgeScriptFixture()
         let adapter = MacOSBridgeAdapter()

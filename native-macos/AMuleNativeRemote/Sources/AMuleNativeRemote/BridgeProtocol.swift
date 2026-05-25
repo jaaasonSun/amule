@@ -23,6 +23,27 @@ protocol BridgeProtocol: Sendable {
     func sources(hash: String, config: AMuleConnectionConfig) async throws -> ([DownloadSourceItem], String)
     func prefsConnectionGet(config: AMuleConnectionConfig) async throws -> (BridgeConnectionPrefsPayload, String)
     func prefsConnectionSet(maxDownload: Int, maxUpload: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func kadStart(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func kadStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func kadBootstrap(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func kadUpdateFromURL(url: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func uploads(config: AMuleConnectionConfig) async throws -> ([BridgeUploadPayload], String)
+    func sharedFiles(config: AMuleConnectionConfig) async throws -> ([BridgeSharedFilePayload], String)
+    func sharedFilesReload(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func coreLog(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String)
+    func debugLog(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String)
+    func categories(config: AMuleConnectionConfig) async throws -> ([BridgeCategoryPayload], String)
+    func categoryCreate(name: String, path: String, comment: String, color: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func categoryDelete(categoryID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func ipfilterReload(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func ipfilterUpdate(url: String?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func friends(config: AMuleConnectionConfig) async throws -> ([BridgeFriendPayload], String)
+    func friendRemove(friendID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func friendSlot(friendID: Int, enabled: Bool, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func clearCompleted(ecids: [Int], config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func priority(hash: String, value: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func statsTree(capping: Int?, config: AMuleConnectionConfig) async throws -> (BridgeStatsTreeNodePayload, String)
+    func statsGraphs(width: Int, scale: Int, last: Double?, config: AMuleConnectionConfig) async throws -> (BridgeStatsGraphsPayload, String)
 }
 
 struct MacOSBridgeAdapter: BridgeProtocol {
@@ -114,6 +135,28 @@ struct MacOSBridgeAdapter: BridgeProtocol {
     func prefsConnectionSet(maxDownload: Int, maxUpload: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await AMuleECBridgeClient.prefsConnectionSet(maxDownload: maxDownload, maxUpload: maxUpload, config: config)
     }
+
+    func kadStart(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await AMuleECBridgeClient.kadStart(config: config) }
+    func kadStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await AMuleECBridgeClient.kadStop(config: config) }
+    func kadBootstrap(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await AMuleECBridgeClient.kadBootstrap(ip: ip, port: port, config: config) }
+    func kadUpdateFromURL(url: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await AMuleECBridgeClient.kadUpdateFromURL(url: url, config: config) }
+    func uploads(config: AMuleConnectionConfig) async throws -> ([BridgeUploadPayload], String) { try await AMuleECBridgeClient.uploads(config: config) }
+    func sharedFiles(config: AMuleConnectionConfig) async throws -> ([BridgeSharedFilePayload], String) { try await AMuleECBridgeClient.sharedFiles(config: config) }
+    func sharedFilesReload(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await AMuleECBridgeClient.sharedFilesReload(config: config) }
+    func coreLog(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String) { try await AMuleECBridgeClient.log(config: config) }
+    func debugLog(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String) { try await AMuleECBridgeClient.debugLog(config: config) }
+    func categories(config: AMuleConnectionConfig) async throws -> ([BridgeCategoryPayload], String) { try await AMuleECBridgeClient.categories(config: config) }
+    func categoryCreate(name: String, path: String, comment: String, color: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await AMuleECBridgeClient.categoryCreate(name: name, path: path, comment: comment, color: color, priority: priority, config: config) }
+    func categoryDelete(categoryID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await AMuleECBridgeClient.categoryDelete(categoryID: categoryID, config: config) }
+    func ipfilterReload(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await AMuleECBridgeClient.ipfilterReload(config: config) }
+    func ipfilterUpdate(url: String?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await AMuleECBridgeClient.ipfilterUpdate(url: url, config: config) }
+    func friends(config: AMuleConnectionConfig) async throws -> ([BridgeFriendPayload], String) { try await AMuleECBridgeClient.friends(config: config) }
+    func friendRemove(friendID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await AMuleECBridgeClient.friendRemove(friendID: friendID, config: config) }
+    func friendSlot(friendID: Int, enabled: Bool, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await AMuleECBridgeClient.friendSlot(friendID: friendID, enabled: enabled, config: config) }
+    func clearCompleted(ecids: [Int], config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await AMuleECBridgeClient.clearCompleted(ecids: ecids, config: config) }
+    func priority(hash: String, value: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await AMuleECBridgeClient.priority(hash: hash, value: value, config: config) }
+    func statsTree(capping: Int?, config: AMuleConnectionConfig) async throws -> (BridgeStatsTreeNodePayload, String) { try await AMuleECBridgeClient.statsTree(capping: capping, config: config) }
+    func statsGraphs(width: Int, scale: Int, last: Double?, config: AMuleConnectionConfig) async throws -> (BridgeStatsGraphsPayload, String) { try await AMuleECBridgeClient.statsGraphs(width: width, scale: scale, last: last, config: config) }
 }
 
 final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
@@ -176,12 +219,33 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
         (BridgeConnectionPrefsPayload(maxDownload: 0, maxUpload: 0), #"{"ok":true,"prefs_connection":{"max_dl":0,"max_ul":0}}"#)
     }
     func prefsConnectionSet(maxDownload: Int, maxUpload: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func kadStart(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func kadStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func kadBootstrap(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func kadUpdateFromURL(url: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func uploads(config: AMuleConnectionConfig) async throws -> ([BridgeUploadPayload], String) { ([], #"{"ok":true,"uploads":[]}"#) }
+    func sharedFiles(config: AMuleConnectionConfig) async throws -> ([BridgeSharedFilePayload], String) { ([], #"{"ok":true,"shared_files":[]}"#) }
+    func sharedFilesReload(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func coreLog(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String) { (BridgeCoreLogPayload(kind: "log", lines: []), #"{"ok":true,"log":{"kind":"log","lines":[]}}"#) }
+    func debugLog(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String) { (BridgeCoreLogPayload(kind: "debug", lines: []), #"{"ok":true,"log":{"kind":"debug","lines":[]}}"#) }
+    func categories(config: AMuleConnectionConfig) async throws -> ([BridgeCategoryPayload], String) { ([], #"{"ok":true,"categories":[]}"#) }
+    func categoryCreate(name: String, path: String, comment: String, color: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func categoryDelete(categoryID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func ipfilterReload(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func ipfilterUpdate(url: String?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func friends(config: AMuleConnectionConfig) async throws -> ([BridgeFriendPayload], String) { ([], #"{"ok":true,"friends":[]}"#) }
+    func friendRemove(friendID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func friendSlot(friendID: Int, enabled: Bool, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func clearCompleted(ecids: [Int], config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func priority(hash: String, value: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func statsTree(capping: Int?, config: AMuleConnectionConfig) async throws -> (BridgeStatsTreeNodePayload, String) {
+        (BridgeStatsTreeNodePayload(id: 0, label: "", value: 0, children: []), #"{"ok":true,"stats":{"tree":{"id":0,"label":"","value":0,"children":[]}}}"#)
+    }
+    func statsGraphs(width: Int, scale: Int, last: Double?, config: AMuleConnectionConfig) async throws -> (BridgeStatsGraphsPayload, String) {
+        (BridgeStatsGraphsPayload(last: 0, samples: []), #"{"ok":true,"stats":{"graphs":{"last":0,"samples":[]}}}"#)
+    }
 }
 
 func platformDefaultBridgeAdapter() -> BridgeProtocol {
-    #if os(macOS)
-    MacOSBridgeAdapter()
-    #else
-    FakeBridgeAdapter()
-    #endif
+    BridgeAdapterFactory.makeBridgeAdapter()
 }

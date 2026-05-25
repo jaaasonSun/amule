@@ -35,17 +35,21 @@ let package = Package(
         .target(
             name: "Fixtures",
             path: "Tests/Fixtures",
-            exclude: ["ECJsonEnvelopeFixtures.swift", "ECPacketHeaderFixtures.swift"],
-            sources: ["ECTagFixtures.swift", "ECAuthFixtures.swift"]
+            sources: [
+                "ECTagFixtures.swift",
+                "ECAuthFixtures.swift",
+                "ECJsonEnvelopeFixtures.swift",
+                "ECPacketHeaderFixtures.swift",
+            ]
         ),
         .testTarget(
             name: "AMuleECClientTests",
-            dependencies: ["AMuleECClient"],
+            dependencies: ["AMuleECClient", "Fixtures"],
             path: "Tests/AMuleECClientTests"
         ),
         .testTarget(
             name: "AMuleECBridgeAdapterTests",
-            dependencies: ["AMuleECBridgeAdapter"],
+            dependencies: ["AMuleECBridgeAdapter", "Fixtures"],
             path: "Tests/AMuleECBridgeAdapterTests"
         ),
     ]

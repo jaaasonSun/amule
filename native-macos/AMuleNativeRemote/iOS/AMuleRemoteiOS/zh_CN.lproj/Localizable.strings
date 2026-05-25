@@ -317,6 +317,7 @@
 "%lld supported" = "支持 %lld 项";
 "View All Operations" = "查看全部操作";
 "Connect to view capabilities" = "连接后查看功能";
+"Not connected" = "未连接";
 "Capabilities" = "功能";
 "App" = "应用";
 "Platform" = "平台";

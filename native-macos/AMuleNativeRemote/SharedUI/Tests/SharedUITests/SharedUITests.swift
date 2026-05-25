@@ -1,6 +1,23 @@
 import XCTest
 @testable import SharedUI
 
+final class FilenameSuggestionPresentationTests: XCTestCase {
+    func testSuggestionBecomesRenameDraftWhenDifferentFromCurrentName() {
+        XCTAssertEqual(
+            FilenameSuggestionPresentation.renameDraft(
+                from: "  Corrected 中文.mkv  ",
+                currentName: "Mojibake.mkv"
+            ),
+            "Corrected 中文.mkv"
+        )
+    }
+
+    func testSuggestionDoesNotBecomeDraftWhenEmptyOrUnchanged() {
+        XCTAssertNil(FilenameSuggestionPresentation.renameDraft(from: "   ", currentName: "Mojibake.mkv"))
+        XCTAssertNil(FilenameSuggestionPresentation.renameDraft(from: "Mojibake.mkv", currentName: "Mojibake.mkv"))
+    }
+}
+
 final class ConnectionStateParserTests: XCTestCase {
     func testConnectedStates() {
         XCTAssertEqual(ConnectionStateParser.parse("Connected"), .connected)
@@ -192,19 +209,19 @@ final class DownloadStatusSymbolTests: XCTestCase {
     }
 
     func testErrorStatus() {
-        XCTAssertEqual(DownloadStatusSymbol.symbolName(for: "Error"), "xmark")
-        XCTAssertEqual(DownloadStatusSymbol.symbolName(for: "Erroneous"), "xmark")
-        XCTAssertEqual(DownloadStatusSymbol.symbolName(for: "错误"), "xmark")
+        XCTAssertEqual(DownloadStatusSymbol.symbolName(for: "Error"), "xmark.circle")
+        XCTAssertEqual(DownloadStatusSymbol.symbolName(for: "Erroneous"), "xmark.circle")
+        XCTAssertEqual(DownloadStatusSymbol.symbolName(for: "错误"), "xmark.circle")
     }
 
     func testCompletedStatus() {
-        XCTAssertEqual(DownloadStatusSymbol.symbolName(for: "Completed"), "checkmark")
-        XCTAssertEqual(DownloadStatusSymbol.symbolName(for: "已完成"), "checkmark")
+        XCTAssertEqual(DownloadStatusSymbol.symbolName(for: "Completed"), "checkmark.circle")
+        XCTAssertEqual(DownloadStatusSymbol.symbolName(for: "已完成"), "checkmark.circle")
     }
 
     func testPausedStatus() {
-        XCTAssertEqual(DownloadStatusSymbol.symbolName(for: "Paused"), "pause")
-        XCTAssertEqual(DownloadStatusSymbol.symbolName(for: "暂停"), "pause")
+        XCTAssertEqual(DownloadStatusSymbol.symbolName(for: "Paused"), "pause.circle")
+        XCTAssertEqual(DownloadStatusSymbol.symbolName(for: "暂停"), "pause.circle")
     }
 
     func testHashingStatus() {
@@ -213,8 +230,8 @@ final class DownloadStatusSymbolTests: XCTestCase {
     }
 
     func testDownloadingStatus() {
-        XCTAssertEqual(DownloadStatusSymbol.symbolName(for: "Downloading"), "arrow.down")
-        XCTAssertEqual(DownloadStatusSymbol.symbolName(for: "下载中"), "arrow.down")
+        XCTAssertEqual(DownloadStatusSymbol.symbolName(for: "Downloading"), "arrow.down.circle")
+        XCTAssertEqual(DownloadStatusSymbol.symbolName(for: "下载中"), "arrow.down.circle")
     }
 
     func testWaitingStatus() {
@@ -223,7 +240,7 @@ final class DownloadStatusSymbolTests: XCTestCase {
     }
 
     func testUnknownStatus() {
-        XCTAssertEqual(DownloadStatusSymbol.symbolName(for: "Something"), "questionmark")
+        XCTAssertEqual(DownloadStatusSymbol.symbolName(for: "Something"), "questionmark.circle")
     }
 
     func testCircleSymbolVariants() {
@@ -235,10 +252,10 @@ final class DownloadStatusSymbolTests: XCTestCase {
     }
 
     func testCategorySymbolVariantsMatchDownloadFilters() {
-        XCTAssertEqual(DownloadStatusSymbol.categorySymbolName(for: MockDownload(statusCode: 0, status: "Downloading", isCompleted: false, sizeBytes: 100, doneBytes: 50, speedBytes: 1024, sourceTransferring: 1)), "arrow.down")
+        XCTAssertEqual(DownloadStatusSymbol.categorySymbolName(for: MockDownload(statusCode: 0, status: "Downloading", isCompleted: false, sizeBytes: 100, doneBytes: 50, speedBytes: 1024, sourceTransferring: 1)), "arrow.down.circle")
         XCTAssertEqual(DownloadStatusSymbol.categorySymbolName(for: MockDownload(statusCode: 0, status: "Waiting", isCompleted: false, sizeBytes: 100, doneBytes: 0, speedBytes: 0, sourceTransferring: 0)), "clock")
-        XCTAssertEqual(DownloadStatusSymbol.categorySymbolName(for: MockDownload(statusCode: 7, status: "Paused", isCompleted: false, sizeBytes: 100, doneBytes: 20, speedBytes: 0, sourceTransferring: 0)), "pause")
-        XCTAssertEqual(DownloadStatusSymbol.categorySymbolName(for: MockDownload(statusCode: 9, status: "Completed", isCompleted: true, sizeBytes: 100, doneBytes: 100, speedBytes: 0, sourceTransferring: 0)), "checkmark")
+        XCTAssertEqual(DownloadStatusSymbol.categorySymbolName(for: MockDownload(statusCode: 7, status: "Paused", isCompleted: false, sizeBytes: 100, doneBytes: 20, speedBytes: 0, sourceTransferring: 0)), "pause.circle")
+        XCTAssertEqual(DownloadStatusSymbol.categorySymbolName(for: MockDownload(statusCode: 9, status: "Completed", isCompleted: true, sizeBytes: 100, doneBytes: 100, speedBytes: 0, sourceTransferring: 0)), "checkmark.circle")
     }
 }
 

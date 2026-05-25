@@ -49,6 +49,17 @@ public enum ECResponseParser {
         public static let partFileAvailableParts: UInt16 = 0x031D
         public static let partFileHash: UInt16 = 0x031E
         public static let partFileShared: UInt16 = 0x031F
+        public static let knownFile: UInt16 = 0x0400
+        public static let knownFileXferred: UInt16 = 0x0401
+        public static let knownFileXferredAll: UInt16 = 0x0402
+        public static let knownFileRequests: UInt16 = 0x0403
+        public static let knownFileRequestsAll: UInt16 = 0x0404
+        public static let knownFileAccepts: UInt16 = 0x0405
+        public static let knownFileAcceptsAll: UInt16 = 0x0406
+        public static let knownFileFilename: UInt16 = 0x0408
+        public static let knownFilePriority: UInt16 = 0x040B
+        public static let knownFileComment: UInt16 = 0x040E
+        public static let knownFileRating: UInt16 = 0x040F
         public static let server: UInt16 = 0x0500
         public static let serverName: UInt16 = 0x0501
         public static let serverDescription: UInt16 = 0x0502
@@ -84,9 +95,32 @@ public enum ECResponseParser {
         public static let clientObfuscationStatus: UInt16 = 0x0618
         public static let clientRemoteQueueRank: UInt16 = 0x061A
         public static let clientExtendedProtocol: UInt16 = 0x061D
+        public static let clientUploadFile: UInt16 = 0x061F
         public static let clientRequestFile: UInt16 = 0x0620
         public static let clientRemoteFilename: UInt16 = 0x0627
         public static let clientAvailableParts: UInt16 = 0x062A
+        public static let clientUploadTotal: UInt16 = 0x060A
+        public static let clientDownloadTotal: UInt16 = 0x060B
+        public static let clientUpSpeed: UInt16 = 0x060D
+        public static let friend: UInt16 = 0x0800
+        public static let friendName: UInt16 = 0x0801
+        public static let friendHash: UInt16 = 0x0802
+        public static let friendIP: UInt16 = 0x0803
+        public static let friendPort: UInt16 = 0x0804
+        public static let friendClient: UInt16 = 0x0805
+        public static let friendSlot: UInt16 = 0x0808
+        public static let prefsCategories: UInt16 = 0x1100
+        public static let category: UInt16 = 0x1101
+        public static let categoryTitle: UInt16 = 0x1102
+        public static let categoryPath: UInt16 = 0x1103
+        public static let categoryComment: UInt16 = 0x1104
+        public static let categoryColor: UInt16 = 0x1105
+        public static let categoryPriority: UInt16 = 0x1106
+        public static let statsGraphLast: UInt16 = 0x1B03
+        public static let statsGraphData: UInt16 = 0x1B04
+        public static let statsTreeNode: UInt16 = 0x1B06
+        public static let statsNodeValue: UInt16 = 0x1B07
+        public static let statsTreeNodeID: UInt16 = 0x1B09
     }
 
     public static func parseStatus(_ packet: ECPacket) throws -> ECStatus {
@@ -187,6 +221,118 @@ public enum ECResponseParser {
                 isStatic: (tag.child(named: TagName.serverStatic)?.intValue ?? 0) != 0
             )
         }
+    }
+
+    public static func parseUploads(_ packet: ECPacket) throws -> [ECUpload] {
+        try requireOpcode(packet, ECOperations.OpCode.uploadQueue)
+        return packet.tags.compactMap { tag in
+            guard tag.name == TagName.client else { return nil }
+            return ECUpload(
+                clientID: tag.intValue,
+                clientName: tag.child(named: TagName.clientName)?.stringValue ?? "",
+                userIP: tag.child(named: TagName.clientUserIP)?.ipStringValue ?? "",
+                userPort: tag.child(named: TagName.clientUserPort)?.intValue ?? 0,
+                serverIP: tag.child(named: TagName.clientServerIP)?.ipStringValue ?? "",
+                serverPort: tag.child(named: TagName.clientServerPort)?.intValue ?? 0,
+                serverName: tag.child(named: TagName.clientServerName)?.stringValue ?? "",
+                speedUp: tag.child(named: TagName.clientUpSpeed)?.intValue ?? 0,
+                xferUp: tag.child(named: TagName.clientUploadTotal)?.uintValue ?? 0,
+                xferDown: tag.child(named: TagName.clientDownloadTotal)?.uintValue ?? 0,
+                uploadFile: tag.child(named: TagName.clientUploadFile)?.intValue
+            )
+        }
+    }
+
+    public static func parseSharedFiles(_ packet: ECPacket) throws -> [ECSharedFile] {
+        try requireOpcode(packet, ECOperations.OpCode.sharedFiles)
+        return packet.tags.compactMap { tag in
+            guard tag.name == TagName.knownFile else { return nil }
+            let path = tag.child(named: TagName.knownFileFilename)?.stringValue ?? ""
+            let name = URL(fileURLWithPath: path).lastPathComponent.isEmpty ? path : URL(fileURLWithPath: path).lastPathComponent
+            let hash = tag.hashStringValue
+            let size = tag.child(named: TagName.partFileSizeFull)?.uintValue ?? 0
+            return ECSharedFile(
+                hash: hash,
+                name: name,
+                path: path,
+                size: size,
+                ed2kLink: hash.isEmpty || name.isEmpty ? "" : "ed2k://|file|\(name)|\(size)|\(hash.uppercased())|/",
+                priority: tag.child(named: TagName.knownFilePriority)?.intValue ?? 0,
+                requests: tag.child(named: TagName.knownFileRequests)?.intValue ?? 0,
+                requestsAll: tag.child(named: TagName.knownFileRequestsAll)?.intValue ?? 0,
+                accepts: tag.child(named: TagName.knownFileAccepts)?.intValue ?? 0,
+                acceptsAll: tag.child(named: TagName.knownFileAcceptsAll)?.intValue ?? 0,
+                xferred: tag.child(named: TagName.knownFileXferred)?.uintValue ?? 0,
+                xferredAll: tag.child(named: TagName.knownFileXferredAll)?.uintValue ?? 0,
+                comment: tag.child(named: TagName.knownFileComment)?.stringValue,
+                rating: tag.child(named: TagName.knownFileRating)?.intValue
+            )
+        }
+    }
+
+    public static func parseCoreLog(_ packet: ECPacket, kind: String) throws -> ECCoreLog {
+        try requireOpcode(packet, kind == "debug" ? ECOperations.OpCode.debugLog : ECOperations.OpCode.log)
+        return ECCoreLog(kind: kind, lines: packet.tags.compactMap(\.stringValue))
+    }
+
+    public static func parseCategories(_ packet: ECPacket) throws -> [ECCategory] {
+        try requireOpcode(packet, ECOperations.OpCode.setPreferences)
+        guard let categories = packet.tags.first(named: TagName.prefsCategories) else { return [] }
+        return categories.children.compactMap { tag in
+            guard tag.name == TagName.category else { return nil }
+            return ECCategory(
+                id: tag.intValue,
+                title: tag.child(named: TagName.categoryTitle)?.stringValue ?? "",
+                path: tag.child(named: TagName.categoryPath)?.stringValue ?? "",
+                comment: tag.child(named: TagName.categoryComment)?.stringValue ?? "",
+                color: tag.child(named: TagName.categoryColor)?.intValue ?? 0,
+                priority: tag.child(named: TagName.categoryPriority)?.intValue ?? 0
+            )
+        }
+    }
+
+    public static func parseFriends(_ packet: ECPacket) throws -> [ECFriend] {
+        try requireOpcode(packet, ECOperations.OpCode.sharedFiles)
+        let friendTags = packet.tags.flatMap { tag -> [ECTag] in
+            guard tag.name == TagName.friend else { return [] }
+            let nested = tag.children.filter { $0.name == TagName.friend }
+            return nested.isEmpty ? [tag] : nested
+        }
+        return friendTags.compactMap { tag in
+            let id = tag.intValue
+            guard id > 0 else { return nil }
+            return ECFriend(
+                id: id,
+                name: tag.child(named: TagName.friendName)?.stringValue ?? "",
+                hash: tag.child(named: TagName.friendHash)?.hashStringValue ?? "",
+                ip: tag.child(named: TagName.friendIP)?.ipStringValue ?? "",
+                port: tag.child(named: TagName.friendPort)?.intValue ?? 0,
+                client: String(tag.child(named: TagName.friendClient)?.intValue ?? 0),
+                friendSlot: (tag.child(named: TagName.friendSlot)?.intValue ?? 0) != 0
+            )
+        }
+    }
+
+    public static func parseStatsTree(_ packet: ECPacket) throws -> ECStatsTreeNode {
+        try requireOpcode(packet, ECOperations.OpCode.statsTree)
+        guard let root = packet.tags.first(named: TagName.statsTreeNode) else {
+            throw ECResponseParserError.operationFailed("Statistics tree missing from core reply")
+        }
+        return parseStatsTreeNode(root)
+    }
+
+    public static func parseStatsGraphs(_ packet: ECPacket) throws -> ECStatsGraphs {
+        try requireOpcode(packet, ECOperations.OpCode.statsGraphs)
+        let last = packet.tags.first(named: TagName.statsGraphLast)?.doubleValue ?? 0
+        let bytes = packet.tags.first(named: TagName.statsGraphData)?.customData ?? Data()
+        let values = stride(from: 0, to: bytes.count - (bytes.count % 4), by: 4).map { offset -> Int in
+            let slice = bytes[offset..<offset + 4]
+            return Int(slice.reduce(UInt32(0)) { ($0 << 8) | UInt32($1) })
+        }
+        let samples = stride(from: 0, to: values.count - (values.count % 4), by: 4).map { index in
+            ECStatsGraphSample(dl: values[index], ul: values[index + 1], connections: values[index + 2], kad: values[index + 3])
+        }
+        return ECStatsGraphs(last: last, samples: samples)
     }
 
     public static func parseMutationResponse(
@@ -383,6 +529,15 @@ public enum ECResponseParser {
         paint(gapRanges)
         paint(requestRanges)
         return colorLine
+    }
+
+    private static func parseStatsTreeNode(_ tag: ECTag) -> ECStatsTreeNode {
+        ECStatsTreeNode(
+            id: tag.child(named: TagName.statsTreeNodeID)?.intValue ?? tag.intValue,
+            label: tag.stringValue ?? "",
+            value: tag.child(named: TagName.statsNodeValue)?.doubleValue ?? Double(tag.child(named: TagName.statsNodeValue)?.uintValue ?? 0),
+            children: tag.children.filter { $0.name == TagName.statsTreeNode }.map(parseStatsTreeNode)
+        )
     }
 
     private static let partSize: UInt64 = 9_728_000

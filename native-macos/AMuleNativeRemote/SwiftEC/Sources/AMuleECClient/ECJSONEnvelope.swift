@@ -10,11 +10,17 @@ public struct ECBridgeEnvelope<Payload: Encodable>: Encodable {
     public let downloads: [ECDownload]?
     public let sources: [ECSource]?
     public let servers: [ECServer]?
+    public let uploads: [ECUpload]?
+    public let sharedFiles: [ECSharedFile]?
+    public let log: ECCoreLog?
+    public let categories: [ECCategory]?
+    public let friends: [ECFriend]?
+    public let stats: ECStatsPayload?
     public let progress: Int?
     public let results: [ECSearchResult]?
     public let prefsConnection: ECConnectionPrefs?
 
-    public init(ok: Bool, schemaVersion: Int? = nil, error: String? = nil, message: String? = nil, capabilities: ECCapabilities? = nil, status: ECStatus? = nil, downloads: [ECDownload]? = nil, sources: [ECSource]? = nil, servers: [ECServer]? = nil, progress: Int? = nil, results: [ECSearchResult]? = nil, prefsConnection: ECConnectionPrefs? = nil) {
+    public init(ok: Bool, schemaVersion: Int? = nil, error: String? = nil, message: String? = nil, capabilities: ECCapabilities? = nil, status: ECStatus? = nil, downloads: [ECDownload]? = nil, sources: [ECSource]? = nil, servers: [ECServer]? = nil, uploads: [ECUpload]? = nil, sharedFiles: [ECSharedFile]? = nil, log: ECCoreLog? = nil, categories: [ECCategory]? = nil, friends: [ECFriend]? = nil, stats: ECStatsPayload? = nil, progress: Int? = nil, results: [ECSearchResult]? = nil, prefsConnection: ECConnectionPrefs? = nil) {
         self.ok = ok
         self.schemaVersion = schemaVersion
         self.error = error
@@ -24,14 +30,21 @@ public struct ECBridgeEnvelope<Payload: Encodable>: Encodable {
         self.downloads = downloads
         self.sources = sources
         self.servers = servers
+        self.uploads = uploads
+        self.sharedFiles = sharedFiles
+        self.log = log
+        self.categories = categories
+        self.friends = friends
+        self.stats = stats
         self.progress = progress
         self.results = results
         self.prefsConnection = prefsConnection
     }
 
     private enum CodingKeys: String, CodingKey {
-        case ok, error, message, capabilities, status, downloads, sources, servers, progress, results
+        case ok, error, message, capabilities, status, downloads, sources, servers, uploads, log, categories, friends, stats, progress, results
         case schemaVersion = "schema_version"
+        case sharedFiles = "shared_files"
         case prefsConnection = "prefs_connection"
     }
 
@@ -46,6 +59,12 @@ public struct ECBridgeEnvelope<Payload: Encodable>: Encodable {
         try container.encodeIfPresent(downloads, forKey: .downloads)
         try container.encodeIfPresent(sources, forKey: .sources)
         try container.encodeIfPresent(servers, forKey: .servers)
+        try container.encodeIfPresent(uploads, forKey: .uploads)
+        try container.encodeIfPresent(sharedFiles, forKey: .sharedFiles)
+        try container.encodeIfPresent(log, forKey: .log)
+        try container.encodeIfPresent(categories, forKey: .categories)
+        try container.encodeIfPresent(friends, forKey: .friends)
+        try container.encodeIfPresent(stats, forKey: .stats)
         try container.encodeIfPresent(progress, forKey: .progress)
         try container.encodeIfPresent(results, forKey: .results)
         try container.encodeIfPresent(prefsConnection, forKey: .prefsConnection)
@@ -71,6 +90,34 @@ public enum ECJSONEnvelope {
 
     public static func servers(_ servers: [ECServer]) throws -> Data {
         try encode(ECBridgeEnvelope<EmptyPayload>(ok: true, servers: servers))
+    }
+
+    public static func uploads(_ uploads: [ECUpload]) throws -> Data {
+        try encode(ECBridgeEnvelope<EmptyPayload>(ok: true, uploads: uploads))
+    }
+
+    public static func sharedFiles(_ sharedFiles: [ECSharedFile]) throws -> Data {
+        try encode(ECBridgeEnvelope<EmptyPayload>(ok: true, sharedFiles: sharedFiles))
+    }
+
+    public static func log(_ log: ECCoreLog) throws -> Data {
+        try encode(ECBridgeEnvelope<EmptyPayload>(ok: true, log: log))
+    }
+
+    public static func categories(_ categories: [ECCategory]) throws -> Data {
+        try encode(ECBridgeEnvelope<EmptyPayload>(ok: true, categories: categories))
+    }
+
+    public static func friends(_ friends: [ECFriend]) throws -> Data {
+        try encode(ECBridgeEnvelope<EmptyPayload>(ok: true, friends: friends))
+    }
+
+    public static func statsTree(_ tree: ECStatsTreeNode) throws -> Data {
+        try encode(ECBridgeEnvelope<EmptyPayload>(ok: true, stats: ECStatsPayload(tree: tree, graphs: nil)))
+    }
+
+    public static func statsGraphs(_ graphs: ECStatsGraphs) throws -> Data {
+        try encode(ECBridgeEnvelope<EmptyPayload>(ok: true, stats: ECStatsPayload(tree: nil, graphs: graphs)))
     }
 
     public static func search(progress: Int, results: [ECSearchResult]) throws -> Data {
@@ -101,3 +148,13 @@ public enum ECJSONEnvelope {
 }
 
 public struct EmptyPayload: Encodable, Sendable {}
+
+public struct ECStatsPayload: Codable, Equatable, Sendable {
+    public let tree: ECStatsTreeNode?
+    public let graphs: ECStatsGraphs?
+
+    public init(tree: ECStatsTreeNode?, graphs: ECStatsGraphs?) {
+        self.tree = tree
+        self.graphs = graphs
+    }
+}

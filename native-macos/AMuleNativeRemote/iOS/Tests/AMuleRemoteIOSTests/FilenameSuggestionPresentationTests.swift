@@ -1,4 +1,5 @@
 import XCTest
+import SharedUI
 @testable import AMuleRemoteIOSShared
 
 final class FilenameSuggestionPresentationTests: XCTestCase {

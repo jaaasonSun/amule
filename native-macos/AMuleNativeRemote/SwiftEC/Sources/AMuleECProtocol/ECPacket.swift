@@ -3,8 +3,10 @@ import Foundation
 public struct ECPacket: Equatable, Sendable {
     public static let protocolBaseFlags: UInt32 = 0x0000_0020
     public static let utf8NumbersFlag: UInt32 = 0x0000_0002
-    public static let requiredProtocolFlagMask: UInt32 = 0x0000_0060
-    public static let requiredProtocolFlagValue: UInt32 = protocolBaseFlags
+    public static let requiredFlagMask: UInt32 = 0x0000_0060
+    public static let requiredFlagValue: UInt32 = protocolBaseFlags
+    public static let requiredProtocolFlagMask: UInt32 = requiredFlagMask
+    public static let requiredProtocolFlagValue: UInt32 = requiredFlagValue
     public static let unknownFlagMask: UInt32 = 0xff7f_7f08
 
     public let flags: UInt32
@@ -113,7 +115,7 @@ public struct ECPacket: Equatable, Sendable {
     }
 
     private static func validateHeaderFlags(_ flags: UInt32) throws {
-        guard (flags & requiredProtocolFlagMask) == requiredProtocolFlagValue,
+        guard (flags & requiredFlagMask) == requiredFlagValue,
               (flags & unknownFlagMask) == 0 else {
             throw ECProtocolError.invalidPacketFlags(flags)
         }

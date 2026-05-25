@@ -431,7 +431,7 @@ final class AppModel: ObservableObject {
         }
 
         run(label: "server-add") {
-            let (_, raw) = try await AMuleECBridgeClient.serverAdd(
+            let (_, raw) = try await self.bridge.serverAdd(
                 address: address,
                 name: name.isEmpty ? nil : name,
                 config: self.config
@@ -464,7 +464,7 @@ final class AppModel: ObservableObject {
 
     func disconnectServer() {
         run(label: "server-disconnect") {
-            let (_, raw) = try await AMuleECBridgeClient.serverDisconnect(config: self.config)
+            let (_, raw) = try await self.bridge.serverDisconnect(config: self.config)
             await MainActor.run {
                 self.appendLog("$ server-disconnect\n\(raw)")
             }
@@ -480,7 +480,7 @@ final class AppModel: ObservableObject {
         }
 
         run(label: "server-remove") {
-            let (_, raw) = try await AMuleECBridgeClient.serverRemove(ip: server.ip, port: server.port, config: self.config)
+            let (_, raw) = try await self.bridge.serverRemove(ip: server.ip, port: server.port, config: self.config)
             await MainActor.run {
                 self.appendLog("$ server-remove \(server.address)\n\(raw)")
             }
@@ -502,7 +502,7 @@ final class AppModel: ObservableObject {
         }
 
         run(label: "server-update-from-url") {
-            let (_, raw) = try await AMuleECBridgeClient.serverUpdateFromURL(url: trimmed, config: self.config)
+            let (_, raw) = try await self.bridge.serverUpdateFromURL(url: trimmed, config: self.config)
             await MainActor.run {
                 self.appendLog("$ server-update-from-url \(trimmed)\n\(raw)")
             }
@@ -524,7 +524,7 @@ final class AppModel: ObservableObject {
         }
 
         run(label: "kad-update-from-url") {
-            let (_, raw) = try await AMuleECBridgeClient.kadUpdateFromURL(url: trimmed, config: self.config)
+            let (_, raw) = try await self.bridge.kadUpdateFromURL(url: trimmed, config: self.config)
             await MainActor.run {
                 self.appendLog("$ kad-update-from-url \(trimmed)\n\(raw)")
             }
@@ -549,7 +549,7 @@ final class AppModel: ObservableObject {
     func reloadSharedFiles() {
         guard isBridgeOpSupported("shared-files-reload") else { return }
         run(label: "shared-files-reload") {
-            let (_, raw) = try await AMuleECBridgeClient.sharedFilesReload(config: self.config)
+            let (_, raw) = try await self.bridge.sharedFilesReload(config: self.config)
             await MainActor.run {
                 self.appendLog("$ shared-files-reload\n\(raw)")
             }
@@ -576,7 +576,7 @@ final class AppModel: ObservableObject {
     func startKad() {
         guard isBridgeOpSupported("kad-start") else { return }
         run(label: "kad-start") {
-            let (_, raw) = try await AMuleECBridgeClient.kadStart(config: self.config)
+            let (_, raw) = try await self.bridge.kadStart(config: self.config)
             await MainActor.run {
                 self.appendLog("$ kad-start\n\(raw)")
             }
@@ -587,7 +587,7 @@ final class AppModel: ObservableObject {
     func stopKad() {
         guard isBridgeOpSupported("kad-stop") else { return }
         run(label: "kad-stop") {
-            let (_, raw) = try await AMuleECBridgeClient.kadStop(config: self.config)
+            let (_, raw) = try await self.bridge.kadStop(config: self.config)
             await MainActor.run {
                 self.appendLog("$ kad-stop\n\(raw)")
             }
@@ -611,7 +611,7 @@ final class AppModel: ObservableObject {
         }
 
         run(label: "kad-bootstrap") {
-            let (_, raw) = try await AMuleECBridgeClient.kadBootstrap(ip: ip, port: port, config: self.config)
+            let (_, raw) = try await self.bridge.kadBootstrap(ip: ip, port: port, config: self.config)
             await MainActor.run {
                 self.appendLog("$ kad-bootstrap --server-ip \(ip) --server-port \(port)\n\(raw)")
             }
@@ -644,7 +644,7 @@ final class AppModel: ObservableObject {
         }
 
         run(label: "prefs-connection-set") {
-            let (_, raw) = try await AMuleECBridgeClient.prefsConnectionSet(
+            let (_, raw) = try await self.bridge.prefsConnectionSet(
                 maxDownload: limits.maxDownload,
                 maxUpload: limits.maxUpload,
                 config: self.config
@@ -674,7 +674,7 @@ final class AppModel: ObservableObject {
         }
 
         run(label: "category-create") {
-            let (_, raw) = try await AMuleECBridgeClient.categoryCreate(
+            let (_, raw) = try await self.bridge.categoryCreate(
                 name: trimmed,
                 path: path,
                 comment: comment,
@@ -694,7 +694,7 @@ final class AppModel: ObservableObject {
     func deleteCategory(id: Int) {
         guard isBridgeOpSupported("category-delete") else { return }
         run(label: "category-delete") {
-            let (_, raw) = try await AMuleECBridgeClient.categoryDelete(categoryID: id, config: self.config)
+            let (_, raw) = try await self.bridge.categoryDelete(categoryID: id, config: self.config)
             await MainActor.run {
                 self.appendLog("$ category-delete --category \(id)\n\(raw)")
             }
@@ -714,7 +714,7 @@ final class AppModel: ObservableObject {
     func removeFriend(id: Int) {
         guard isBridgeOpSupported("friend-remove") else { return }
         run(label: "friend-remove") {
-            let (_, raw) = try await AMuleECBridgeClient.friendRemove(friendID: id, config: self.config)
+            let (_, raw) = try await self.bridge.friendRemove(friendID: id, config: self.config)
             await MainActor.run {
                 self.appendLog("$ friend-remove --friend-id \(id)\n\(raw)")
             }
@@ -727,7 +727,7 @@ final class AppModel: ObservableObject {
     func setFriendSlot(id: Int, enabled: Bool) {
         guard isBridgeOpSupported("friend-slot") else { return }
         run(label: "friend-slot") {
-            let (_, raw) = try await AMuleECBridgeClient.friendSlot(friendID: id, enabled: enabled, config: self.config)
+            let (_, raw) = try await self.bridge.friendSlot(friendID: id, enabled: enabled, config: self.config)
             await MainActor.run {
                 self.appendLog("$ friend-slot --friend-id \(id) --friend-slot \(enabled ? 1 : 0)\n\(raw)")
             }
@@ -740,7 +740,7 @@ final class AppModel: ObservableObject {
     func reloadIpFilter() {
         guard isBridgeOpSupported("ipfilter-reload") else { return }
         run(label: "ipfilter-reload") {
-            let (_, raw) = try await AMuleECBridgeClient.ipfilterReload(config: self.config)
+            let (_, raw) = try await self.bridge.ipfilterReload(config: self.config)
             await MainActor.run {
                 self.appendLog("$ ipfilter-reload\n\(raw)")
             }
@@ -760,7 +760,7 @@ final class AppModel: ObservableObject {
         }
 
         run(label: "ipfilter-update") {
-            let (_, raw) = try await AMuleECBridgeClient.ipfilterUpdate(url: trimmed.isEmpty ? nil : trimmed, config: self.config)
+            let (_, raw) = try await self.bridge.ipfilterUpdate(url: trimmed.isEmpty ? nil : trimmed, config: self.config)
             await MainActor.run {
                 if trimmed.isEmpty {
                     self.appendLog("$ ipfilter-update\n\(raw)")
@@ -834,7 +834,7 @@ final class AppModel: ObservableObject {
         guard !ecids.isEmpty else { return }
 
         run(label: "clear-completed") {
-            let (_, raw) = try await AMuleECBridgeClient.clearCompleted(ecids: ecids, config: self.config)
+            let (_, raw) = try await self.bridge.clearCompleted(ecids: ecids, config: self.config)
             await MainActor.run {
                 self.appendLog("$ clear-completed (\(ecids.count))\n\(raw)")
             }
@@ -890,7 +890,7 @@ final class AppModel: ObservableObject {
         }
 
         run(label: "rename") {
-            let (_, raw) = try await AMuleECBridgeClient.rename(hash: item.id, name: trimmed, config: self.config)
+            let (_, raw) = try await self.bridge.rename(hash: item.id, name: trimmed, config: self.config)
             await MainActor.run {
                 self.appendLog("$ rename \(item.id) \(trimmed)\n\(raw)")
             }
@@ -899,10 +899,9 @@ final class AppModel: ObservableObject {
     }
 
     func requestRenameSuggestion(_ item: DownloadItem, suggestion: String) {
-        let trimmed = suggestion.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, trimmed != item.name else { return }
+        guard let draft = FilenameSuggestionPresentation.renameDraft(from: suggestion, currentName: item.name) else { return }
         selectedDownloadID = item.id
-        pendingRenameSuggestionRequest = DownloadRenameSuggestionRequest(downloadID: item.id, suggestion: trimmed)
+        pendingRenameSuggestionRequest = DownloadRenameSuggestionRequest(downloadID: item.id, suggestion: draft)
         renameSuggestionRequestID &+= 1
     }
 
@@ -992,8 +991,7 @@ final class AppModel: ObservableObject {
     }
 
     private func refreshDownloadSourcesNow(for item: DownloadItem, logOutput: Bool = true) async throws {
-        let (payload, raw) = try await AMuleECBridgeClient.sources(hash: item.id, config: config)
-        let parsed = DownloadSourceItem.fromBridge(payload)
+        let (parsed, raw) = try await bridge.sources(hash: item.id, config: config)
         await MainActor.run {
             self.downloadSourcesByHash[item.id] = parsed
             self.lastSourcesRawOutput = raw
@@ -1005,7 +1003,7 @@ final class AppModel: ObservableObject {
 
     private func refreshServersNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
         do {
-            let (payload, raw) = try await AMuleECBridgeClient.servers(config: config)
+            let (payload, raw) = try await bridge.servers(config: config)
             let parsed = ServerItem.fromBridge(payload)
             await MainActor.run {
                 self.servers = parsed
@@ -1026,7 +1024,7 @@ final class AppModel: ObservableObject {
 
     private func refreshUploadsNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
         do {
-            let (payload, raw) = try await AMuleECBridgeClient.uploads(config: config)
+            let (payload, raw) = try await bridge.uploads(config: config)
             await MainActor.run {
                 self.uploads = payload
                 self.lastUploadsRawOutput = raw
@@ -1046,7 +1044,7 @@ final class AppModel: ObservableObject {
 
     private func refreshSharedFilesNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
         do {
-            let (payload, raw) = try await AMuleECBridgeClient.sharedFiles(config: config)
+            let (payload, raw) = try await bridge.sharedFiles(config: config)
             await MainActor.run {
                 self.sharedFiles = payload
                 self.lastSharedFilesRawOutput = raw
@@ -1066,7 +1064,7 @@ final class AppModel: ObservableObject {
 
     private func refreshCoreLogNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
         do {
-            let (payload, raw) = try await AMuleECBridgeClient.log(config: config)
+            let (payload, raw) = try await bridge.coreLog(config: config)
             await MainActor.run {
                 self.coreLogLines = payload.lines
                 self.lastCoreLogRawOutput = raw
@@ -1086,7 +1084,7 @@ final class AppModel: ObservableObject {
 
     private func refreshCoreDebugLogNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
         do {
-            let (payload, raw) = try await AMuleECBridgeClient.debugLog(config: config)
+            let (payload, raw) = try await bridge.debugLog(config: config)
             await MainActor.run {
                 self.coreDebugLogLines = payload.lines
                 self.lastCoreDebugLogRawOutput = raw
@@ -1106,7 +1104,7 @@ final class AppModel: ObservableObject {
 
     private func refreshConnectionPrefsNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
         do {
-            let (payload, raw) = try await AMuleECBridgeClient.prefsConnectionGet(config: config)
+            let (payload, raw) = try await bridge.prefsConnectionGet(config: config)
             await MainActor.run {
                 self.connectionMaxDownloadKBps = payload.maxDownload
                 self.connectionMaxUploadKBps = payload.maxUpload
@@ -1131,7 +1129,7 @@ final class AppModel: ObservableObject {
 
     private func refreshCategoriesNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
         do {
-            let (payload, raw) = try await AMuleECBridgeClient.categories(config: config)
+            let (payload, raw) = try await bridge.categories(config: config)
             await MainActor.run {
                 self.categories = payload
                 self.lastCategoriesRawOutput = raw
@@ -1151,7 +1149,7 @@ final class AppModel: ObservableObject {
 
     private func refreshFriendsNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
         do {
-            let (payload, raw) = try await AMuleECBridgeClient.friends(config: config)
+            let (payload, raw) = try await bridge.friends(config: config)
             await MainActor.run {
                 self.friends = payload
                 self.lastFriendsRawOutput = raw
@@ -1171,7 +1169,7 @@ final class AppModel: ObservableObject {
 
     private func refreshStatsTreeNow(capping: Int? = nil, logOutput: Bool = true, suppressErrors: Bool = false) async throws {
         do {
-            let (payload, raw) = try await AMuleECBridgeClient.statsTree(capping: capping, config: config)
+            let (payload, raw) = try await bridge.statsTree(capping: capping, config: config)
             await MainActor.run {
                 self.statsTree = payload
                 self.lastStatsTreeRawOutput = raw
@@ -1191,7 +1189,7 @@ final class AppModel: ObservableObject {
 
     private func refreshStatsGraphsNow(width: Int, scale: Int, logOutput: Bool = true, suppressErrors: Bool = false) async throws {
         do {
-            let (payload, raw) = try await AMuleECBridgeClient.statsGraphs(
+            let (payload, raw) = try await bridge.statsGraphs(
                 width: width,
                 scale: scale,
                 last: statsGraphsLastTimestamp,
@@ -1269,10 +1267,10 @@ final class AppModel: ObservableObject {
             raw = try await bridge.resume(hash: item.id, config: config).raw
             commandLabel = "resume \(item.id)"
         case .cancel:
-            raw = try await AMuleECBridgeClient.cancel(hash: item.id, config: config).raw
+            raw = try await bridge.cancel(hash: item.id, config: config).raw
             commandLabel = "cancel \(item.id)"
         case .priority(let value):
-            raw = try await AMuleECBridgeClient.priority(hash: item.id, value: value, config: config).raw
+            raw = try await bridge.priority(hash: item.id, value: value, config: config).raw
             commandLabel = "priority \(value) \(item.id)"
         }
         return (commandLabel, raw)

@@ -48,10 +48,39 @@ public struct ECSupportedOps {
     public static let serverUpdateFromURL = "server-update-from-url"
     /// Updates KAD from a URL.
     public static let kadUpdateFromURL = "kad-update-from-url"
+    /// Starts KAD.
+    public static let kadStart = "kad-start"
+    /// Stops KAD.
+    public static let kadStop = "kad-stop"
+    /// Bootstraps KAD from a host and port.
+    public static let kadBootstrap = "kad-bootstrap"
     /// Gets connection preferences.
     public static let prefsConnectionGet = "prefs-connection-get"
     /// Sets connection preferences.
     public static let prefsConnectionSet = "prefs-connection-set"
+    public static let uploads = "uploads"
+    public static let sharedFiles = "shared-files"
+    public static let sharedFilesReload = "shared-files-reload"
+    public static let log = "log"
+    public static let debugLog = "debug-log"
+    public static let categories = "categories"
+    public static let categoryCreate = "category-create"
+    public static let categoryDelete = "category-delete"
+    public static let ipfilterReload = "ipfilter-reload"
+    public static let ipfilterUpdate = "ipfilter-update"
+    public static let friends = "friends"
+    public static let friendRemove = "friend-remove"
+    public static let friendSlot = "friend-slot"
+    public static let statsTree = "stats-tree"
+    public static let statsGraphs = "stats-graphs"
+
+    /// Known operation names that remain intentionally absent from capability
+    /// advertisement until they have a complete builder, adapter endpoint, and
+    /// app bridge contract.
+    public static let unsupportedDisabledOperations: [String] = [
+        "category-update",
+        "download-set-category",
+    ]
 
     /// All supported V1 operations in canonical order.
     public static let allOperations: [String] = [
@@ -77,8 +106,26 @@ public struct ECSupportedOps {
         serverAdd,
         serverRemove,
         serverUpdateFromURL,
+        kadStart,
+        kadStop,
+        kadBootstrap,
         kadUpdateFromURL,
         prefsConnectionGet,
         prefsConnectionSet,
+        uploads,
+        sharedFiles,
+        sharedFilesReload,
+        log,
+        debugLog,
+        categories,
+        categoryCreate,
+        categoryDelete,
+        ipfilterReload,
+        ipfilterUpdate,
+        friends,
+        friendRemove,
+        friendSlot,
+        statsTree,
+        statsGraphs,
     ]
 }

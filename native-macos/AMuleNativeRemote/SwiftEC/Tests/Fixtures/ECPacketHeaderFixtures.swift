@@ -7,7 +7,7 @@ import Foundation
 /// behavior even though older notes sometimes describe these fields as little-endian.
 /// Body length excludes the 8-byte header.
 public enum ECPacketHeaderFixtures {
-    public struct Header: Equatable {
+    public struct Header: Equatable, Sendable {
         public let name: String
         public let flags: UInt32
         public let bodyLength: UInt32

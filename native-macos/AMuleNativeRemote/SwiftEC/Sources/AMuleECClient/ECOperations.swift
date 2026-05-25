@@ -122,6 +122,43 @@ public enum ECOperations {
         public static let connMaxUpload: UInt16 = 0x1304
         public static let serversUpdateURL: UInt16 = 0x170C
         public static let kademliaUpdateURL: UInt16 = 0x1E01
+        public static let knownFileXferred: UInt16 = 0x0401
+        public static let knownFileXferredAll: UInt16 = 0x0402
+        public static let knownFileRequests: UInt16 = 0x0403
+        public static let knownFileRequestsAll: UInt16 = 0x0404
+        public static let knownFileAccepts: UInt16 = 0x0405
+        public static let knownFileAcceptsAll: UInt16 = 0x0406
+        public static let knownFileFilename: UInt16 = 0x0408
+        public static let knownFilePriority: UInt16 = 0x040B
+        public static let knownFileComment: UInt16 = 0x040E
+        public static let knownFileRating: UInt16 = 0x040F
+        public static let clientUploadTotal: UInt16 = 0x060A
+        public static let clientDownloadTotal: UInt16 = 0x060B
+        public static let clientUpSpeed: UInt16 = 0x060D
+        public static let clientUploadFile: UInt16 = 0x061F
+        public static let friend: UInt16 = 0x0800
+        public static let friendName: UInt16 = 0x0801
+        public static let friendHash: UInt16 = 0x0802
+        public static let friendIP: UInt16 = 0x0803
+        public static let friendPort: UInt16 = 0x0804
+        public static let friendClient: UInt16 = 0x0805
+        public static let friendRemove: UInt16 = 0x0807
+        public static let friendSlot: UInt16 = 0x0808
+        public static let prefsCategories: UInt16 = 0x1100
+        public static let category: UInt16 = 0x1101
+        public static let categoryTitle: UInt16 = 0x1102
+        public static let categoryPath: UInt16 = 0x1103
+        public static let categoryComment: UInt16 = 0x1104
+        public static let categoryColor: UInt16 = 0x1105
+        public static let categoryPriority: UInt16 = 0x1106
+        public static let statsGraphWidth: UInt16 = 0x1B01
+        public static let statsGraphScale: UInt16 = 0x1B02
+        public static let statsGraphLast: UInt16 = 0x1B03
+        public static let statsGraphData: UInt16 = 0x1B04
+        public static let statsTreeCapping: UInt16 = 0x1B05
+        public static let statsTreeNode: UInt16 = 0x1B06
+        public static let statsNodeValue: UInt16 = 0x1B07
+        public static let statsTreeNodeID: UInt16 = 0x1B09
     }
 
     public enum SearchScope: UInt64 {
@@ -139,6 +176,7 @@ public enum ECOperations {
     }
 
     private static let prefsConnections: UInt64 = 0x04
+    private static let prefsCategories: UInt64 = 0x01
 
     public static let readOnlyOperations: [String] = ECSupportedOps.allOperations
 
@@ -161,6 +199,21 @@ public enum ECOperations {
         return request(opcode: OpCode.getServerList, detail: .full)
     }
 
+    public static func uploads(gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.uploads)
+        return request(opcode: OpCode.getUploadQueue, detail: .full)
+    }
+
+    public static func sharedFiles(gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.sharedFiles)
+        return request(opcode: OpCode.getSharedFiles, detail: .full)
+    }
+
+    public static func log(debug: Bool = false, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(debug ? .debugLog : .log)
+        return ECPacket(opcode: debug ? OpCode.getDebugLog : OpCode.getLog)
+    }
+
     public static func sourcesQueueLookup(gate: ECCapabilityGate? = nil) throws -> ECPacket {
         try gate?.require(.sources)
         return request(opcode: OpCode.getDownloadQueue, detail: .command)
@@ -168,6 +221,11 @@ public enum ECOperations {
 
     public static func sourcesUpdate(gate: ECCapabilityGate? = nil) throws -> ECPacket {
         try gate?.require(.sources)
+        return request(opcode: OpCode.getUpdate, detail: .incrementalUpdate)
+    }
+
+    public static func friends(gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.friends)
         return request(opcode: OpCode.getUpdate, detail: .incrementalUpdate)
     }
 
@@ -247,6 +305,11 @@ public enum ECOperations {
         return ECPacket(opcode: OpCode.clearCompleted, tags: ecids.map { ecid in
             ECTag.integer(name: TagName.ecid, value: UInt64(max(0, ecid)))
         })
+    }
+
+    public static func sharedFilesReload(gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.sharedFilesReload)
+        return ECPacket(opcode: OpCode.sharedFilesReload)
     }
 
     public static func coreConnect(gate: ECCapabilityGate? = nil) throws -> ECPacket {
@@ -338,6 +401,75 @@ public enum ECOperations {
         ])
     }
 
+    public static func categories(gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.categories)
+        return ECPacket(opcode: OpCode.getPreferences, tags: [
+            ECTag.integer(name: TagName.selectPrefs, value: prefsCategories),
+        ])
+    }
+
+    public static func categoryCreate(name: String, path: String, comment: String, color: Int, priority: Int, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.categoryCreate)
+        return ECPacket(opcode: OpCode.createCategory, tags: [
+            categoryTag(id: 0, name: name, path: path, comment: comment, color: color, priority: priority)
+        ])
+    }
+
+    public static func categoryDelete(categoryID: Int, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.categoryDelete)
+        return ECPacket(opcode: OpCode.deleteCategory, tags: [
+            ECTag.integer(name: TagName.category, value: UInt64(max(0, categoryID)))
+        ])
+    }
+
+    public static func ipfilterReload(gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.ipfilterReload)
+        return ECPacket(opcode: OpCode.ipfilterReload)
+    }
+
+    public static func ipfilterUpdate(url: String?, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.ipfilterUpdate)
+        let tags = url.flatMap { $0.isEmpty ? nil : ECTag(name: TagName.string, type: .string, value: .string($0)) }
+        return ECPacket(opcode: OpCode.ipfilterUpdate, tags: tags.map { [$0] } ?? [])
+    }
+
+    public static func friendRemove(friendID: Int, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.friendRemove)
+        return ECPacket(opcode: OpCode.friend, tags: [
+            ECTag(name: TagName.friendRemove, type: .custom, children: [
+                ECTag.integer(name: TagName.friend, value: UInt64(max(0, friendID)))
+            ])
+        ])
+    }
+
+    public static func friendSlot(friendID: Int, enabled: Bool, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.friendSlot)
+        return ECPacket(opcode: OpCode.friend, tags: [
+            ECTag.integer(name: TagName.friendSlot, value: enabled ? 1 : 0, children: [
+                ECTag.integer(name: TagName.friend, value: UInt64(max(0, friendID)))
+            ])
+        ])
+    }
+
+    public static func statsTree(capping: Int? = nil, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.statsTree)
+        return ECPacket(opcode: OpCode.getStatsTree, tags: [
+            ECTag.integer(name: TagName.statsTreeCapping, value: UInt64(max(0, capping ?? 0)))
+        ])
+    }
+
+    public static func statsGraphs(width: Int, scale: Int, last: Double?, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.statsGraphs)
+        var tags: [ECTag] = [
+            ECTag.integer(name: TagName.statsGraphWidth, value: UInt64(max(1, width))),
+            ECTag.integer(name: TagName.statsGraphScale, value: UInt64(max(1, scale))),
+        ]
+        if let last {
+            tags.append(ECTag(name: TagName.statsGraphLast, type: .double, value: .double(last)))
+        }
+        return ECPacket(opcode: OpCode.getStatsGraphs, tags: tags)
+    }
+
     private static func request(opcode: UInt8, detail: DetailLevel) -> ECPacket {
         if detail == .full {
             return ECPacket(opcode: opcode)
@@ -372,6 +504,16 @@ public enum ECOperations {
             throw ECOperationError.invalidServerEndpoint("\(ip):\(port)")
         }
         return ECTag(name: TagName.server, type: .ipv4, value: .ipv4(ECIPv4Address(parts[0], parts[1], parts[2], parts[3], port: UInt16(port))))
+    }
+
+    private static func categoryTag(id: Int, name: String, path: String, comment: String, color: Int, priority: Int) -> ECTag {
+        ECTag.integer(name: TagName.category, value: UInt64(max(0, id)), children: [
+            ECTag(name: TagName.categoryTitle, type: .string, value: .string(name)),
+            ECTag(name: TagName.categoryPath, type: .string, value: .string(path)),
+            ECTag(name: TagName.categoryComment, type: .string, value: .string(comment)),
+            ECTag.integer(name: TagName.categoryColor, value: UInt64(max(0, color))),
+            ECTag.integer(name: TagName.categoryPriority, value: UInt64(max(0, priority))),
+        ])
     }
 
     private static func normalizedED2KLink(_ link: String) -> String {

@@ -239,7 +239,7 @@ public actor ECSession {
     }
 
     private func packetForSession(_ packet: ECPacket) -> ECPacket {
-        ECPacket(flags: configuration.packetFlags, opcode: packet.opcode, tags: packet.tags)
+        ECPacket(flags: configuration.outgoingPacketFlags, opcode: packet.opcode, tags: packet.tags)
     }
 
     private func authenticationHandshakeError(phase: String, underlying error: Error) -> ECSessionError {
@@ -254,6 +254,10 @@ public actor ECSession {
 }
 
 private extension ECSession.Configuration {
+    var outgoingPacketFlags: UInt32 {
+        compressionEnabled ? packetFlags : packetFlags & ~ECCompression.flag
+    }
+
     var compressionEnabled: Bool {
         advertisesZlib && (packetFlags & ECCompression.flag) != 0
     }

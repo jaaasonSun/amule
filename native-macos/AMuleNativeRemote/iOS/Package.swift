@@ -30,8 +30,7 @@ let package = Package(
                 "AMuleRemoteIOSShared",
                 .product(name: "AMuleECClient", package: "SwiftEC")
             ],
-            path: "Tests/AMuleRemoteIOSTests",
-            exclude: ["IOSInProcessBridgeAdapterTests.swift"]
+            path: "Tests/AMuleRemoteIOSTests"
         )
     ]
 )

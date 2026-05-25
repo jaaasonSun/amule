@@ -1,6 +1,7 @@
 import XCTest
 import Foundation
 import AMuleECProtocol
+import Fixtures
 @testable import AMuleECClient
 
 final class ECOperationsTests: XCTestCase {
@@ -22,6 +23,10 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertEqual(sourcePackets.map(\.opcode), [0x0D, 0x52])
         XCTAssertEqual(sourcePackets[0].tags.first?.value, .uint(0x00))
         XCTAssertEqual(sourcePackets[1].tags.first?.value, .uint(0x04))
+
+        let friends = try ECOperations.friends()
+        XCTAssertEqual(friends.opcode, 0x52)
+        XCTAssertEqual(friends.tags.first?.value, .uint(0x04))
     }
 
     func testMutatingOperationBuildersUseBridgeOpcodesAndTags() throws {
@@ -80,11 +85,118 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertEqual(decoded.tags, packet.tags)
     }
 
+    func testMutationBuildersPreserveExpectedFixtureTags() throws {
+        let hash = "00112233445566778899aabbccddeeff"
+
+        let pause = try ECOperations.pause(hash: hash)
+        XCTAssertEqual(pause.tags.map(\.name), [ECOperations.TagName.partFile])
+        XCTAssertEqual(pause.tags.first?.hashStringValue, hash)
+
+        let resume = try ECOperations.resume(hash: hash)
+        XCTAssertEqual(resume.tags.map(\.name), [ECOperations.TagName.partFile])
+        XCTAssertEqual(resume.tags.first?.hashStringValue, hash)
+
+        let cancel = try ECOperations.cancel(hash: hash)
+        XCTAssertEqual(cancel.tags.map(\.name), [ECOperations.TagName.partFile])
+        XCTAssertEqual(cancel.tags.first?.hashStringValue, hash)
+
+        let priority = try ECOperations.priority(hash: hash, value: 3)
+        XCTAssertEqual(priority.tags.first?.hashStringValue, hash)
+        XCTAssertEqual(priority.tags.first?.children.first?.name, ECOperations.TagName.partFilePriority)
+        XCTAssertEqual(priority.tags.first?.children.first?.intValue, 3)
+
+        let clearCompleted = try ECOperations.clearCompleted(ecids: [42, -7])
+        XCTAssertEqual(clearCompleted.tags.map(\.name), [ECOperations.TagName.ecid, ECOperations.TagName.ecid])
+        XCTAssertEqual(clearCompleted.tags.map(\.intValue), [42, 0])
+
+        let serverConnect = try ECOperations.serverConnect(ip: "1.2.3.4", port: 4661)
+        XCTAssertEqual(serverConnect.tags.first?.name, ECOperations.TagName.server)
+        XCTAssertEqual(serverConnect.tags.first?.ipStringValue, "1.2.3.4")
+        if case .ipv4(let serverConnectAddress) = serverConnect.tags.first?.value {
+            XCTAssertEqual(serverConnectAddress.port, 4661)
+        } else {
+            XCTFail("Expected IPv4 server-connect tag")
+        }
+
+        let serverAdd = try ECOperations.serverAdd(address: "1.2.3.4:4661", name: "Fixture")
+        XCTAssertEqual(serverAdd.tags.map(\.name), [ECOperations.TagName.serverAddress, ECOperations.TagName.serverName])
+        XCTAssertEqual(serverAdd.tags.first?.stringValue, "1.2.3.4:4661")
+        XCTAssertEqual(serverAdd.tags.last?.stringValue, "Fixture")
+
+        let serverRemove = try ECOperations.serverRemove(ip: "1.2.3.4", port: 4661)
+        XCTAssertEqual(serverRemove.tags.first?.name, ECOperations.TagName.server)
+        XCTAssertEqual(serverRemove.tags.first?.ipStringValue, "1.2.3.4")
+        if case .ipv4(let serverRemoveAddress) = serverRemove.tags.first?.value {
+            XCTAssertEqual(serverRemoveAddress.port, 4661)
+        } else {
+            XCTFail("Expected IPv4 server-remove tag")
+        }
+
+        let serverUpdate = try ECOperations.serverUpdateFromURL(url: "https://example.test/server.met")
+        XCTAssertEqual(serverUpdate.tags.first?.name, ECOperations.TagName.serversUpdateURL)
+        XCTAssertEqual(serverUpdate.tags.first?.stringValue, "https://example.test/server.met")
+
+        let prefsSet = try ECOperations.prefsConnectionSet(maxDownload: 512, maxUpload: 64)
+        XCTAssertEqual(prefsSet.tags.map(\.name), [ECOperations.TagName.selectPrefs, ECOperations.TagName.prefsConnections])
+        XCTAssertEqual(prefsSet.tags.first?.intValue, 4)
+        XCTAssertEqual(prefsSet.tags.last?.children.map(\.name), [ECOperations.TagName.connMaxDownload, ECOperations.TagName.connMaxUpload])
+        XCTAssertEqual(prefsSet.tags.last?.children.map(\.intValue), [512, 64])
+
+        let categories = try ECOperations.categories()
+        XCTAssertEqual(categories.opcode, ECOperations.OpCode.getPreferences)
+        XCTAssertEqual(categories.tags.map(\.name), [ECOperations.TagName.selectPrefs])
+        XCTAssertEqual(categories.tags.first?.intValue, 1)
+
+        let categoryCreate = try ECOperations.categoryCreate(name: "Linux ISO", path: "/downloads/linux", comment: "Fixture category", color: 0xff00ff, priority: 2)
+        XCTAssertEqual(categoryCreate.tags.first?.name, ECOperations.TagName.category)
+        XCTAssertEqual(categoryCreate.tags.first?.children.map(\.name), [
+            ECOperations.TagName.categoryTitle,
+            ECOperations.TagName.categoryPath,
+            ECOperations.TagName.categoryComment,
+            ECOperations.TagName.categoryColor,
+            ECOperations.TagName.categoryPriority,
+        ])
+
+        let categoryDelete = try ECOperations.categoryDelete(categoryID: 7)
+        XCTAssertEqual(categoryDelete.tags.first?.name, ECOperations.TagName.category)
+        XCTAssertEqual(categoryDelete.tags.first?.intValue, 7)
+    }
+
     func testCapabilityGateRejectsUnsupportedReadOnlyOperation() throws {
         let gate = ECCapabilityGate([ECSupportedOps.status])
         XCTAssertNoThrow(try gate.require(.status))
         XCTAssertThrowsError(try ECOperations.downloads(gate: gate)) { error in
             XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("downloads"))
+        }
+    }
+
+    func testFriendsBuilderUsesFriendsCapabilityInsteadOfSourcesCapability() throws {
+        let gate = ECCapabilityGate([ECSupportedOps.friends])
+
+        XCTAssertNoThrow(try ECOperations.friends(gate: gate))
+        XCTAssertThrowsError(try ECOperations.sourcesUpdate(gate: gate)) { error in
+            XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("sources"))
+        }
+    }
+
+    func testDisabledOperationNamesRemainUnadvertisedAndRejected() throws {
+        let disabledOperations = [
+            ECOperationName.categoryUpdate.rawValue,
+            ECOperationName.downloadSetCategory.rawValue,
+        ]
+
+        XCTAssertEqual(ECSupportedOps.unsupportedDisabledOperations, disabledOperations)
+        for operation in disabledOperations {
+            XCTAssertFalse(ECSupportedOps.allOperations.contains(operation), operation)
+            XCTAssertFalse(ECOperations.capabilities().ops.contains(operation), operation)
+        }
+
+        let gate = ECCapabilityGate(capabilities: ECOperations.capabilities())
+        XCTAssertThrowsError(try gate.require(.categoryUpdate)) { error in
+            XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("category-update"))
+        }
+        XCTAssertThrowsError(try gate.require(.downloadSetCategory)) { error in
+            XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("download-set-category"))
         }
     }
 
@@ -304,6 +416,38 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertEqual(payload["extended_protocol"] as? Bool, true)
     }
 
+    func testFriendsParserHandlesNestedUpdateContainerAndEnvelope() throws {
+        let packet = ECPacket(opcode: 0x22, tags: [
+            ECTag(name: 0x0800, type: .unknown, children: [
+                ECTag.integer(name: 0x0800, value: 7, children: [
+                    ECTag(name: 0x0801, type: .string, value: .string("Peer")),
+                    ECTag(name: 0x0802, type: .hash16, value: .hash16(Data((0..<16).map(UInt8.init)))),
+                    .integer(name: 0x0803, value: 0x05060708),
+                    .integer(name: 0x0804, value: 4662),
+                    .integer(name: 0x0805, value: 123),
+                ]),
+            ]),
+        ])
+
+        let friends = try ECResponseParser.parseFriends(packet)
+
+        XCTAssertEqual(friends, [
+            ECFriend(
+                id: 7,
+                name: "Peer",
+                hash: "000102030405060708090a0b0c0d0e0f",
+                ip: "5.6.7.8",
+                port: 4662,
+                client: "123",
+                friendSlot: false
+            ),
+        ])
+        let json = try jsonObject(ECJSONEnvelope.friends(friends))
+        let payload = try XCTUnwrap((json["friends"] as? [[String: Any]])?.first)
+        XCTAssertEqual(payload["id"] as? Int, 7)
+        XCTAssertEqual(payload["name"] as? String, "Peer")
+    }
+
     func testMutationParsersAndEnvelopesMatchBridgeShape() throws {
         let message = try ECResponseParser.parseMutationResponse(ECPacket(opcode: 0x01), successMessage: "Action completed")
         XCTAssertEqual(message, "Action completed")
@@ -343,6 +487,36 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertEqual(prefs, ECConnectionPrefs(maxDownload: 512, maxUpload: 64))
         let prefsJSON = try jsonObject(ECJSONEnvelope.prefsConnection(prefs))
         XCTAssertEqual((prefsJSON["prefs_connection"] as? [String: Any])?["max_dl"] as? Int, 512)
+    }
+
+    func testCategoriesParserAndEnvelopeMatchFixtureShape() throws {
+        let packet = ECPacket(opcode: 0x40, tags: [
+            ECTag(name: 0x1100, type: .custom, children: [
+                ECTag.integer(name: 0x1101, value: 7, children: [
+                    ECTag(name: 0x1102, type: .string, value: .string("Linux ISO")),
+                    ECTag(name: 0x1103, type: .string, value: .string("/downloads/linux")),
+                    ECTag(name: 0x1104, type: .string, value: .string("Fixture category")),
+                    ECTag.integer(name: 0x1105, value: 0xff00ff),
+                    ECTag.integer(name: 0x1106, value: 2),
+                ]),
+            ]),
+        ])
+
+        let categories = try ECResponseParser.parseCategories(packet)
+        XCTAssertEqual(categories, [ECCategory(id: 7, title: "Linux ISO", path: "/downloads/linux", comment: "Fixture category", color: 0xff00ff, priority: 2)])
+        assertJSONEqual(ECJSONEnvelope.jsonString(try ECJSONEnvelope.categories(categories)), ECJsonEnvelopeFixtures.categories)
+    }
+
+    func testUnsupportedCapabilityCanBeSurfacedAsErrorEnvelope() throws {
+        let gate = ECCapabilityGate([ECSupportedOps.status])
+
+        XCTAssertThrowsError(try ECOperations.pause(hash: "00112233445566778899aabbccddeeff", gate: gate)) { error in
+            XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("pause"))
+            self.assertJSONEqual(
+                ECJSONEnvelope.jsonString(try! ECJSONEnvelope.error(error.localizedDescription)),
+                ECJsonEnvelopeFixtures.unsupportedPause
+            )
+        }
     }
 
     func testReadParsersRejectUnexpectedResponseOpcodes() throws {
@@ -386,6 +560,11 @@ final class ECOperationsTests: XCTestCase {
             expected: 0x40,
             actual: 0x3F
         )
+        assertUnexpectedOpcode(
+            try ECResponseParser.parseFriends(ECPacket(opcode: 0x52)),
+            expected: 0x22,
+            actual: 0x52
+        )
     }
 
     func testReadParsersRejectFailedPacketsLikeNativeBridge() throws {
@@ -418,9 +597,9 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertEqual(payload["ops"] as? [String], ["capabilities", "status"])
     }
 
-    private func jsonObject(_ data: Data) throws -> [String: Any] {
-        try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
-    }
+private func jsonObject(_ data: Data) throws -> [String: Any] {
+    try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+}
 
     private func assertUnexpectedOpcode<T>(
         _ expression: @autoclosure () throws -> T,
@@ -432,6 +611,17 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertThrowsError(try expression(), file: file, line: line) { error in
             XCTAssertEqual(error as? ECResponseParserError, .unexpectedOpcode(expected: expected, actual: actual), file: file, line: line)
         }
+    }
+
+    private func assertJSONEqual(
+        _ lhs: String,
+        _ rhs: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let lhsObject = try? JSONSerialization.jsonObject(with: Data(lhs.utf8), options: [.fragmentsAllowed]) as AnyObject
+        let rhsObject = try? JSONSerialization.jsonObject(with: Data(rhs.utf8), options: [.fragmentsAllowed]) as AnyObject
+        XCTAssertEqual(lhsObject?.isEqual(rhsObject), true, file: file, line: line)
     }
 
     private func rleEncodedUInt64s(_ values: [UInt64]) -> Data {
@@ -469,5 +659,31 @@ final class ECOperationsTests: XCTestCase {
 
     private func packedColor(r: Int, g: Int, b: Int) -> UInt32 {
         (UInt32(b & 0xff) << 16) | (UInt32(g & 0xff) << 8) | UInt32(r & 0xff)
+    }
+}
+
+private extension ECTag {
+    var intValue: Int {
+        if case .uint(let value) = value { return Int(value) }
+        return 0
+    }
+
+    var stringValue: String? {
+        if case .string(let value) = value { return value }
+        return nil
+    }
+
+    var ipStringValue: String? {
+        if case .ipv4(let value) = value {
+            return "\(value.octets.0).\(value.octets.1).\(value.octets.2).\(value.octets.3)"
+        }
+        return nil
+    }
+
+    var hashStringValue: String {
+        if case .hash16(let data) = value {
+            return data.map { String(format: "%02x", $0) }.joined()
+        }
+        return ""
     }
 }

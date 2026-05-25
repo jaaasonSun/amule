@@ -1,8 +1,21 @@
 import XCTest
+import SharedUI
 
 @testable import AMuleNativeRemote
 
 final class DownloadNameSuggestionTests: XCTestCase {
+    func testFilenameSuggestionPresentationMatchesIOSRenameDraftBehavior() {
+        XCTAssertEqual(
+            FilenameSuggestionPresentation.renameDraft(
+                from: "  Corrected 中文.mkv  ",
+                currentName: "Mojibake.mkv"
+            ),
+            "Corrected 中文.mkv"
+        )
+        XCTAssertNil(FilenameSuggestionPresentation.renameDraft(from: "   ", currentName: "Mojibake.mkv"))
+        XCTAssertNil(FilenameSuggestionPresentation.renameDraft(from: "Mojibake.mkv", currentName: "Mojibake.mkv"))
+    }
+
     func testDecodeDownloadEnvelopeWithoutSuggestionFields() throws {
         let json = #"{"ok":true,"downloads":[{"ecid":1,"hash":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","name":"Original.iso","size":123,"done":0,"transferred":0,"progress":0,"sources_current":0,"sources_total":0,"sources_transferring":0,"sources_a4af":0,"status_code":0,"is_completed":false,"status":"Waiting","speed":0,"priority":0,"category":0,"part_met":"001.part.met","last_seen_complete":0,"last_received":0,"active_seconds":0,"available_parts":0,"shared":false,"alternative_names":[],"progress_colors":[]}]}"#
         let data = try XCTUnwrap(json.data(using: .utf8))

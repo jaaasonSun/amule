@@ -28,9 +28,27 @@ final class ECSupportedOpsTests: XCTestCase {
             "server-add",
             "server-remove",
             "server-update-from-url",
+            "kad-start",
+            "kad-stop",
+            "kad-bootstrap",
             "kad-update-from-url",
             "prefs-connection-get",
             "prefs-connection-set",
+            "uploads",
+            "shared-files",
+            "shared-files-reload",
+            "log",
+            "debug-log",
+            "categories",
+            "category-create",
+            "category-delete",
+            "ipfilter-reload",
+            "ipfilter-update",
+            "friends",
+            "friend-remove",
+            "friend-slot",
+            "stats-tree",
+            "stats-graphs",
         ]
 
         XCTAssertEqual(ECSupportedOps.allOperations, expected)
@@ -61,14 +79,43 @@ final class ECSupportedOpsTests: XCTestCase {
             "server-add",
             "server-remove",
             "server-update-from-url",
+            "kad-start",
+            "kad-stop",
+            "kad-bootstrap",
             "kad-update-from-url",
             "prefs-connection-get",
             "prefs-connection-set",
+            "uploads",
+            "shared-files",
+            "shared-files-reload",
+            "log",
+            "debug-log",
+            "categories",
+            "category-create",
+            "category-delete",
+            "ipfilter-reload",
+            "ipfilter-update",
+            "friends",
+            "friend-remove",
+            "friend-slot",
+            "stats-tree",
+            "stats-graphs",
         ])
 
         let unauthorizedOperations = ECSupportedOps.allOperations.filter { !canonical.contains($0) }
 
         XCTAssertEqual(unauthorizedOperations, [])
+    }
+
+    func testUnsupportedDisabledOperationsAreNotAdvertised() {
+        XCTAssertEqual(ECSupportedOps.unsupportedDisabledOperations, [
+            "category-update",
+            "download-set-category",
+        ])
+
+        for operation in ECSupportedOps.unsupportedDisabledOperations {
+            XCTAssertFalse(ECSupportedOps.allOperations.contains(operation), operation)
+        }
     }
 }
 #endif

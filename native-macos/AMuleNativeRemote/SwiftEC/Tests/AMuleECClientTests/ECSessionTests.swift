@@ -8,6 +8,7 @@ actor MockECTransport: ECConnectionTransport {
     private(set) var didConnect = false
     private(set) var didDisconnect = false
     private(set) var sentPackets: [ECPacket] = []
+    private(set) var sentPacketBytes: [Data] = []
     private(set) var sentCompressionEnabled: [Bool] = []
     private var replies: [ECPacket]
 
@@ -25,6 +26,7 @@ actor MockECTransport: ECConnectionTransport {
 
     func send(_ packet: ECPacket, timeout: TimeInterval, compressionEnabled: Bool) async throws {
         sentPackets.append(packet)
+        sentPacketBytes.append(try packet.encode(compressionEnabled: compressionEnabled))
         sentCompressionEnabled.append(compressionEnabled)
     }
 
@@ -43,6 +45,12 @@ actor MockECTransport: ECConnectionTransport {
 
     func compressionEnabledValues() -> [Bool] {
         sentCompressionEnabled
+    }
+
+    func sentHeaderFlags() throws -> [UInt32] {
+        try sentPacketBytes.map { data in
+            try ECPacketHeader.decode(data.prefix(ECPacketHeader.byteCount)).flags
+        }
     }
 }
 
@@ -162,6 +170,71 @@ final class ECSessionTests: XCTestCase {
 
         let compressionEnabled = await mock.compressionEnabledValues()
         XCTAssertEqual(compressionEnabled, [false, false, false])
+    }
+
+    func testSessionDoesNotSendZlibHeaderWhenFlagIsConfiguredButNotAdvertised() async throws {
+        let configuredFlags = ECAuthPacket.nativeBridgeFlags | ECCompression.flag
+        let mock = MockECTransport(replies: [
+            ECPacket(flags: ECAuthPacket.baseFlags, opcode: ECAuthPacket.opAuthSalt, tags: [
+                ECTag.integer(name: ECAuthPacket.tagPasswordSalt, value: 0x1234_abcd),
+            ]),
+            ECPacket(flags: ECAuthPacket.baseFlags, opcode: ECAuthPacket.opAuthOK),
+            ECPacket(flags: ECAuthPacket.baseFlags, opcode: 0x04),
+        ])
+        let session = ECSession(
+            configuration: .init(
+                host: "127.0.0.1",
+                port: 4712,
+                password: "secret",
+                automaticReconnect: false,
+                packetFlags: configuredFlags,
+                advertisesZlib: false,
+                advertisesUTF8Numbers: true
+            ),
+            transportFactory: { mock }
+        )
+
+        try await session.ensureAuthenticated()
+        _ = try await session.send(ECPacket(opcode: 0x30, tags: [
+            ECTag(name: 0x0101, type: .string, value: .string(String(repeating: "x", count: ECCompression.threshold + 512))),
+        ]))
+
+        let compressionEnabled = await mock.compressionEnabledValues()
+        let headerFlags = try await mock.sentHeaderFlags()
+        XCTAssertEqual(compressionEnabled, [false, false, false])
+        XCTAssertEqual(headerFlags.map { $0 & ECCompression.flag }, [0, 0, 0])
+    }
+
+    func testSessionDoesNotSendZlibHeaderWhenAdvertisedButFlagIsNotConfigured() async throws {
+        let mock = MockECTransport(replies: [
+            ECPacket(flags: ECAuthPacket.baseFlags, opcode: ECAuthPacket.opAuthSalt, tags: [
+                ECTag.integer(name: ECAuthPacket.tagPasswordSalt, value: 0x1234_abcd),
+            ]),
+            ECPacket(flags: ECAuthPacket.baseFlags, opcode: ECAuthPacket.opAuthOK),
+            ECPacket(flags: ECAuthPacket.baseFlags, opcode: 0x04),
+        ])
+        let session = ECSession(
+            configuration: .init(
+                host: "127.0.0.1",
+                port: 4712,
+                password: "secret",
+                automaticReconnect: false,
+                packetFlags: ECAuthPacket.nativeBridgeFlags,
+                advertisesZlib: true,
+                advertisesUTF8Numbers: true
+            ),
+            transportFactory: { mock }
+        )
+
+        try await session.ensureAuthenticated()
+        _ = try await session.send(ECPacket(opcode: 0x30, tags: [
+            ECTag(name: 0x0101, type: .string, value: .string(String(repeating: "x", count: ECCompression.threshold + 512))),
+        ]))
+
+        let compressionEnabled = await mock.compressionEnabledValues()
+        let headerFlags = try await mock.sentHeaderFlags()
+        XCTAssertEqual(compressionEnabled, [false, false, false])
+        XCTAssertEqual(headerFlags.map { $0 & ECCompression.flag }, [0, 0, 0])
     }
 
     func testSessionEnablesCompressionOnlyWhenZlibWasAdvertisedAndConfigured() async throws {

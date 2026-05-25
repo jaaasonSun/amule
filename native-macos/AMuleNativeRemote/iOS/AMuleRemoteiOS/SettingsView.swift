@@ -33,7 +33,7 @@ struct SettingsView: View {
 
             Section {
                 NavigationLink {
-                    AboutView()
+                    AboutView(model: model)
                 } label: {
                     Label("About aMule Remote", systemImage: "info.circle")
                 }
@@ -281,24 +281,30 @@ private struct CapabilitiesSection: View {
 }
 
 private struct AboutView: View {
+    @ObservedObject var model: IOSAppModel
+
     var body: some View {
         List {
             Section {
-                LabeledContent("App", value: "aMule Remote")
-                LabeledContent("Platform", value: "iOS/iPadOS")
-                LabeledContent("Bridge", value: "Fake (UI Testing)")
+                LabeledContent(L("App"), value: "aMule Remote")
+                LabeledContent(L("Platform"), value: "iOS/iPadOS")
+                LabeledContent(L("Bridge")) {
+                    Text(model.isSessionConnected && !model.bridgeVersion.isEmpty
+                        ? model.bridgeVersion
+                        : L("Not connected"))
+                }
             } header: {
-                Text("Information")
+                Text(L("Information"))
             }
 
             Section {
-                LabeledContent("ed2k://", value: "Supported")
-                LabeledContent("magnet:?", value: "Supported")
+                LabeledContent("ed2k://", value: L("Supported"))
+                LabeledContent("magnet:?", value: L("Supported"))
             } header: {
-                Text("URL Schemes")
+                Text(L("URL Schemes"))
             }
         }
-        .navigationTitle("About")
+        .navigationTitle(L("About"))
     }
 }
 

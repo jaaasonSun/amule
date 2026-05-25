@@ -37,7 +37,10 @@ final class IOSLocalizationResourceTests: XCTestCase {
             "Source exchange",
             "Passive",
             "(unknown client)",
-            "Full"
+            "Full",
+            "Server",
+            "Not connected",
+            "Search Scope"
         ]
 
         for locale in ["zh-Hans", "zh_CN"] {

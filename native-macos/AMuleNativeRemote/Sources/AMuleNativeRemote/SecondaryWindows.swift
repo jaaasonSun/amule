@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import SharedUI
 
 private func L2(_ key: String) -> String {
     NSLocalizedString(key, comment: "")
@@ -958,7 +959,8 @@ struct DownloadDetailsWindowView: View {
     }
 
     private func useSuggestionForRename(_ item: DownloadItem, suggestion: String) {
-        downloadRenameDraft = suggestion
+        guard let draft = FilenameSuggestionPresentation.renameDraft(from: suggestion, currentName: item.name) else { return }
+        downloadRenameDraft = draft
         isEditingDownloadName = true
     }
 
@@ -1182,8 +1184,7 @@ struct DownloadDetailsWindowView: View {
                                             .foregroundStyle(.secondary)
                                         if canRenameSelectedDownload {
                                             Button("Use") {
-                                                downloadRenameDraft = alt.meaningfulNameEncodingSuggestion ?? alt.name
-                                                isEditingDownloadName = true
+                                                useSuggestionForRename(item, suggestion: alt.meaningfulNameEncodingSuggestion ?? alt.name)
                                             }
                                             .buttonStyle(.bordered)
                                             .controlSize(.small)
@@ -1344,7 +1345,6 @@ struct DownloadDetailsWindowView: View {
         guard let selectedDownload else { return }
         guard let suggestion = model.consumeRenameSuggestionRequest(for: selectedDownload.id) else { return }
         guard canRenameSelectedDownload else { return }
-        guard suggestion != selectedDownload.name else { return }
         useSuggestionForRename(selectedDownload, suggestion: suggestion)
     }
 

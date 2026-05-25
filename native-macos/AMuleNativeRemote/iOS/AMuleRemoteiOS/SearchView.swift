@@ -10,15 +10,15 @@ struct SearchView: View {
     var body: some View {
         List {
             Section {
-                Picker("Search Scope", selection: $model.searchScope) {
-                    Text("Kad").tag("kad")
-                    Text("Global").tag("global")
-                    Text("Local").tag("local")
+                Picker(L("Search Scope"), selection: $model.searchScope) {
+                    Text(L("Kad")).tag("kad")
+                    Text(L("Global")).tag("global")
+                    Text(L("Server")).tag("local")
                 }
                 .pickerStyle(.segmented)
                 .disabled(model.isSearchInProgress)
             } header: {
-                Text("Search Scope")
+                Text(L("Search Scope"))
             }
 
             if model.searchResults.isEmpty && !model.isSearchInProgress {

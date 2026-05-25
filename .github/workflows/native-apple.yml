@@ -37,5 +37,15 @@ jobs:
       - name: Native macOS strict build
         run: native-macos/AMuleNativeRemote/scripts/swiftpm.sh build --package-path native-macos/AMuleNativeRemote -Xswiftc -warnings-as-errors
 
+      # Packaging smoke: validates app bundle shape and Info.plist only.
+      # The /usr/bin/true stub means this does NOT test real bridge compatibility.
+      # Real bridge build verification is done locally via ./scripts/release-check.sh.
       - name: Packaging smoke
         run: cd native-macos/AMuleNativeRemote && AMULE_EC_BRIDGE_PATH=/usr/bin/true ./scripts/build-app.sh && plutil -lint "dist/aMule Remote.app/Contents/Info.plist"
+
+      # CI Limitations documented:
+      # - Real bridge build requires C++ toolchain (cmake, wxWidgets, cryptopp).
+      #   Not included in PR CI to keep runner time reasonable.
+      #   Run locally: cd native-macos/AMuleNativeRemote && ./scripts/release-check.sh
+      # - iOS simulator/device tests require Xcode device runtime or signed app.
+      #   Not included in PR CI. Manual QA: build with xcodebuild per README.

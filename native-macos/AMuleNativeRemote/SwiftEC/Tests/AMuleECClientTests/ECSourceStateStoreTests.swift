@@ -56,6 +56,45 @@ final class ECSourceStateStoreTests: XCTestCase {
         XCTAssertEqual(store.sources(for: 42), [])
     }
 
+    func testNestedClientContainerAppliesAllSourceDeltas() {
+        var store = ECSourceStateStore()
+
+        store.applyIncrementalUpdate(ECPacket(opcode: 0x22, tags: [
+            Self.client(id: 0, children: [
+                Self.client(id: 99, children: [
+                    .integer(name: 0x0620, value: 42),
+                    ECTag(name: 0x0100, type: .string, value: .string("peer-a")),
+                ]),
+                Self.client(id: 100, children: [
+                    .integer(name: 0x0620, value: 42),
+                    ECTag(name: 0x0100, type: .string, value: .string("peer-b")),
+                ]),
+            ]),
+        ]))
+
+        XCTAssertEqual(store.sources(for: 42).map(\.clientID), [99, 100])
+    }
+
+    func testClientRequestFileDeltaMovesSourceBetweenDownloads() {
+        var store = ECSourceStateStore()
+
+        store.applyIncrementalUpdate(ECPacket(opcode: 0x22, tags: [
+            Self.client(id: 99, children: [
+                .integer(name: 0x0620, value: 42),
+                ECTag(name: 0x0100, type: .string, value: .string("peer")),
+            ]),
+        ]))
+        store.applyIncrementalUpdate(ECPacket(opcode: 0x22, tags: [
+            Self.client(id: 99, children: [
+                .integer(name: 0x0620, value: 77),
+            ]),
+        ]))
+
+        XCTAssertEqual(store.sources(for: 42), [])
+        XCTAssertEqual(store.sources(for: 77).map(\.clientID), [99])
+        XCTAssertEqual(store.sources(for: 77).first?.clientName, "peer")
+    }
+
     private static func client(id: Int, children: [ECTag]) -> ECTag {
         ECTag.integer(name: 0x0600, value: UInt64(id), children: children)
     }

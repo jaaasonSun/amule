@@ -80,10 +80,10 @@ public protocol DownloadClassifiable {
 
 public enum DownloadStatusSymbol {
     public static let allCategorySymbolName = "tray.full"
-    public static let downloadingCategorySymbolName = "arrow.down"
+    public static let downloadingCategorySymbolName = "arrow.down.circle"
     public static let pendingCategorySymbolName = "clock"
-    public static let pausedCategorySymbolName = "pause"
-    public static let completedCategorySymbolName = "checkmark"
+    public static let pausedCategorySymbolName = "pause.circle"
+    public static let completedCategorySymbolName = "checkmark.circle"
 
     public static func categorySymbolName(for item: DownloadClassifiable) -> String {
         if DownloadClassification.isCompleted(item) {
@@ -107,46 +107,28 @@ public enum DownloadStatusSymbol {
         }
 
         if hasAny(lowercase, ["error", "erroneous", "failed", "corrupt"]) || hasAny(raw, ["错误", "故障", "失败"]) {
-            return "xmark"
+            return "xmark.circle"
         }
         if hasAny(lowercase, ["complete", "completed"]) || hasAny(raw, ["完成", "已完成"]) {
-            return "checkmark"
+            return "checkmark.circle"
         }
         if hasAny(lowercase, ["paused"]) || hasAny(raw, ["暂停"]) {
-            return "pause"
+            return "pause.circle"
         }
         if hasAny(lowercase, ["hashing", "allocat", "completing"]) || hasAny(raw, ["哈希", "分配", "完成中"]) {
             return "progress.indicator"
         }
         if hasAny(lowercase, ["downloading"]) || hasAny(raw, ["下载"]) {
-            return "arrow.down"
+            return "arrow.down.circle"
         }
         if hasAny(lowercase, ["waiting"]) || hasAny(raw, ["等待"]) {
             return "clock"
         }
-        return "questionmark"
+        return "questionmark.circle"
     }
 
     public static func circleSymbolName(for status: String) -> String {
-        let raw = status.trimmingCharacters(in: .whitespacesAndNewlines)
-        let lowercase = raw.lowercased()
-
-        if lowercase.contains("error") || lowercase.contains("erroneous") || lowercase.contains("failed") {
-            return "xmark.circle"
-        }
-        if lowercase.contains("complete") || lowercase.contains("completed") {
-            return "checkmark.circle"
-        }
-        if lowercase.contains("paused") {
-            return "pause.circle"
-        }
-        if lowercase.contains("downloading") {
-            return "arrow.down.circle"
-        }
-        if lowercase.contains("waiting") {
-            return "clock"
-        }
-        return "questionmark.circle"
+        symbolName(for: status)
     }
 }
 
