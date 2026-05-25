@@ -7,12 +7,12 @@ final class ECDownloadStateStoreTests: XCTestCase {
     func testSourceNameDeltasPreserveNamesAcrossCountOnlyUpdates() throws {
         var store = ECDownloadStateStore()
         let snapshot = try ECResponseParser.parseDownloads(ECPacket(opcode: 0x1F, tags: [
-            Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
+            try Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
         ]))
         store.replaceDownloadSnapshot(snapshot)
 
         store.applyIncrementalUpdate(ECPacket(opcode: 0x22, tags: [
-            Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
+            try Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
                 Self.sourceNameEntry(id: 7, name: "better.iso", count: 3),
             ]),
         ]))
@@ -21,7 +21,7 @@ final class ECDownloadStateStoreTests: XCTestCase {
         ])
 
         store.applyIncrementalUpdate(ECPacket(opcode: 0x22, tags: [
-            Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
+            try Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
                 Self.sourceNameEntry(id: 7, name: nil, count: 5),
             ]),
         ]))
@@ -33,15 +33,15 @@ final class ECDownloadStateStoreTests: XCTestCase {
     func testSourceNameCountZeroRemovesCachedAlternativeName() throws {
         var store = ECDownloadStateStore()
         store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(ECPacket(opcode: 0x1F, tags: [
-            Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
+            try Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
         ])))
         store.applyIncrementalUpdate(ECPacket(opcode: 0x22, tags: [
-            Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
+            try Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
                 Self.sourceNameEntry(id: 7, name: "better.iso", count: 3),
             ]),
         ]))
         store.applyIncrementalUpdate(ECPacket(opcode: 0x22, tags: [
-            Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
+            try Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
                 Self.sourceNameEntry(id: 7, name: nil, count: 0),
             ]),
         ]))
@@ -52,15 +52,15 @@ final class ECDownloadStateStoreTests: XCTestCase {
     func testSnapshotKeepsCachedAlternativeNamesAndDropsVanishedFiles() throws {
         var store = ECDownloadStateStore()
         store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(ECPacket(opcode: 0x1F, tags: [
-            Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
+            try Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
         ])))
         store.applyIncrementalUpdate(ECPacket(opcode: 0x22, tags: [
-            Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
+            try Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
                 Self.sourceNameEntry(id: 7, name: "better.iso", count: 3),
             ]),
         ]))
         store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(ECPacket(opcode: 0x1F, tags: [
-            Self.partFile(ecid: 42, hash: Self.hash, name: "renamed.iso"),
+            try Self.partFile(ecid: 42, hash: Self.hash, name: "renamed.iso"),
         ])))
 
         XCTAssertEqual(store.downloads.first?.name, "renamed.iso")
@@ -75,17 +75,17 @@ final class ECDownloadStateStoreTests: XCTestCase {
     func testFullSnapshotReplacesVisibleDownloadList() throws {
         var store = ECDownloadStateStore()
         store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(ECPacket(opcode: 0x1F, tags: [
-            Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
+            try Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
         ])))
         store.applyIncrementalUpdate(ECPacket(opcode: 0x22, tags: [
-            Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
+            try Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
                 Self.sourceNameEntry(id: 7, name: "better.iso", count: 3),
             ]),
         ]))
 
         let replacementHash = "ffeeddccbbaa99887766554433221100"
         store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(ECPacket(opcode: 0x1F, tags: [
-            Self.partFile(ecid: 99, hash: replacementHash, name: "replacement.iso"),
+            try Self.partFile(ecid: 99, hash: replacementHash, name: "replacement.iso"),
         ])))
 
         XCTAssertEqual(store.downloads.map(\.ecid), [99])
@@ -95,14 +95,14 @@ final class ECDownloadStateStoreTests: XCTestCase {
     func testSnapshotSourcePacketSeedsIDsForCountOnlyUpdate() throws {
         var store = ECDownloadStateStore()
         let snapshotPacket = ECPacket(opcode: 0x1F, tags: [
-            Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
+            try Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
                 Self.sourceNameEntry(id: 7, name: "better.iso", count: 3),
             ]),
         ])
         store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(snapshotPacket), sourcePacket: snapshotPacket)
 
         store.applyIncrementalUpdate(ECPacket(opcode: 0x22, tags: [
-            Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
+            try Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
                 Self.sourceNameEntry(id: 7, name: nil, count: 5),
             ]),
         ]))
@@ -114,13 +114,14 @@ final class ECDownloadStateStoreTests: XCTestCase {
 
     private static let hash = "00112233445566778899aabbccddeeff"
 
-    private static func partFile(ecid: Int, hash: String, name: String, sourceNameEntries: [ECTag] = []) -> ECTag {
+    private static func partFile(ecid: Int, hash: String, name: String, sourceNameEntries: [ECTag] = []) throws -> ECTag {
+        let hashData = try XCTUnwrap(Data(hex: hash))
         var children = [
             ECTag(name: 0x0301, type: .string, value: .string(name)),
             ECTag.integer(name: 0x0303, value: 100),
             ECTag.integer(name: 0x0306, value: 10),
             ECTag.integer(name: 0x0308, value: 7),
-            ECTag(name: 0x031E, type: .hash16, value: .hash16(Data(hex: hash))),
+            ECTag(name: 0x031E, type: .hash16, value: .hash16(hashData)),
         ]
         if !sourceNameEntries.isEmpty {
             children.append(ECTag(name: 0x0315, type: .unknown, children: sourceNameEntries))
@@ -138,12 +139,13 @@ final class ECDownloadStateStoreTests: XCTestCase {
 }
 
 private extension Data {
-    init(hex: String) {
+    init?(hex: String) {
         self.init()
         var index = hex.startIndex
         while index < hex.endIndex {
             let next = hex.index(index, offsetBy: 2)
-            append(UInt8(hex[index..<next], radix: 16)!)
+            guard let byte = UInt8(hex[index..<next], radix: 16) else { return nil }
+            append(byte)
             index = next
         }
     }

@@ -132,18 +132,6 @@ private struct ConnectionSection: View {
     }
 }
 
-private struct OperationsListView: View {
-    let operations: [String]
-
-    var body: some View {
-        List(operations, id: \.self) { op in
-            Text(op)
-                .font(.system(.body, design: .monospaced))
-        }
-        .navigationTitle("Operations")
-    }
-}
-
 private struct TransferLimitsSection: View {
     @ObservedObject var model: IOSAppModel
     @State private var uploadInput: String = ""

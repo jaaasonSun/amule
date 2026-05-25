@@ -487,7 +487,10 @@ public enum ECOperations {
         var index = hash.startIndex
         while index < hash.endIndex {
             let next = hash.index(index, offsetBy: 2)
-            bytes.append(UInt8(hash[index..<next], radix: 16)!)
+            guard let byte = UInt8(hash[index..<next], radix: 16) else {
+                throw ECOperationError.invalidHash(hash)
+            }
+            bytes.append(byte)
             index = next
         }
         return bytes

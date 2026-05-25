@@ -312,9 +312,10 @@ final class ECSessionTests: XCTestCase {
             _ = try await pipeline.send(ECPacket(flags: ECAuthPacket.baseFlags, opcode: 0x20))
             XCTFail("Expected request to fail")
         } catch ECSessionError.connectionClosed {
-            XCTAssertTrue(true)
+            let sentOpcodes = await mock.sentOpcodes()
+            XCTAssertEqual(sentOpcodes, [0x20])
         } catch ECSessionError.timeout(.request) {
-            XCTAssertTrue(true)
+            XCTFail("Expected connectionClosed from empty mock transport")
         } catch {
             XCTFail("Unexpected error: \(error)")
         }

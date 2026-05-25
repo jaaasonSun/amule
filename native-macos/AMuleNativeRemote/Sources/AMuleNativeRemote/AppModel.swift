@@ -82,6 +82,7 @@ final class AppModel: ObservableObject {
     private var searchTask: Task<Void, Never>?
     private let pasteboardShare: PasteboardShare
     private let bridge: BridgeProtocol
+    private let serverManagementService: ServerManagementService
 
     var buildCommit: String {
         if let value = Bundle.main.object(forInfoDictionaryKey: "AMuleBuildCommit") as? String,
@@ -101,6 +102,7 @@ final class AppModel: ObservableObject {
     ) {
         self.pasteboardShare = pasteboardShare
         self.bridge = bridge
+        self.serverManagementService = ServerManagementService(bridge: bridge)
         connectionMaxDownloadKBps = savedConnectionMaxDownload
         connectionMaxUploadKBps = savedConnectionMaxUpload
         connectionMaxDownloadInput = String(savedConnectionMaxDownload)
@@ -1003,7 +1005,7 @@ final class AppModel: ObservableObject {
 
     private func refreshServersNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
         do {
-            let (payload, raw) = try await bridge.servers(config: config)
+            let (payload, raw) = try await serverManagementService.fetchServers(config: config)
             let parsed = ServerItem.fromBridge(payload)
             await MainActor.run {
                 self.servers = parsed

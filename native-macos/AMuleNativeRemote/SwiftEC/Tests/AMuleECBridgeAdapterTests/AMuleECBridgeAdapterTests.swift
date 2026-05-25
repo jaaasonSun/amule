@@ -145,10 +145,10 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
             Self.salt,
             Self.authOK,
             ECPacket(opcode: 0x1F, tags: [
-                Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
+                try Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
             ]),
             ECPacket(opcode: 0x22, tags: [
-                Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
+                try Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
                     Self.sourceNameEntry(id: 7, name: "better.iso", count: 3),
                 ]),
             ]),
@@ -170,12 +170,12 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
             Self.salt,
             Self.authOK,
             ECPacket(opcode: 0x1F, tags: [
-                Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
+                try Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
                     Self.sourceNameEntry(id: 7, name: "better.iso", count: 3),
                 ]),
             ]),
             ECPacket(opcode: 0x22, tags: [
-                Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
+                try Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
                     Self.sourceNameEntry(id: 7, name: nil, count: 5),
                 ]),
             ]),
@@ -195,7 +195,7 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
             Self.salt,
             Self.authOK,
             ECPacket(opcode: 0x1F, tags: [
-                Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
+                try Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
             ]),
             ECPacket(opcode: 0x05, tags: [
                 ECTag(name: 0x0000, type: .string, value: .string("Update failed.")),
@@ -218,7 +218,7 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
             Self.salt,
             Self.authOK,
             ECPacket(opcode: 0x1F, tags: [
-                Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
+                try Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
             ]),
             ECPacket(opcode: 0x22, tags: [
                 Self.client(id: 99, children: [
@@ -229,7 +229,7 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
                 ]),
             ]),
             ECPacket(opcode: 0x1F, tags: [
-                Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
+                try Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
             ]),
             ECPacket(opcode: 0x22, tags: [
                 Self.client(id: 99, children: [
@@ -261,7 +261,7 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
             Self.authOK,
             ECPacket(opcode: 0x22, tags: [
                 Self.friendContainer([
-                    Self.friend(id: 7, name: "Peer", hash: Self.hash, ip: 0x05060708, port: 4662, clientID: 123),
+                    try Self.friend(id: 7, name: "Peer", hash: Self.hash, ip: 0x05060708, port: 4662, clientID: 123),
                 ]),
             ]),
         ])
@@ -309,7 +309,7 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
             Self.salt,
             Self.authOK,
             ECPacket(opcode: 0x1F, tags: [
-                Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
+                try Self.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
             ]),
         ])
         let session = ECSession(configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false), transportFactory: { mock })
@@ -329,7 +329,7 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
             Self.salt,
             Self.authOK,
             ECPacket(opcode: 0x1F, tags: [
-                Self.partFile(ecid: 1001, hash: Self.hash, name: "fixture.iso"),
+                try Self.partFile(ecid: 1001, hash: Self.hash, name: "fixture.iso"),
             ]),
             ECPacket(opcode: 0x22, tags: [
                 Self.client(id: 501, children: [
@@ -439,13 +439,14 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
 
     private static let hash = "00112233445566778899aabbccddeeff"
 
-    private static func partFile(ecid: Int, hash: String, name: String, sourceNameEntries: [ECTag] = []) -> ECTag {
+    private static func partFile(ecid: Int, hash: String, name: String, sourceNameEntries: [ECTag] = []) throws -> ECTag {
+        let hashData = try XCTUnwrap(Data(hex: hash))
         var children = [
             ECTag(name: 0x0301, type: .string, value: .string(name)),
             ECTag.integer(name: 0x0303, value: 100),
             ECTag.integer(name: 0x0306, value: 10),
             ECTag.integer(name: 0x0308, value: 7),
-            ECTag(name: 0x031E, type: .hash16, value: .hash16(Data(hex: hash))),
+            ECTag(name: 0x031E, type: .hash16, value: .hash16(hashData)),
         ]
         if !sourceNameEntries.isEmpty {
             children.append(ECTag(name: 0x0315, type: .unknown, children: sourceNameEntries))
@@ -469,10 +470,11 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
         ECTag(name: 0x0800, type: .unknown, children: friends)
     }
 
-    private static func friend(id: Int, name: String, hash: String, ip: UInt64, port: Int, clientID: Int) -> ECTag {
-        ECTag.integer(name: 0x0800, value: UInt64(id), children: [
+    private static func friend(id: Int, name: String, hash: String, ip: UInt64, port: Int, clientID: Int) throws -> ECTag {
+        let hashData = try XCTUnwrap(Data(hex: hash))
+        return ECTag.integer(name: 0x0800, value: UInt64(id), children: [
             ECTag(name: 0x0801, type: .string, value: .string(name)),
-            ECTag(name: 0x0802, type: .hash16, value: .hash16(Data(hex: hash))),
+            ECTag(name: 0x0802, type: .hash16, value: .hash16(hashData)),
             ECTag.integer(name: 0x0803, value: ip),
             ECTag.integer(name: 0x0804, value: UInt64(port)),
             ECTag.integer(name: 0x0805, value: UInt64(clientID)),
@@ -493,12 +495,13 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
 }
 
 private extension Data {
-    init(hex: String) {
+    init?(hex: String) {
         self.init()
         var index = hex.startIndex
         while index < hex.endIndex {
             let next = hex.index(index, offsetBy: 2)
-            append(UInt8(hex[index..<next], radix: 16)!)
+            guard let byte = UInt8(hex[index..<next], radix: 16) else { return nil }
+            append(byte)
             index = next
         }
     }
