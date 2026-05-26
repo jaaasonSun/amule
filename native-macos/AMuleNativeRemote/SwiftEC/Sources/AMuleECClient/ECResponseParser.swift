@@ -391,8 +391,7 @@ public enum ECResponseParser {
     }
 
     private static func parseDownloadTag(_ tag: ECTag) -> ECDownload? {
-        guard tag.name == TagName.partFile || tag.child(named: TagName.partFileHash) != nil else { return nil }
-        guard tag.child(named: TagName.partFileHash) != nil else { return nil }
+        guard tag.name == TagName.partFile || tag.name == TagName.knownFile else { return nil }
         let size = tag.child(named: TagName.partFileSizeFull)?.uintValue ?? 0
         let hasStatus = tag.child(named: TagName.partFileStatus) != nil
         let statusCode = tag.child(named: TagName.partFileStatus)?.intValue ?? 9

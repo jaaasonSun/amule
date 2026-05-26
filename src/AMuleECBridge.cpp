@@ -798,8 +798,9 @@ bool HandleDownloads(CRemoteConnect& conn, std::string& error)
 		if (top.GetTagName() == EC_TAG_CLIENT || top.GetTagName() == EC_TAG_SERVER || top.GetTagName() == EC_TAG_FRIEND) {
 			continue;
 		}
-		// Keep entries with a file hash: partfiles and completed downloads encoded as shared files.
-		if (!top.GetTagByName(EC_TAG_PARTFILE_HASH)) {
+		// Keep file entries: active downloads (EC_TAG_PARTFILE) and completed downloads
+		// encoded as shared files (EC_TAG_KNOWNFILE) after queue clearance.
+		if (top.GetTagName() != EC_TAG_PARTFILE && top.GetTagName() != EC_TAG_KNOWNFILE) {
 			continue;
 		}
 		const bool hasPartFileStatus = top.GetTagByName(EC_TAG_PARTFILE_STATUS) != nullptr;
