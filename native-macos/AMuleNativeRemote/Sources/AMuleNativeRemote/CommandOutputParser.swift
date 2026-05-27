@@ -1,5 +1,6 @@
 import Foundation
 import AMuleECClient
+import SharedUI
 
 struct BridgeStatsPayload: Decodable {
     let tree: BridgeStatsTreeNodePayload?
@@ -92,7 +93,7 @@ struct SearchResult: Identifiable, Hashable {
     }
 }
 
-struct DownloadItem: Identifiable, Hashable {
+struct DownloadItem: Identifiable, Hashable, RenameVerifiableDownload {
     let ecid: Int
     let id: String
     let name: String
@@ -263,6 +264,26 @@ struct DownloadItem: Identifiable, Hashable {
                 progressColors: $0.progressColors
             )
         }
+    }
+}
+
+extension DownloadItem: DownloadClassifiable {}
+
+enum MacOSDownloadClassification {
+    static func isCompleted(_ item: DownloadItem) -> Bool {
+        DownloadClassification.isCompleted(item)
+    }
+
+    static func isPaused(_ item: DownloadItem) -> Bool {
+        DownloadClassification.isPaused(item)
+    }
+
+    static func isDownloading(_ item: DownloadItem) -> Bool {
+        DownloadClassification.isDownloading(item)
+    }
+
+    static func isPending(_ item: DownloadItem) -> Bool {
+        DownloadClassification.isPending(item)
     }
 }
 

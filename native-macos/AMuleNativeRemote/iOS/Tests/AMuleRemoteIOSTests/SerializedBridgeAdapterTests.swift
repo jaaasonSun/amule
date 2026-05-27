@@ -1,4 +1,5 @@
 import XCTest
+import enum AMuleECBridgeAdapter.RenameAcknowledgement
 import AMuleECClient
 @testable import AMuleRemoteIOSShared
 
@@ -8,7 +9,7 @@ final class SerializedBridgeAdapterTests: XCTestCase {
         let adapter = SerializedBridgeAdapter(wrapping: DelayedBridge(probe: probe))
         let config = AMuleConnectionConfig(bridgePath: "", host: "127.0.0.1", port: 4712, password: "secret")
 
-        async let rename: (message: String, raw: String) = adapter.rename(hash: "hash", name: "renamed.iso", config: config)
+        async let rename: RenameAcknowledgement = adapter.rename(hash: "hash", name: "renamed.iso", config: config)
         async let downloads: ([BridgeDownloadPayload], String) = adapter.downloads(config: config)
         _ = try await (rename, downloads)
 
@@ -54,7 +55,9 @@ private struct DelayedBridge: BridgeProtocol {
     func searchStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await run { ("ok", "{}") } }
     func download(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await run { ("ok", "{}") } }
     func addLink(link: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await run { ("ok", "{}") } }
-    func rename(hash: String, name: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await run { ("ok", "{}") } }
+    func rename(hash: String, name: String, config: AMuleConnectionConfig) async throws -> RenameAcknowledgement {
+        try await run { .success(message: "ok", raw: "{}") }
+    }
     func pause(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await run { ("ok", "{}") } }
     func resume(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await run { ("ok", "{}") } }
     func cancel(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await run { ("ok", "{}") } }

@@ -222,17 +222,17 @@ public struct ECDownload: Codable, Equatable, Sendable {
         alternativeNames: [AlternativeName] = [],
         progressColors: [UInt32] = []
     ) {
-        let repairedName = FileNameEncodingRepair.repairedSuggestion(for: name)
-        let trimmedSuggestion = nameEncodingSuggestion?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let effectiveSuggestion = (trimmedSuggestion?.isEmpty == false && trimmedSuggestion != name)
-            ? trimmedSuggestion
-            : repairedName
+        let normalizedNameEncoding = FileNameNormalization(
+            name: name,
+            suspect: nameEncodingSuspect,
+            suggestion: nameEncodingSuggestion
+        )
 
         self.ecid = ecid
         self.hash = hash
         self.name = name
-        self.nameEncodingSuspect = nameEncodingSuspect || effectiveSuggestion != nil
-        self.nameEncodingSuggestion = effectiveSuggestion
+        self.nameEncodingSuspect = normalizedNameEncoding.suspect
+        self.nameEncodingSuggestion = normalizedNameEncoding.suggestion
         self.size = size
         self.done = done
         self.transferred = transferred
@@ -284,13 +284,13 @@ public struct ECDownload: Codable, Equatable, Sendable {
         self.name = try container.decode(String.self, forKey: .name)
         let decodedNameEncodingSuspect = try container.decodeIfPresent(Bool.self, forKey: .nameEncodingSuspect) ?? false
         let decodedNameEncodingSuggestion = try container.decodeIfPresent(String.self, forKey: .nameEncodingSuggestion)
-        let repairedName = FileNameEncodingRepair.repairedSuggestion(for: self.name)
-        let trimmedSuggestion = decodedNameEncodingSuggestion?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let effectiveSuggestion = (trimmedSuggestion?.isEmpty == false && trimmedSuggestion != self.name)
-            ? trimmedSuggestion
-            : repairedName
-        self.nameEncodingSuspect = decodedNameEncodingSuspect || effectiveSuggestion != nil
-        self.nameEncodingSuggestion = effectiveSuggestion
+        let normalizedNameEncoding = FileNameNormalization(
+            name: self.name,
+            suspect: decodedNameEncodingSuspect,
+            suggestion: decodedNameEncodingSuggestion
+        )
+        self.nameEncodingSuspect = normalizedNameEncoding.suspect
+        self.nameEncodingSuggestion = normalizedNameEncoding.suggestion
         self.size = try container.decode(UInt64.self, forKey: .size)
         self.done = try container.decode(UInt64.self, forKey: .done)
         self.transferred = try container.decode(UInt64.self, forKey: .transferred)

@@ -69,6 +69,14 @@ public enum AMuleClientError: LocalizedError {
     case processFailure(Int32, String)
     case invalidResponse(String)
     case bridgeFailure(String)
+    case downloadNotFound(String)
+
+    public var isDownloadNotFound: Bool {
+        if case .downloadNotFound = self {
+            return true
+        }
+        return false
+    }
 
     public var errorDescription: String? {
         switch self {
@@ -80,6 +88,8 @@ public enum AMuleClientError: LocalizedError {
             return "Invalid bridge response.\n\(output)"
         case .bridgeFailure(let message):
             return message
+        case .downloadNotFound(let hash):
+            return "File not found in download queue: \(hash)"
         }
     }
 }

@@ -474,6 +474,8 @@ enum AMuleECBridgeClient {
             return true
         case .processFailure:
             return true
+        case .downloadNotFound:
+            return false
         case let .bridgeFailure(message):
             let lowered = message.lowercased()
             return lowered.contains("not found") || lowered.contains("permission denied")

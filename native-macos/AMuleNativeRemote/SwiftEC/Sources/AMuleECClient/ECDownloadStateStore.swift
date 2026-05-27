@@ -2,19 +2,47 @@ import Foundation
 import AMuleECProtocol
 
 public struct ECDownloadStateStore: Sendable {
+    public enum Lifecycle: Equatable, Sendable {
+        case active
+        case completedRetained
+        case sharedOnly
+        case malformedOmission
+        case tombstoned
+        case cleared
+    }
+
     public private(set) var downloads: [ECDownload] = []
 
     private var downloadsByECID: [Int: ECDownload] = [:]
+    private var lifecycleByECID: [Int: Lifecycle] = [:]
+    private var orderedECIDs: [Int] = []
     private var sourceNamesByECID: [Int: [Int: ECDownload.AlternativeName]] = [:]
 
     public init() {}
+
+    public func lifecycle(forECID ecid: Int) -> Lifecycle? {
+        lifecycleByECID[ecid]
+    }
+
+    public mutating func acknowledgeClearCompleted(ecids: [Int]) {
+        let targets = clearTargets(from: ecids)
+        guard !targets.isEmpty else { return }
+        for ecid in targets {
+            lifecycleByECID[ecid] = .cleared
+            downloadsByECID.removeValue(forKey: ecid)
+            sourceNamesByECID.removeValue(forKey: ecid)
+        }
+        publishDownloads()
+    }
 
     public mutating func replaceDownloadSnapshot(_ snapshot: [ECDownload]) {
         replaceDownloadSnapshot(snapshot, sourcePacket: nil)
     }
 
     public mutating func replaceDownloadSnapshot(_ snapshot: [ECDownload], sourcePacket: ECPacket?) {
-        let liveECIDs = Set(snapshot.map(\.ecid))
+        let previousOrder = orderedECIDs
+        let incoming = uniqueDownloads(from: snapshot)
+        let liveECIDs = Set(incoming.map(\.ecid))
 
         if let sourcePacket {
             for tag in sourcePacket.tags where tag.name == TagName.partFile {
@@ -22,24 +50,49 @@ public struct ECDownloadStateStore: Sendable {
                 guard liveECIDs.contains(ecid) else { continue }
                 applySourceNameDeltas(from: tag, ecid: ecid)
             }
+            recordMalformedOmissions(from: sourcePacket, parsedECIDs: liveECIDs)
         } else {
-            seedDecodedAlternativeNames(from: snapshot)
+            seedDecodedAlternativeNames(from: incoming)
         }
 
-        sourceNamesByECID = sourceNamesByECID.filter { liveECIDs.contains($0.key) }
+        var nextDownloadsByECID = downloadsByECID
+        var nextLifecycleByECID = lifecycleByECID
+        var nextOrder = incoming.map(\.ecid)
 
-        downloadsByECID = Dictionary(uniqueKeysWithValues: snapshot.map { download in
+        for download in incoming {
             let merged = download.replacingAlternativeNames(alternativeNames(for: download))
-            return (download.ecid, merged)
-        })
-        downloads = snapshot.compactMap { downloadsByECID[$0.ecid] }
+            nextDownloadsByECID[download.ecid] = merged
+            nextLifecycleByECID[download.ecid] = lifecycle(for: merged)
+        }
+
+        for ecid in previousOrder where !liveECIDs.contains(ecid) {
+            guard let previous = downloadsByECID[ecid] else { continue }
+            if lifecycleByECID[ecid] == .cleared {
+                nextDownloadsByECID.removeValue(forKey: ecid)
+                continue
+            }
+            if shouldRetainWhenOmitted(previous) {
+                nextDownloadsByECID[ecid] = previous
+                nextLifecycleByECID[ecid] = .tombstoned
+                nextOrder.append(ecid)
+            } else {
+                nextDownloadsByECID.removeValue(forKey: ecid)
+                nextLifecycleByECID[ecid] = .tombstoned
+            }
+        }
+
+        downloadsByECID = nextDownloadsByECID
+        lifecycleByECID = nextLifecycleByECID
+        orderedECIDs = uniqueECIDs(nextOrder)
+        sourceNamesByECID = sourceNamesByECID.filter { downloadsByECID[$0.key] != nil && lifecycleByECID[$0.key] != .cleared }
+        publishDownloads()
     }
 
     public mutating func applyIncrementalUpdate(_ packet: ECPacket) {
         for tag in packet.tags where tag.name == TagName.partFile {
             applyPartFileDelta(tag)
         }
-        downloads = downloads.map { downloadsByECID[$0.ecid] ?? $0 }
+        publishDownloads()
     }
 
     private mutating func applyPartFileDelta(_ tag: ECTag) {
@@ -49,7 +102,67 @@ public struct ECDownloadStateStore: Sendable {
         applySourceNameDeltas(from: tag, ecid: ecid)
 
         guard let existing = downloadsByECID[ecid] else { return }
+        guard lifecycleByECID[ecid] != .cleared else { return }
         downloadsByECID[ecid] = existing.replacingAlternativeNames(alternativeNames(for: existing))
+    }
+
+    private func clearTargets(from ecids: [Int]) -> Set<Int> {
+        let requested = Set(ecids.filter { $0 > 0 })
+        if !requested.isEmpty { return requested }
+        return Set(downloadsByECID.values.filter(shouldRetainWhenOmitted).map(\.ecid))
+    }
+
+    private func lifecycle(for download: ECDownload) -> Lifecycle {
+        if isSharedOnly(download) { return .sharedOnly }
+        if shouldRetainWhenOmitted(download) { return .completedRetained }
+        return .active
+    }
+
+    private func shouldRetainWhenOmitted(_ download: ECDownload) -> Bool {
+        download.isCompleted || download.statusCode == 9 || (download.size > 0 && download.done >= download.size)
+    }
+
+    private func isSharedOnly(_ download: ECDownload) -> Bool {
+        shouldRetainWhenOmitted(download)
+            && download.partMet.isEmpty
+            && download.sourcesTotal == 0
+            && download.sourcesCurrent == 0
+            && download.sourcesTransferring == 0
+            && download.speed == 0
+    }
+
+    private mutating func recordMalformedOmissions(from packet: ECPacket, parsedECIDs: Set<Int>) {
+        for tag in packet.tags where tag.name == TagName.partFile || tag.name == TagName.knownFile {
+            let ecid = tag.intValue
+            guard !parsedECIDs.contains(ecid), downloadsByECID[ecid] == nil else { continue }
+            lifecycleByECID[ecid] = .malformedOmission
+        }
+    }
+
+    private func uniqueDownloads(from snapshot: [ECDownload]) -> [ECDownload] {
+        var order: [Int] = []
+        var byECID: [Int: ECDownload] = [:]
+        for download in snapshot where download.ecid > 0 {
+            if byECID[download.ecid] == nil {
+                order.append(download.ecid)
+            }
+            byECID[download.ecid] = download
+        }
+        return order.compactMap { byECID[$0] }
+    }
+
+    private func uniqueECIDs(_ ecids: [Int]) -> [Int] {
+        var seen = Set<Int>()
+        var unique: [Int] = []
+        for ecid in ecids where seen.insert(ecid).inserted {
+            unique.append(ecid)
+        }
+        return unique
+    }
+
+    private mutating func publishDownloads() {
+        orderedECIDs = uniqueECIDs(orderedECIDs.filter { downloadsByECID[$0] != nil && lifecycleByECID[$0] != .cleared })
+        downloads = orderedECIDs.compactMap { downloadsByECID[$0] }
     }
 
     private mutating func applySourceNameDeltas(from tag: ECTag, ecid: Int) {
@@ -105,6 +218,7 @@ public struct ECDownloadStateStore: Sendable {
         static let partFile: UInt16 = 0x0300
         static let partFileSourceNames: UInt16 = 0x0315
         static let partFileSourceNameCounts: UInt16 = 0x031C
+        static let knownFile: UInt16 = 0x0400
     }
 }
 

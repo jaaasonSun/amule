@@ -5,7 +5,7 @@ import AMuleECClient
 enum BridgeAdapterFactory {
     static func makeBridgeAdapter() -> BridgeProtocol {
         #if os(macOS)
-        MacOSPersistentSwiftECBridgeAdapter()
+        SerializedBridgeAdapter(wrapping: MacOSPersistentSwiftECBridgeAdapter())
         #else
         FakeBridgeAdapter()
         #endif
@@ -129,7 +129,7 @@ struct MacOSPersistentSwiftECBridgeAdapter: BridgeProtocol {
         }
     }
 
-    func rename(hash: String, name: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func rename(hash: String, name: String, config: AMuleConnectionConfig) async throws -> RenameAcknowledgement {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.rename(hash: hash, name: name, config: ecConfig)
         }
@@ -190,9 +190,16 @@ struct MacOSPersistentSwiftECBridgeAdapter: BridgeProtocol {
     }
 
     func sources(hash: String, config: AMuleConnectionConfig) async throws -> ([DownloadSourceItem], String) {
-        try await withAdapter(config: config) { adapter, ecConfig in
-            let (payloads, raw) = try await adapter.sources(hash: hash, config: ecConfig)
-            return (DownloadSourceItem.fromBridge(payloads), raw)
+        do {
+            return try await withAdapter(config: config) { adapter, ecConfig in
+                let (payloads, raw) = try await adapter.sources(hash: hash, config: ecConfig)
+                return (DownloadSourceItem.fromBridge(payloads), raw)
+            }
+        } catch let error as ECResponseParserError {
+            if case .downloadNotFound(let missingHash) = error {
+                throw AMuleClientError.downloadNotFound(missingHash)
+            }
+            throw error
         }
     }
 

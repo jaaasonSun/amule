@@ -124,14 +124,19 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
         try await mutation(try ECOperations.addLink(link, gate: capabilityGate), message: "Link add request accepted", config: config)
     }
 
-    public func rename(hash: String, name: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    public func rename(hash: String, name: String, config: AMuleConnectionConfig) async throws -> RenameAcknowledgement {
         do {
-            return try await mutation(try ECOperations.rename(hash: hash, name: name, gate: capabilityGate), message: "Rename requested", config: config)
+            let response = try await mutation(try ECOperations.rename(hash: hash, name: name, gate: capabilityGate), message: "Rename requested", config: config)
+            return .success(message: response.message, raw: response.raw)
+        } catch let error as ECResponseParserError {
+            return try .failure(error.localizedDescription)
         } catch ECSessionError.connectionClosed {
             // Some cores close the EC socket after a rename request instead of returning
             // EC_OP_NOOP. Treat that as an indeterminate send and let the caller refresh
             // the download list to verify whether the daemon applied the change.
-            return try messageResponse("Rename requested")
+            return try .ok("Rename requested", kind: .disconnectedAfterSend)
+        } catch ECSessionError.timeout {
+            return try .ok("Rename requested", kind: .timeout)
         }
     }
 
@@ -305,7 +310,9 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
     }
 
     public func clearCompleted(ecids: [Int], config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
-        try await mutation(try ECOperations.clearCompleted(ecids: ecids, gate: capabilityGate), message: "Completed downloads cleared", config: config)
+        let result = try await mutation(try ECOperations.clearCompleted(ecids: ecids, gate: capabilityGate), message: "Completed downloads cleared", config: config)
+        await modelState.acknowledgeClearCompleted(ecids: ecids)
+        return result
     }
 
     public func priority(hash: String, value: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
@@ -399,6 +406,10 @@ private actor ECBridgeModelState {
         return downloadStore.downloads
     }
 
+    func acknowledgeClearCompleted(ecids: [Int]) {
+        downloadStore.acknowledgeClearCompleted(ecids: ecids)
+    }
+
     func applySourceUpdate(_ packet: ECPacket, requestFileID: Int) -> [ECSource] {
         sourceStore.applyIncrementalUpdate(packet)
         return sourceStore.sources(for: requestFileID)
@@ -419,7 +430,7 @@ public protocol BridgeProtocol: Sendable {
     func searchStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func download(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func addLink(link: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
-    func rename(hash: String, name: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func rename(hash: String, name: String, config: AMuleConnectionConfig) async throws -> RenameAcknowledgement
     func pause(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func resume(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func serverConnect(ip: String?, port: Int?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)

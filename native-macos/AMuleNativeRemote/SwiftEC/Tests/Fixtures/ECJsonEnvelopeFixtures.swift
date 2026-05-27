@@ -1,4 +1,5 @@
 import Foundation
+import AMuleECProtocol
 
 /// Golden JSON envelope examples matching `src/AMuleECBridge.cpp`, `AMuleECBridgeCore.cpp`,
 /// and `AMuleECBridgeJson.h` output patterns. These are daemon-free fixtures; values are
@@ -83,4 +84,58 @@ public enum ECJsonEnvelopeFixtures {
         "friends": friends,
         "unsupported_pause": unsupportedPause,
     ]
+
+    public enum TwoRefreshCorruption {
+        public static let completedName = "Finished Movie.mkv"
+        public static let unrelatedSharedName = "Shared Row.bin"
+
+        public static let refreshTwoPacket: ECPacket = try! ECPacket(opcode: 0x1F, tags: [
+            malformedBlankPartFile(ecid: 4101),
+            malformedMissingHashPartFile(ecid: 4102, name: unrelatedSharedName),
+            completedPartFile(ecid: 4103, hash: "00112233445566778899aabbccddeeff", name: completedName),
+        ])
+
+        private static func malformedBlankPartFile(ecid: Int) throws -> ECTag {
+            try completedPartFile(ecid: ecid, hash: "11112222333344445555666677778888", name: "")
+        }
+
+        private static func malformedMissingHashPartFile(ecid: Int, name: String) -> ECTag {
+            ECTag.integer(name: 0x0300, value: UInt64(ecid), children: [
+                ECTag(name: 0x0301, type: .string, value: .string(name)),
+                ECTag.integer(name: 0x0303, value: 128),
+                ECTag.integer(name: 0x0306, value: 128),
+                ECTag.integer(name: 0x0308, value: 9),
+            ])
+        }
+
+        private static func completedPartFile(ecid: Int, hash: String, name: String) throws -> ECTag {
+            guard let hashData = Data(hex: hash) else {
+                throw FixtureError.invalidHex(hash)
+            }
+            return ECTag.integer(name: 0x0300, value: UInt64(ecid), children: [
+                ECTag(name: 0x0301, type: .string, value: .string(name)),
+                ECTag.integer(name: 0x0303, value: 128),
+                ECTag.integer(name: 0x0306, value: 128),
+                ECTag.integer(name: 0x0308, value: 9),
+                ECTag(name: 0x031E, type: .hash16, value: .hash16(hashData)),
+            ])
+        }
+    }
+}
+
+private enum FixtureError: Error {
+    case invalidHex(String)
+}
+
+private extension Data {
+    init?(hex: String) {
+        self.init()
+        var index = hex.startIndex
+        while index < hex.endIndex {
+            let next = hex.index(index, offsetBy: 2)
+            guard let byte = UInt8(hex[index..<next], radix: 16) else { return nil }
+            append(byte)
+            index = next
+        }
+    }
 }

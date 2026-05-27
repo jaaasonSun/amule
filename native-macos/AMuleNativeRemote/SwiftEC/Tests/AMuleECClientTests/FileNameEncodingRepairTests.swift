@@ -2,9 +2,24 @@ import XCTest
 @testable import AMuleECClient
 
 final class FileNameEncodingRepairTests: XCTestCase {
+    private struct RepairFixture {
+        let input: String
+        let expected: String?
+    }
+
+    private struct NormalizationFixture {
+        let name: String
+        let suspect: Bool
+        let suggestion: String?
+        let expectedSuspect: Bool
+        let expectedSuggestion: String?
+    }
+
     func testRepairsSinglePassWesternMojibake() {
-        XCTAssertEqual(FileNameEncodingRepair.repairedSuggestion(for: "FranÃ§ais.iso"), "Français.iso")
-        XCTAssertEqual(FileNameEncodingRepair.repairedSuggestion(for: "GrÃ¶ÃŸe.mkv"), "Größe.mkv")
+        assertRepairs([
+            .init(input: "FranÃ§ais.iso", expected: "Français.iso"),
+            .init(input: "GrÃ¶ÃŸe.mkv", expected: "Größe.mkv"),
+        ])
     }
 
     func testRepairsRepeatedMojibakePasses() {
@@ -12,22 +27,30 @@ final class FileNameEncodingRepairTests: XCTestCase {
     }
 
     func testRepairsNonLatinUtf8DecodedAsWindows1252() {
-        XCTAssertEqual(FileNameEncodingRepair.repairedSuggestion(for: "ä¸­æ\u{0096}\u{0087}.avi"), "中文.avi")
-        XCTAssertEqual(FileNameEncodingRepair.repairedSuggestion(for: "Ð¤Ð¸Ð»ÑŒÐ¼.mkv"), "Фильм.mkv")
+        assertRepairs([
+            .init(input: "ä¸­æ\u{0096}\u{0087}.avi", expected: "中文.avi"),
+            .init(input: "Ð¤Ð¸Ð»ÑŒÐ¼.mkv", expected: "Фильм.mkv"),
+        ])
     }
 
     func testRepairsPercentEncodedFileNames() {
-        XCTAssertEqual(FileNameEncodingRepair.repairedSuggestion(for: "%E4%B8%AD%E6%96%87.avi"), "中文.avi")
+        assertRepairs([
+            .init(input: "%E4%B8%AD%E6%96%87.avi", expected: "中文.avi"),
+        ])
     }
 
     func testRepairsRepeatedHtmlEntities() {
-        XCTAssertEqual(FileNameEncodingRepair.repairedSuggestion(for: "Rock &amp;amp; Roll.mkv"), "Rock & Roll.mkv")
-        XCTAssertEqual(FileNameEncodingRepair.repairedSuggestion(for: "Tom &amp; Jerry.mkv"), "Tom & Jerry.mkv")
+        assertRepairs([
+            .init(input: "Rock &amp;amp; Roll.mkv", expected: "Rock & Roll.mkv"),
+            .init(input: "Tom &amp; Jerry.mkv", expected: "Tom & Jerry.mkv"),
+        ])
     }
 
     func testRepairsNumericHtmlEntities() {
-        XCTAssertEqual(FileNameEncodingRepair.repairedSuggestion(for: "Rock &#38; Roll.mkv"), "Rock & Roll.mkv")
-        XCTAssertEqual(FileNameEncodingRepair.repairedSuggestion(for: "Caf&#xE9;.mp3"), "Café.mp3")
+        assertRepairs([
+            .init(input: "Rock &#38; Roll.mkv", expected: "Rock & Roll.mkv"),
+            .init(input: "Caf&#xE9;.mp3", expected: "Café.mp3"),
+        ])
     }
 
     func testRepairsMixedEscapingAndMojibake() {
@@ -38,9 +61,164 @@ final class FileNameEncodingRepairTests: XCTestCase {
     }
 
     func testLeavesCleanNamesAlone() {
-        XCTAssertNil(FileNameEncodingRepair.repairedSuggestion(for: "Français.iso"))
-        XCTAssertNil(FileNameEncodingRepair.repairedSuggestion(for: "中文.avi"))
-        XCTAssertNil(FileNameEncodingRepair.repairedSuggestion(for: "Ubuntu 24.04.iso"))
-        XCTAssertNil(FileNameEncodingRepair.repairedSuggestion(for: "AT&T Documentary.mkv"))
+        assertRepairs([
+            .init(input: "Français.iso", expected: nil),
+            .init(input: "中文.avi", expected: nil),
+            .init(input: "Ubuntu 24.04.iso", expected: nil),
+            .init(input: "AT&T Documentary.mkv", expected: nil),
+            .init(input: "", expected: nil),
+            .init(input: "   ", expected: nil),
+        ])
+    }
+
+    func testRepairsPathSeparatedNames() {
+        assertRepairs([
+            .init(input: "Season 1/FranÃ§ais.srt", expected: "Season 1/Français.srt"),
+            .init(input: "Movies/%E4%B8%AD%E6%96%87.avi", expected: "Movies/中文.avi"),
+        ])
+    }
+
+    func testDownloadInitAndDecoderShareNormalizationFixtures() throws {
+        let fixtures: [NormalizationFixture] = [
+            .init(
+                name: "FranÃ§ais.iso",
+                suspect: false,
+                suggestion: nil,
+                expectedSuspect: true,
+                expectedSuggestion: "Français.iso"
+            ),
+            .init(
+                name: "Original.iso",
+                suspect: false,
+                suggestion: "  Corrected 中文.mkv  ",
+                expectedSuspect: true,
+                expectedSuggestion: "Corrected 中文.mkv"
+            ),
+            .init(
+                name: "Original.iso",
+                suspect: true,
+                suggestion: "Original.iso",
+                expectedSuspect: true,
+                expectedSuggestion: nil
+            ),
+            .init(
+                name: "Original.iso",
+                suspect: false,
+                suggestion: "   ",
+                expectedSuspect: false,
+                expectedSuggestion: nil
+            ),
+            .init(
+                name: "Season 1/FranÃ§ais.srt",
+                suspect: false,
+                suggestion: nil,
+                expectedSuspect: true,
+                expectedSuggestion: "Season 1/Français.srt"
+            ),
+            .init(
+                name: "   ",
+                suspect: false,
+                suggestion: nil,
+                expectedSuspect: false,
+                expectedSuggestion: nil
+            ),
+        ]
+
+        for fixture in fixtures {
+            let initDownload = makeDownload(
+                name: fixture.name,
+                suspect: fixture.suspect,
+                suggestion: fixture.suggestion
+            )
+            XCTAssertEqual(initDownload.nameEncodingSuspect, fixture.expectedSuspect, "init suspect for \(fixture.name)")
+            XCTAssertEqual(initDownload.nameEncodingSuggestion, fixture.expectedSuggestion, "init suggestion for \(fixture.name)")
+
+            let decodedDownload = try decodeDownload(
+                name: fixture.name,
+                suspect: fixture.suspect,
+                suggestion: fixture.suggestion
+            )
+            XCTAssertEqual(decodedDownload.nameEncodingSuspect, fixture.expectedSuspect, "decode suspect for \(fixture.name)")
+            XCTAssertEqual(decodedDownload.nameEncodingSuggestion, fixture.expectedSuggestion, "decode suggestion for \(fixture.name)")
+        }
+    }
+
+    private func assertRepairs(_ fixtures: [RepairFixture], file: StaticString = #filePath, line: UInt = #line) {
+        for fixture in fixtures {
+            XCTAssertEqual(
+                FileNameEncodingRepair.repairedSuggestion(for: fixture.input),
+                fixture.expected,
+                "repair fixture for \(fixture.input)",
+                file: file,
+                line: line
+            )
+        }
+    }
+
+    private func makeDownload(name: String, suspect: Bool, suggestion: String?) -> ECDownload {
+        ECDownload(
+            ecid: 1,
+            hash: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            name: name,
+            nameEncodingSuspect: suspect,
+            nameEncodingSuggestion: suggestion,
+            size: 123,
+            done: 0,
+            transferred: 0,
+            progress: 0,
+            sourcesCurrent: 0,
+            sourcesTotal: 0,
+            sourcesTransferring: 0,
+            sourcesA4AF: 0,
+            statusCode: 0,
+            isCompleted: false,
+            status: "Waiting",
+            speed: 0,
+            priority: 0,
+            category: 0,
+            partMet: "001.part.met",
+            lastSeenComplete: 0,
+            lastReceived: 0,
+            activeSeconds: 0,
+            availableParts: 0,
+            shared: false
+        )
+    }
+
+    private func decodeDownload(name: String, suspect: Bool, suggestion: String?) throws -> ECDownload {
+        var payload: [String: Any] = [
+            "ecid": 1,
+            "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "name": name,
+            "size": 123,
+            "done": 0,
+            "transferred": 0,
+            "progress": 0,
+            "sources_current": 0,
+            "sources_total": 0,
+            "sources_transferring": 0,
+            "sources_a4af": 0,
+            "status_code": 0,
+            "is_completed": false,
+            "status": "Waiting",
+            "speed": 0,
+            "priority": 0,
+            "category": 0,
+            "part_met": "001.part.met",
+            "last_seen_complete": 0,
+            "last_received": 0,
+            "active_seconds": 0,
+            "available_parts": 0,
+            "shared": false,
+            "alternative_names": [],
+            "progress_colors": [],
+        ]
+        payload["name_encoding_suspect"] = suspect
+        if let suggestion {
+            payload["name_encoding_suggestion"] = suggestion
+        }
+
+        let data = try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
+        return try JSONDecoder().decode(ECDownload.self, from: data)
     }
 }

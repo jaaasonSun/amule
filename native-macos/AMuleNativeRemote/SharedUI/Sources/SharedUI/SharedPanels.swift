@@ -36,9 +36,6 @@ public struct LinkImportPanelContent: View {
 
                 Spacer()
 
-                Button("Close", action: { /* handled by parent sheet */ })
-                    .buttonStyle(.bordered)
-
                 Button("Start Download", action: onImport)
                     .buttonStyle(.borderedProminent)
                     .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isBusy)

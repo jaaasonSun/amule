@@ -1,4 +1,5 @@
 import Foundation
+import AMuleECBridgeAdapter
 
 public protocol BridgeProtocol: Sendable {
     func connect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
@@ -10,7 +11,7 @@ public protocol BridgeProtocol: Sendable {
     func searchStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func download(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func addLink(link: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
-    func rename(hash: String, name: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func rename(hash: String, name: String, config: AMuleConnectionConfig) async throws -> RenameAcknowledgement
     func pause(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func resume(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func cancel(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)

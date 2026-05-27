@@ -40,6 +40,7 @@ let package = Package(
                 "ECAuthFixtures.swift",
                 "ECJsonEnvelopeFixtures.swift",
                 "ECPacketHeaderFixtures.swift",
+                "ECDownloadPacketFixtures.swift",
             ]
         ),
         .testTarget(

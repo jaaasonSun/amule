@@ -1,4 +1,5 @@
 import Foundation
+import AMuleECBridgeAdapter
 
 public struct SerializedBridgeAdapter: BridgeProtocol {
     private let wrapped: any BridgeProtocol
@@ -46,7 +47,7 @@ public struct SerializedBridgeAdapter: BridgeProtocol {
         try await queue.perform { try await wrapped.addLink(link: link, config: config) }
     }
 
-    public func rename(hash: String, name: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    public func rename(hash: String, name: String, config: AMuleConnectionConfig) async throws -> RenameAcknowledgement {
         try await queue.perform { try await wrapped.rename(hash: hash, name: name, config: config) }
     }
 

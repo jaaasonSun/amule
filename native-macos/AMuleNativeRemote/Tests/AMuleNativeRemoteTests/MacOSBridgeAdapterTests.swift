@@ -5,7 +5,7 @@ import XCTest
 
 final class MacOSBridgeAdapterTests: XCTestCase {
     func testPlatformDefaultBridgeAdapterUsesSwiftECOnMacOS() {
-        XCTAssertEqual(String(describing: type(of: platformDefaultBridgeAdapter())), "MacOSPersistentSwiftECBridgeAdapter")
+        XCTAssertEqual(String(describing: type(of: platformDefaultBridgeAdapter())), "SerializedBridgeAdapter")
     }
 
     func testMacOSBridgeAdapterPreservesOperationArguments() async throws {

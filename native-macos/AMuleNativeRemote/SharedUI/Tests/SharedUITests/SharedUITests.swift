@@ -186,6 +186,13 @@ final class DownloadClassificationTests: XCTestCase {
         XCTAssertFalse(DownloadClassification.isDownloading(item))
     }
 
+    func testInsufficientStatusCodeStaysPausedEvenWithTransferSignals() {
+        let item = MockDownload(statusCode: 5, status: "Insufficient", isCompleted: false, sizeBytes: 100, doneBytes: 50, speedBytes: 1024, sourceTransferring: 1)
+        XCTAssertTrue(DownloadClassification.isPaused(item))
+        XCTAssertFalse(DownloadClassification.isDownloading(item))
+        XCTAssertFalse(DownloadClassification.isPending(item))
+    }
+
     func testIsPendingWhenNotOtherStates() {
         let item = MockDownload(statusCode: 0, status: "Waiting", isCompleted: false, sizeBytes: 100, doneBytes: 0, speedBytes: 0, sourceTransferring: 0)
         XCTAssertTrue(DownloadClassification.isPending(item))
@@ -193,6 +200,13 @@ final class DownloadClassificationTests: XCTestCase {
 
     func testIsNotPendingWhenDownloading() {
         let item = MockDownload(statusCode: 0, status: "Downloading", isCompleted: false, sizeBytes: 100, doneBytes: 50, speedBytes: 1024, sourceTransferring: 0)
+        XCTAssertFalse(DownloadClassification.isPending(item))
+    }
+
+    func testCompletedSizeMatchStillWinsWhenStatusTextLooksIdle() {
+        let item = MockDownload(statusCode: 0, status: "Waiting", isCompleted: false, sizeBytes: 100, doneBytes: 100, speedBytes: 0, sourceTransferring: 0)
+        XCTAssertTrue(DownloadClassification.isCompleted(item))
+        XCTAssertFalse(DownloadClassification.isDownloading(item))
         XCTAssertFalse(DownloadClassification.isPending(item))
     }
 }

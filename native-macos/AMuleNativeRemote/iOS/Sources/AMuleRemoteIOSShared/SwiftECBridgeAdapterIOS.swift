@@ -107,7 +107,7 @@ public struct SwiftECBridgeAdapterIOS: BridgeProtocol {
         return try await swiftECAdapter.addLink(link: link, config: ecConfig)
     }
 
-    public func rename(hash: String, name: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    public func rename(hash: String, name: String, config: AMuleConnectionConfig) async throws -> RenameAcknowledgement {
         let (swiftECAdapter, ecConfig) = await sessions.adapter(for: config)
         return try await swiftECAdapter.rename(hash: hash, name: name, config: ecConfig)
     }
@@ -159,8 +159,15 @@ public struct SwiftECBridgeAdapterIOS: BridgeProtocol {
 
     public func sources(hash: String, config: AMuleConnectionConfig) async throws -> ([DownloadSourceItem], String) {
         let (swiftECAdapter, ecConfig) = await sessions.adapter(for: config)
-        let (payloads, raw) = try await swiftECAdapter.sources(hash: hash, config: ecConfig)
-        return (DownloadSourceItem.fromBridge(payloads), raw)
+        do {
+            let (payloads, raw) = try await swiftECAdapter.sources(hash: hash, config: ecConfig)
+            return (DownloadSourceItem.fromBridge(payloads), raw)
+        } catch let error as ECResponseParserError {
+            if case .downloadNotFound(let missingHash) = error {
+                throw AMuleClientError.downloadNotFound(missingHash)
+            }
+            throw error
+        }
     }
 
     public func prefsConnectionGet(config: AMuleConnectionConfig) async throws -> (BridgeConnectionPrefsPayload, String) {

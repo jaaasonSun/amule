@@ -66,7 +66,7 @@ public struct SearchResult: Identifiable, Hashable {
 }
 
 @available(macOS 12.0, iOS 15.0, *)
-public struct DownloadItem: Identifiable, Hashable {
+public struct DownloadItem: Identifiable, Hashable, RenameVerifiableDownload {
     public let ecid: Int
     public let id: String
     public let name: String
