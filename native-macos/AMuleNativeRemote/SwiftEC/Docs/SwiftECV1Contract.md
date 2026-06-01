@@ -145,7 +145,7 @@ public struct ECBridgeEnvelope<Payload: Encodable>: Encodable {
 The unified adapter conforms to BridgeProtocol and supports all 23 operations:
 
 ```swift
-@available(macOS 10.15, iOS 13.0, *)
+@available(macOS 26, iOS 26, *)
 public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
     public init(session: ECSession? = nil)
 
@@ -304,8 +304,8 @@ public enum ECAuthPacket {
 
 ### macOS
 
-- **Minimum Version**: macOS 10.15 (Catalina)
-- **Swift Version**: Swift 6.0+
+- **Minimum Version**: macOS 26
+- **Swift Version**: Swift 6.2+
 - **Available Adapters**:
   - Existing `MacOSBridgeAdapter` (process-based) - legacy
   - `SwiftECBridgeAdapter` (pure Swift) - new
@@ -314,8 +314,8 @@ public enum ECAuthPacket {
 
 ### iOS
 
-- **Minimum Version**: iOS 13.0
-- **Swift Version**: Swift 6.0+
+- **Minimum Version**: iOS 26
+- **Swift Version**: Swift 6.2+
 - **Production Adapter**: `SwiftECBridgeAdapter` (pure Swift)
 - **No External Dependencies**: No bundled binaries required
 - **Sand-box Compatible**: Uses only Apple frameworks

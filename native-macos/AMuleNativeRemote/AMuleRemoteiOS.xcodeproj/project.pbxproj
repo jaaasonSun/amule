@@ -16,6 +16,11 @@
 		A10000010000000000000008 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000008 /* SettingsView.swift */; };
 		A10000010000000000000009 /* IOSAppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000009 /* IOSAppModel.swift */; };
 		A10000010000000000000011 /* Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000011 /* Localization.swift */; };
+		A10000010000000000000017 /* DownloadRowViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000017 /* DownloadRowViews.swift */; };
+		A10000010000000000000018 /* IOSConnectionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000018 /* IOSConnectionService.swift */; };
+		A10000010000000000000019 /* IOSDownloadService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000019 /* IOSDownloadService.swift */; };
+		A10000010000000000000020 /* IOSSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000020 /* IOSSearchService.swift */; };
+		A10000010000000000000021 /* IOSServerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000021 /* IOSServerService.swift */; };
 		A10000010000000000000014 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000014 /* Localizable.strings */; };
 		A10000010000000000000015 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000015 /* Assets.xcassets */; };
 		A10000010000000000000016 /* aMule.icon in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000016 /* aMule.icon */; };
@@ -33,6 +38,11 @@
 		A10000000000000000000009 /* IOSAppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSAppModel.swift; sourceTree = "<group>"; };
 		A10000000000000000000010 /* AMuleRemoteiOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AMuleRemoteiOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000011 /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
+		A10000000000000000000017 /* DownloadRowViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadRowViews.swift; sourceTree = "<group>"; };
+		A10000000000000000000018 /* IOSConnectionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSConnectionService.swift; sourceTree = "<group>"; };
+		A10000000000000000000019 /* IOSDownloadService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSDownloadService.swift; sourceTree = "<group>"; };
+		A10000000000000000000020 /* IOSSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSSearchService.swift; sourceTree = "<group>"; };
+		A10000000000000000000021 /* IOSServerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSServerService.swift; sourceTree = "<group>"; };
 		A10000000000000000000012 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		A10000000000000000000013 /* zh_CN */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = zh_CN; path = "zh_CN.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		A10000000000000000000015 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -70,6 +80,11 @@
 				A10000000000000000000007 /* ServersView.swift */,
 				A10000000000000000000008 /* SettingsView.swift */,
 				A10000000000000000000009 /* IOSAppModel.swift */,
+				A10000000000000000000017 /* DownloadRowViews.swift */,
+				A10000000000000000000018 /* IOSConnectionService.swift */,
+				A10000000000000000000019 /* IOSDownloadService.swift */,
+				A10000000000000000000020 /* IOSSearchService.swift */,
+				A10000000000000000000021 /* IOSServerService.swift */,
 				A10000000000000000000011 /* Localization.swift */,
 				A10000000000000000000015 /* Assets.xcassets */,
 				A10000000000000000000016 /* aMule.icon */,
@@ -174,6 +189,11 @@
 				A10000010000000000000007 /* ServersView.swift in Sources */,
 				A10000010000000000000008 /* SettingsView.swift in Sources */,
 				A10000010000000000000009 /* IOSAppModel.swift in Sources */,
+				A10000010000000000000017 /* DownloadRowViews.swift in Sources */,
+				A10000010000000000000018 /* IOSConnectionService.swift in Sources */,
+				A10000010000000000000019 /* IOSDownloadService.swift in Sources */,
+				A10000010000000000000020 /* IOSSearchService.swift in Sources */,
+				A10000010000000000000021 /* IOSServerService.swift in Sources */,
 				A10000010000000000000011 /* Localization.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

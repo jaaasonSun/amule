@@ -4,8 +4,8 @@ import PackageDescription
 let package = Package(
     name: "SwiftEC",
     platforms: [
-        .macOS(.v10_15),
-        .iOS(.v13),
+        .macOS(.v26),
+        .iOS(.v26),
     ],
     products: [
         .library(name: "AMuleECProtocol", targets: ["AMuleECProtocol"]),
