@@ -40,7 +40,7 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
         XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x19])
     }
 
-    func testAdapterDisconnectsOwnedEphemeralSessionAfterMutation() async throws {
+    func testAdapterKeepsOwnedSessionAliveAfterMutation() async throws {
         let mock = AdapterMockTransport(replies: [Self.salt, Self.authOK, ECPacket(opcode: 0x01)])
         let adapter = SwiftECBridgeAdapter(sessionFactory: { config in
             ECSession(
@@ -64,7 +64,32 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
         let sentOpcodes = await mock.sentOpcodes()
         XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x25])
         let disconnectCalls = await mock.disconnectCalls()
-        XCTAssertEqual(disconnectCalls, 1)
+        XCTAssertEqual(disconnectCalls, 0)
+    }
+
+    func testAdapterDisconnectsCachedSessionWhenConfigChanges() async throws {
+        let firstMock = AdapterMockTransport(replies: [Self.salt, Self.authOK, ECPacket(opcode: 0x01)])
+        let secondMock = AdapterMockTransport(replies: [Self.salt, Self.authOK, ECPacket(opcode: 0x01)])
+        let adapter = SwiftECBridgeAdapter(sessionFactory: { config in
+            let mock = config.host == "127.0.0.1" ? firstMock : secondMock
+            return ECSession(
+                configuration: ECSession.Configuration(
+                    host: config.host,
+                    port: UInt16(clamping: config.port),
+                    password: config.password,
+                    automaticReconnect: false
+                ),
+                transportFactory: { mock }
+            )
+        })
+
+        _ = try await adapter.pause(hash: "00112233445566778899aabbccddeeff", config: AMuleConnectionConfig(host: "127.0.0.1", password: "secret"))
+        _ = try await adapter.pause(hash: "00112233445566778899aabbccddeeff", config: AMuleConnectionConfig(host: "localhost", password: "secret"))
+
+        let firstDisconnects = await firstMock.disconnectCalls()
+        let secondDisconnects = await secondMock.disconnectCalls()
+        XCTAssertEqual(firstDisconnects, 1)
+        XCTAssertEqual(secondDisconnects, 0)
     }
 
     func testAdapterSurfacesRenameFailureMessageFromDaemon() async throws {

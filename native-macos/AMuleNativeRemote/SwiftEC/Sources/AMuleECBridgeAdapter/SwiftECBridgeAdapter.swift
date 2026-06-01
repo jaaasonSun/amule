@@ -5,26 +5,23 @@ import AMuleECProtocol
 /// Bridge adapter conforming to BridgeProtocol using native Swift EC implementation.
 @available(macOS 10.15, iOS 13.0, *)
 public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
-    private let session: ECSession?
-    private let makeSession: @Sendable (AMuleConnectionConfig) -> ECSession
+    private let sessionCache: ECSessionCache
     private let capabilitiesPayload: ECCapabilities
     private let capabilityGate: ECCapabilityGate
     private let modelState = ECBridgeModelState()
 
     public init(session: ECSession? = nil, capabilities: ECCapabilities = ECOperations.capabilities()) {
-        self.session = session
-        self.capabilitiesPayload = capabilities
-        self.capabilityGate = ECCapabilityGate(capabilities: capabilities)
-        self.makeSession = { config in
+        self.sessionCache = ECSessionCache(session: session) { config in
             ECSession(configuration: config.ecSessionConfiguration)
         }
+        self.capabilitiesPayload = capabilities
+        self.capabilityGate = ECCapabilityGate(capabilities: capabilities)
     }
 
     init(sessionFactory: @escaping @Sendable (AMuleConnectionConfig) -> ECSession, capabilities: ECCapabilities = ECOperations.capabilities()) {
-        self.session = nil
+        self.sessionCache = ECSessionCache(makeSession: sessionFactory)
         self.capabilitiesPayload = capabilities
         self.capabilityGate = ECCapabilityGate(capabilities: capabilities)
-        self.makeSession = sessionFactory
     }
 
     public func connect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
@@ -33,7 +30,7 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
     }
 
     public func disconnect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
-        await session(for: config).disconnect()
+        await sessionCache.disconnect(config: config)
         return try messageResponse("Disconnected")
     }
 
@@ -181,22 +178,29 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
     }
 
     public func sources(hash: String, config: AMuleConnectionConfig) async throws -> ([BridgeDownloadSourcePayload], String) {
-        try await withAuthenticatedSession(for: config) { session in
-            let queuePacket = try await session.send(try ECOperations.sourcesQueueLookup(gate: capabilityGate))
-            let fileID = try ECResponseParser.parseDownloadFileID(hash: hash, in: queuePacket)
-            let snapshot = try ECResponseParser.parseDownloads(queuePacket)
-            _ = await modelState.replaceDownloads(snapshot, sourcePacket: queuePacket)
+        do {
+            return try await withAuthenticatedSession(for: config) { session in
+                let queuePacket = try await session.send(try ECOperations.sourcesQueueLookup(gate: capabilityGate))
+                let fileID = try ECResponseParser.parseDownloadFileID(hash: hash, in: queuePacket)
+                let snapshot = try ECResponseParser.parseDownloads(queuePacket)
+                _ = await modelState.replaceDownloads(snapshot, sourcePacket: queuePacket)
 
-            let sources: [ECSource]
-            do {
-                let packet = try await session.send(try ECOperations.sourcesUpdate(gate: capabilityGate))
-                try ECResponseParser.validateSharedFilesUpdate(packet)
-                sources = await modelState.applySourceUpdate(packet, requestFileID: fileID)
-            } catch {
-                sources = await modelState.sources(for: fileID)
+                let sources: [ECSource]
+                do {
+                    let packet = try await session.send(try ECOperations.sourcesUpdate(gate: capabilityGate))
+                    try ECResponseParser.validateSharedFilesUpdate(packet)
+                    sources = await modelState.applySourceUpdate(packet, requestFileID: fileID)
+                } catch {
+                    sources = await modelState.sources(for: fileID)
+                }
+                let raw = ECJSONEnvelope.jsonString(try ECJSONEnvelope.sources(sources))
+                return (sources, raw)
             }
-            let raw = ECJSONEnvelope.jsonString(try ECJSONEnvelope.sources(sources))
-            return (sources, raw)
+        } catch let error as ECResponseParserError {
+            if case .downloadNotFound(let missingHash) = error {
+                throw AMuleClientError.downloadNotFound(missingHash)
+            }
+            throw error
         }
     }
 
@@ -326,30 +330,13 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
         }
     }
 
-    private func session(for config: AMuleConnectionConfig) -> ECSession {
-        if let session { return session }
-        return makeSession(config)
-    }
-
     private func withAuthenticatedSession<T>(
         for config: AMuleConnectionConfig,
         _ operation: (ECSession) async throws -> T
     ) async throws -> T {
-        let session = session(for: config)
-        let shouldDisconnect = self.session == nil
-        do {
-            try await session.ensureAuthenticated()
-            let result = try await operation(session)
-            if shouldDisconnect {
-                await session.disconnect()
-            }
-            return result
-        } catch {
-            if shouldDisconnect {
-                await session.disconnect()
-            }
-            throw error
-        }
+        let session = await sessionCache.session(for: config)
+        try await session.ensureAuthenticated()
+        return try await operation(session)
     }
 
     private func messageResponse(_ message: String) throws -> (message: String, raw: String) {
@@ -408,6 +395,60 @@ private actor ECBridgeModelState {
 
     func sources(for requestFileID: Int) -> [ECSource] {
         sourceStore.sources(for: requestFileID)
+    }
+}
+
+@available(macOS 10.15, iOS 13.0, *)
+private actor ECSessionCache {
+    private struct SessionKey: Equatable, Sendable {
+        let host: String
+        let port: Int
+        let password: String
+    }
+
+    private var key: SessionKey?
+    private var session: ECSession?
+    private let pinnedSession: Bool
+    private let makeSession: @Sendable (AMuleConnectionConfig) -> ECSession
+
+    init(
+        session: ECSession? = nil,
+        makeSession: @escaping @Sendable (AMuleConnectionConfig) -> ECSession
+    ) {
+        self.session = session
+        self.pinnedSession = session != nil
+        self.makeSession = makeSession
+    }
+
+    func session(for config: AMuleConnectionConfig) async -> ECSession {
+        if pinnedSession, let session {
+            return session
+        }
+
+        let requestedKey = SessionKey(host: config.host, port: config.port, password: config.password)
+        if let session, key == requestedKey {
+            return session
+        }
+
+        if let session {
+            await session.disconnect()
+        }
+
+        let newSession = makeSession(config)
+        key = requestedKey
+        session = newSession
+        return newSession
+    }
+
+    func disconnect(config: AMuleConnectionConfig) async {
+        let requestedKey = SessionKey(host: config.host, port: config.port, password: config.password)
+        guard pinnedSession || key == requestedKey || key == nil else { return }
+        let oldSession = session
+        key = nil
+        if !pinnedSession {
+            session = nil
+        }
+        await oldSession?.disconnect()
     }
 }
 

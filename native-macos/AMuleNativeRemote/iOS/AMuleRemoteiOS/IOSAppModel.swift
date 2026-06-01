@@ -271,7 +271,8 @@ final class IOSAppModel: ObservableObject {
         let bridge = self.bridge
         Task {
             do {
-                let (sourceItems, _) = try await bridge.sources(hash: item.id, config: config)
+                let (sourcePayloads, _) = try await bridge.sources(hash: item.id, config: config)
+                let sourceItems = DownloadSourceItem.fromBridge(sourcePayloads)
                 await MainActor.run {
                     self.downloadSourcesByHash[item.id] = sourceItems
                     self.isRefreshingSources = false

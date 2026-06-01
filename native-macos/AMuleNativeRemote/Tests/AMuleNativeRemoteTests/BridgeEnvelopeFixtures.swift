@@ -186,7 +186,7 @@ final class RecordingFakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
     var renameCalls: [(hash: String, name: String)] = []
     var clearCompletedCalls: [[Int]] = []
     var sourceCalls: [String] = []
-    var sourcesResult: Result<([DownloadSourceItem], String), Error> = .success(([], #"{"ok":true,"sources":[]}"#))
+    var sourcesResult: Result<([BridgeDownloadSourcePayload], String), Error> = .success(([], #"{"ok":true,"sources":[]}"#))
     private var queuedDownloadsResults: [([BridgeDownloadPayload], String)]
 
     init(
@@ -230,7 +230,7 @@ final class RecordingFakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
     func serverAdd(address: String, name: String?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func serverRemove(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func serverUpdateFromURL(url: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
-    func sources(hash: String, config: AMuleConnectionConfig) async throws -> ([DownloadSourceItem], String) {
+    func sources(hash: String, config: AMuleConnectionConfig) async throws -> ([BridgeDownloadSourcePayload], String) {
         sourceCalls.append(hash)
         return try sourcesResult.get()
     }

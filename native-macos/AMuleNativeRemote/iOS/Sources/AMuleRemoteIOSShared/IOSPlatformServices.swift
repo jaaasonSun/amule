@@ -1,7 +1,12 @@
 import Foundation
+import AMuleECBridgeAdapter
 import Security
 import SharedCore
 import SharedUI
+
+public func platformDefaultBridgeAdapter() -> AMuleECBridgeAdapter.BridgeProtocol {
+    SwiftECBridgeAdapter()
+}
 
 public struct IOSKeychainCredentialStorage: CredentialStorage, @unchecked Sendable {
     let service: String

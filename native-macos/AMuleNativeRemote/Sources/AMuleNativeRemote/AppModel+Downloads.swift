@@ -178,7 +178,8 @@ extension AppModel {
     }
 
     func refreshDownloadSourcesNow(for item: DownloadItem, logOutput: Bool = true) async throws {
-        let (parsed, raw) = try await bridge.sources(hash: item.id, config: config)
+        let (payloads, raw) = try await bridge.sources(hash: item.id, config: config)
+        let parsed = DownloadSourceItem.fromBridge(payloads)
         await MainActor.run {
             self.downloadSourcesByHash[item.id] = parsed
             self.lastSourcesRawOutput = raw
