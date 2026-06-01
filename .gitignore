@@ -79,12 +79,15 @@ build/
 build-native-bridge/
 build-filename/
 build-ios-bridge-probe/
+native-ios/
+native-macos/AMuleNativeRemote/.build/
 native-macos/AMuleNativeRemote/iOS/.build/
 native-macos/AMuleNativeRemote/iOS/DerivedData/
 native-macos/AMuleNativeRemote/SharedUI/.build/
 native-macos/AMuleNativeRemote/SharedUI/.swiftpm/
 native-macos/AMuleNativeRemote/SwiftEC/.build/
 native-macos/AMuleNativeRemote/SwiftEC/.swiftpm/
+native-macos/AMuleNativeRemote/dist/
 native-macos/AMuleNativeRemote/dist/ios-altstore/
 
 # Sisyphus / Agent logs
