@@ -61,6 +61,8 @@ platforms/Windows/*/libs/libGeoIP/GeoIP.c
 platforms/Windows/*/libs/libGeoIP/GeoIP.h
 platforms/Windows/*/libs/libGeoIP/GeoIP_X.c
 *.suo
+*.xcworkspace/xcuserdata/
+*.xcworkspace/*.xcscmblueprint
 
 # Other files created by various editors
 .*~

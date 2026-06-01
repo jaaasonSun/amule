@@ -21,6 +21,22 @@ cd /path/to/amule/native-macos/AMuleNativeRemote
 swift run
 ```
 
+### Unified Xcode Workspace
+
+Open `AMuleNativeRemote.xcworkspace` in Xcode to manage the macOS SwiftPM
+package and the iOS SwiftPM package together. The workspace references this
+directory for macOS and `iOS/` for the iOS app package.
+
+You can also ask `build-app.sh` to build the macOS executable through the
+workspace before using the script's existing `.app` packaging flow:
+
+```bash
+AMULE_USE_XCODEBUILD=1 ./scripts/build-app.sh
+```
+
+The default `./scripts/build-app.sh` path remains the SwiftPM release build and
+manual `.app` packaging flow.
+
 ## Build App Bundle (Release)
 `build-app.sh` builds the Swift app in **release mode** and packages the `.app`.
 

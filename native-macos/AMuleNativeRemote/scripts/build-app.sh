@@ -29,6 +29,25 @@ if [[ -z "$ICON_SRC" ]]; then
   ICON_SRC="$DEFAULT_ICON_SRC"
 fi
 
+# Set AMULE_USE_XCODEBUILD=1 to build the macOS SwiftPM executable through the
+# unified Xcode workspace instead of the default swift build packaging path.
+if [[ "${AMULE_USE_XCODEBUILD:-}" == "1" ]]; then
+  XCODE_DERIVED_DATA_PATH="${AMULE_XCODE_DERIVED_DATA:-${TMPDIR:-/tmp}/amule-xcodebuild}"
+  XCODE_PRODUCTS_DIR="$XCODE_DERIVED_DATA_PATH/Build/Products/Release"
+
+  mkdir -p "$ROOT_DIR/dist"
+  xcodebuild \
+    -workspace "$ROOT_DIR/AMuleNativeRemote.xcworkspace" \
+    -scheme AMuleNativeRemote \
+    -configuration Release \
+    -destination "platform=macOS" \
+    -derivedDataPath "$XCODE_DERIVED_DATA_PATH" \
+    build
+
+  BUILD_DIR="$XCODE_PRODUCTS_DIR"
+  XCODEBUILD_COMPLETED=1
+fi
+
 LS_UI_ELEMENT_NORMALIZED="$(printf '%s' "$LS_UI_ELEMENT" | tr '[:upper:]' '[:lower:]')"
 
 case "$LS_UI_ELEMENT_NORMALIZED" in
@@ -41,7 +60,9 @@ case "$LS_UI_ELEMENT_NORMALIZED" in
 esac
 
 mkdir -p "$ROOT_DIR/dist"
-"$ROOT_DIR/scripts/swiftpm.sh" build -c release --package-path "$ROOT_DIR"
+if [[ "${XCODEBUILD_COMPLETED:-}" != "1" ]]; then
+  "$ROOT_DIR/scripts/swiftpm.sh" build -c release --package-path "$ROOT_DIR"
+fi
 
 rm -rf "$APP_DIR"
 mkdir -p "$MACOS_DIR" "$RES_DIR"
