@@ -81,27 +81,24 @@ Important files:
 Run:
 
 ```bash
-native-macos/AMuleNativeRemote/scripts/swiftpm.sh test --package-path native-macos/AMuleNativeRemote/SwiftEC
+cd native-macos/AMuleNativeRemote/SwiftEC && swift test
 cd native-macos/AMuleNativeRemote/SwiftEC && ./Scripts/check-forbidden-deps.sh
 ```
 
-## SharedUI
+## Shared Packages
 
-Package root: `native-macos/AMuleNativeRemote/SharedUI`.
+Package root: `native-macos/AMuleNativeRemote/Packages/Shared`.
 
-Important files:
-- `DownloadClassification.swift`: shared status classification for downloading/paused/pending/completed. Keep this aligned with macOS filtering expectations.
-- `SharedEmptyState.swift`: includes shared `AddLinksHUD`.
-- `SharedPanels.swift`: link import and common panel content.
-- `SharedDownloadRow.swift`, `DownloadProgressViews.swift`, `SharedStatusBadge.swift`: reusable visual components.
+Targets:
+- `SharedModels`: domain models (`DownloadItem`, `ServerItem`, `SearchResult`), formatters, status parser, download source item.
+- `SharedViews`: reusable SwiftUI components (`DownloadClassification`, `SharedEmptyState`, `SharedDownloadRow`, `DownloadProgressViews`, `SharedStatusBadge`).
+- `SharedServices`: platform abstraction protocols (`PasteboardShare`, `DeepLinkHandling`).
 
 ## Known Maintenance Risks
 
 - Several core Swift files are large: `SecondaryWindows.swift` ~2464 lines, `ContentView.swift` ~1390 lines, `AppModel.swift` ~1330 lines, `IOSAppModel.swift` ~821 lines.
-- macOS and iOS currently duplicate bridge protocol/model definitions in separate packages. Adding operations often requires edits in multiple places.
 - iOS URL handling has Info.plist registration, model plumbing, shared tests for encoded `ed2k`/magnet intake, and HUD feedback. Safari cold-start behavior still deserves manual device QA.
-- SwiftPM checks should use `native-macos/AMuleNativeRemote/scripts/swiftpm.sh`. It keeps intermediates in one `AMULE_SPM_BUILD_PATH` location, defaults outside the repo, and disables index-store generation for CI/agent runs.
-- iOS build artifacts under `native-macos/AMuleNativeRemote/iOS/.build/` are ignored and should stay out of source control.
+- Build and package artifacts under `native-macos/AMuleNativeRemote/build/`, `dist/`, `.build/`, and `.swiftpm/` are ignored and should stay out of source control.
 - Native Swift package checks are covered by `.github/workflows/native-apple.yml`; keep it aligned with the verification checklist.
 - macOS README and package/script platform defaults have drifted historically; verify before changing release docs.
 
@@ -117,11 +114,17 @@ Important files:
 Use the smallest relevant set, then expand before claiming completion:
 
 ```bash
-native-macos/AMuleNativeRemote/scripts/swiftpm.sh test --package-path native-macos/AMuleNativeRemote/SwiftEC
-native-macos/AMuleNativeRemote/scripts/swiftpm.sh test --package-path native-macos/AMuleNativeRemote/SharedUI
-native-macos/AMuleNativeRemote/scripts/swiftpm.sh test --package-path native-macos/AMuleNativeRemote/iOS
-native-macos/AMuleNativeRemote/scripts/swiftpm.sh test --package-path native-macos/AMuleNativeRemote
-native-macos/AMuleNativeRemote/scripts/swiftpm.sh build --package-path native-macos/AMuleNativeRemote -Xswiftc -warnings-as-errors
+cd native-macos/AMuleNativeRemote/SwiftEC && swift test
+cd native-macos/AMuleNativeRemote/Packages/Shared && swift test
+cd native-macos/AMuleNativeRemote/iOS && swift test
+cd native-macos/AMuleNativeRemote && swift test
+```
+
+For macOS strict build check:
+
+```bash
+cd native-macos/AMuleNativeRemote
+xcodebuild -project AMuleNativeRemote.xcodeproj -scheme AMuleNativeRemote -configuration Release -destination "platform=macOS" build SWIFT_TREAT_WARNINGS_AS_ERRORS=YES
 ```
 
 For iOS app builds:

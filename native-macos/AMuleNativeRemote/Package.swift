@@ -22,7 +22,8 @@ let package = Package(
                 .product(name: "SharedServices", package: "Shared"),
                 .product(name: "AMuleECClient", package: "SwiftEC"),
                 .product(name: "AMuleECBridgeAdapter", package: "SwiftEC")
-            ]
+            ],
+            exclude: ["Info.plist"]
         ),
         .testTarget(
             name: "AMuleNativeRemoteTests",

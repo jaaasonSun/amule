@@ -13,29 +13,28 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Select shared build path and show toolchain
+      - name: Show toolchain
         run: |
-          echo "AMULE_SPM_BUILD_PATH=${RUNNER_TEMP}/amule-spm-build" >> "$GITHUB_ENV"
           xcodebuild -version
           swift --version
 
       - name: SwiftEC tests
-        run: native-macos/AMuleNativeRemote/scripts/swiftpm.sh test --package-path native-macos/AMuleNativeRemote/SwiftEC
+        run: cd native-macos/AMuleNativeRemote/SwiftEC && swift test
 
       - name: SwiftEC dependency boundary check
         run: cd native-macos/AMuleNativeRemote/SwiftEC && ./Scripts/check-forbidden-deps.sh
 
-      - name: SharedUI tests
-        run: native-macos/AMuleNativeRemote/scripts/swiftpm.sh test --package-path native-macos/AMuleNativeRemote/SharedUI
+      - name: Shared package tests
+        run: cd native-macos/AMuleNativeRemote/Packages/Shared && swift test
 
       - name: iOS shared package tests
-        run: native-macos/AMuleNativeRemote/scripts/swiftpm.sh test --package-path native-macos/AMuleNativeRemote/iOS
+        run: cd native-macos/AMuleNativeRemote/iOS && swift test
 
       - name: Native macOS tests
-        run: native-macos/AMuleNativeRemote/scripts/swiftpm.sh test --package-path native-macos/AMuleNativeRemote
+        run: cd native-macos/AMuleNativeRemote && swift test
 
       - name: Native macOS strict build
-        run: native-macos/AMuleNativeRemote/scripts/swiftpm.sh build --package-path native-macos/AMuleNativeRemote -Xswiftc -warnings-as-errors
+        run: cd native-macos/AMuleNativeRemote && swift build -Xswiftc -warnings-as-errors
 
       # Packaging smoke: validates app bundle shape and Info.plist only.
       # The /usr/bin/true stub means this does NOT test real bridge compatibility.
