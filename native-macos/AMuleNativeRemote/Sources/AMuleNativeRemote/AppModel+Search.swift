@@ -1,4 +1,5 @@
 import Foundation
+import SharedCore
 
 extension AppModel {
     func performSearch() {

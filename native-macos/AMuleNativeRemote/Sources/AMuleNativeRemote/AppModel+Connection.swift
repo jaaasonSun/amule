@@ -1,4 +1,5 @@
 import Foundation
+import SharedCore
 
 extension AppModel {
     func refreshBridgeCapabilities(logOutput: Bool = false, suppressErrors: Bool = true) async {

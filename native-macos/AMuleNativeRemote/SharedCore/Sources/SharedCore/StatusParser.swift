@@ -1,6 +1,5 @@
 import Foundation
-import SharedUI
-
+import AMuleECClient
 
 public enum BridgeCapabilityGate {
     public static func isSupported(_ op: String, by supportedOps: Set<String>) -> Bool {
@@ -8,16 +7,14 @@ public enum BridgeCapabilityGate {
     }
 }
 
-
-@available(macOS 12.0, iOS 15.0, *)
-public struct StatusSnapshot {
-    public var connected: Bool = false
-    public var ed2k: String = "Unknown"
-    public var kad: String = "Unknown"
-    public var downloadBytesPerSecond: Int? = nil
-    public var uploadBytesPerSecond: Int? = nil
-    public var queueCount: Int? = nil
-    public var sourcesCount: Int? = nil
+public struct StatusSnapshot: Sendable {
+    public var connected: Bool
+    public var ed2k: String
+    public var kad: String
+    public var downloadBytesPerSecond: Int?
+    public var uploadBytesPerSecond: Int?
+    public var queueCount: Int?
+    public var sourcesCount: Int?
 
     public init(
         connected: Bool = false,

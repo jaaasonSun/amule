@@ -3,6 +3,7 @@ import AppKit
 import Carbon.HIToolbox
 import Foundation
 import SharedUI
+import SharedCore
 
 struct MacOSPasteboardShare: PasteboardShare, @unchecked Sendable {
     private let pasteboard: NSPasteboard
@@ -153,4 +154,8 @@ final class MacOSLocalNetworkErrorPresentation: LocalNetworkErrorPresentation {
         }
         return message
     }
+}
+
+func platformDefaultPasteboardShare() -> PasteboardShare {
+    MacOSPasteboardShare()
 }

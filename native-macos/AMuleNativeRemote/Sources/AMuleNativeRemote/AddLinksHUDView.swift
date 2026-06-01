@@ -1,4 +1,5 @@
 import SwiftUI
+import SharedCore
 
 struct AddLinksSheetView: View {
     @EnvironmentObject private var model: AppModel

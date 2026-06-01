@@ -1,4 +1,5 @@
 import Foundation
+import SharedCore
 
 struct ServerManagementService: Sendable {
     let bridge: BridgeProtocol

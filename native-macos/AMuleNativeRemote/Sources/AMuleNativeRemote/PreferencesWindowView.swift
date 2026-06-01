@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import SharedUI
+import SharedCore
 
 struct PreferencesWindowView: View {
     @EnvironmentObject private var model: AppModel

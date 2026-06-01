@@ -1,6 +1,7 @@
 import Foundation
 import SharedUI
 import SwiftUI
+import SharedCore
 
 struct DownloadRenameSuggestionRequest: Equatable {
     let downloadID: String

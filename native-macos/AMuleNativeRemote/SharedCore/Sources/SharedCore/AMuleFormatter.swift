@@ -1,6 +1,5 @@
 import Foundation
 
-@available(macOS 12.0, iOS 15.0, *)
 public enum AMuleFormatter {
     public static func speed(bytesPerSecond: Int) -> String {
         guard bytesPerSecond > 0 else {
@@ -39,7 +38,6 @@ public enum AMuleFormatter {
         return String(format: "%02dm %02ds", minutes, secs)
     }
 
-    @available(macOS 12.0, iOS 15.0, *)
     public static func dateTime(unix: UInt64) -> String {
         guard unix > 0 else {
             return "-"

@@ -1,5 +1,6 @@
 import Foundation
 import SharedUI
+import SharedCore
 
 extension AppModel {
     func refreshDownloads() {

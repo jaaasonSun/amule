@@ -1,36 +1,20 @@
 import XCTest
+@testable import SharedCore
 
 final class BridgeProtocolParityTests: XCTestCase {
-    func testIOSBridgeProtocolMethodsAreSubsetOfMacOSBridgeProtocolMethods() throws {
+    func testSharedCoreBridgeProtocolHasExpectedMethods() throws {
+        let mirror = Mirror(reflecting: BridgeProtocol.self)
+        XCTAssertEqual(mirror.children.count, 0, "BridgeProtocol is a protocol, not a value type")
+
         let packageRoot = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-        let macOSProtocolURL = packageRoot.appendingPathComponent("Sources/AMuleNativeRemote/BridgeProtocol.swift")
-        let iOSProtocolURL = packageRoot.appendingPathComponent("iOS/Sources/AMuleRemoteIOSShared/BridgeProtocol.swift")
+        let sharedCoreProtocolURL = packageRoot.appendingPathComponent("SharedCore/Sources/SharedCore/BridgeProtocol.swift")
 
-        let macOSMethods = try bridgeProtocolMethods(in: macOSProtocolURL)
-        let iOSMethods = try bridgeProtocolMethods(in: iOSProtocolURL)
-
-        XCTAssertEqual(macOSMethods.count, 43, "Update this guardrail when the macOS bridge contract intentionally changes.")
-        XCTAssertEqual(iOSMethods.count, 22, "Update this guardrail when the iOS bridge contract intentionally changes.")
-
-        let missingMethods = iOSMethods.filter { !macOSMethods.contains($0) }
-        XCTAssertTrue(
-            missingMethods.isEmpty,
-            """
-            iOS BridgeProtocol must remain a subset of macOS BridgeProtocol.
-
-            Missing from macOS:
-            \(missingMethods.joined(separator: "\n"))
-
-            macOS methods:
-            \(macOSMethods.joined(separator: "\n"))
-
-            iOS methods:
-            \(iOSMethods.joined(separator: "\n"))
-            """
-        )
+        let methods = try bridgeProtocolMethods(in: sharedCoreProtocolURL)
+        XCTAssertEqual(methods.count, 43, "Update this guardrail when the shared bridge contract intentionally changes.")
+        XCTAssertFalse(methods.isEmpty, "SharedCore BridgeProtocol should have methods")
     }
 
     private func bridgeProtocolMethods(in url: URL) throws -> [String] {

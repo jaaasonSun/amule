@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import SharedCore
 
 enum ConnectionState {
     case connected

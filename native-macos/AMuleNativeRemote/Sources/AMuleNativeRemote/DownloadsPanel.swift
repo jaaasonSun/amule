@@ -1,5 +1,6 @@
 import SwiftUI
 import SharedUI
+import SharedCore
 
 struct DownloadsPanel: View {
     let displayedDownloads: [DownloadItem]

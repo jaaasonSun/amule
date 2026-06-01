@@ -1,5 +1,6 @@
 import SwiftUI
 import SharedUI
+import SharedCore
 
 private func L2(_ key: String) -> String {
     NSLocalizedString(key, comment: "")

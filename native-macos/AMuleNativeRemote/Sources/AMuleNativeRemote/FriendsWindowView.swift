@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 #if canImport(SharedUI)
 import SharedUI
+import SharedCore
 #endif
 
 private func L2(_ key: String) -> String {

@@ -1,0 +1,23 @@
+import SharedCore
+
+typealias BridgeProtocol = SharedCore.BridgeProtocol
+typealias AMuleConnectionConfig = SharedCore.AMuleConnectionConfig
+typealias SerializedBridgeAdapter = SharedCore.SerializedBridgeAdapter
+typealias BridgeCapabilitiesPayload = SharedCore.BridgeCapabilitiesPayload
+typealias BridgeStatusPayload = SharedCore.BridgeStatusPayload
+typealias BridgeDownloadPayload = SharedCore.BridgeDownloadPayload
+typealias BridgeSearchPayload = SharedCore.BridgeSearchPayload
+typealias BridgeConnectionPrefsPayload = SharedCore.BridgeConnectionPrefsPayload
+typealias BridgeServerPayload = SharedCore.BridgeServerPayload
+typealias BridgeUploadPayload = SharedCore.BridgeUploadPayload
+typealias BridgeSharedFilePayload = SharedCore.BridgeSharedFilePayload
+typealias BridgeCoreLogPayload = SharedCore.BridgeCoreLogPayload
+typealias BridgeCategoryPayload = SharedCore.BridgeCategoryPayload
+typealias BridgeFriendPayload = SharedCore.BridgeFriendPayload
+typealias BridgeStatsTreeNodePayload = SharedCore.BridgeStatsTreeNodePayload
+typealias BridgeStatsGraphsPayload = SharedCore.BridgeStatsGraphsPayload
+typealias DownloadSourceItem = SharedCore.DownloadSourceItem
+typealias AMuleClientError = SharedCore.AMuleClientError
+typealias BridgeCapabilityGate = SharedCore.BridgeCapabilityGate
+typealias StatusSnapshot = SharedCore.StatusSnapshot
+typealias AMuleFormatter = SharedCore.AMuleFormatter

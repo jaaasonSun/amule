@@ -1,52 +1,7 @@
 import Foundation
 import SharedUI
+import SharedCore
 import SwiftUI
-
-public protocol BridgeInvocation: Sendable {
-    func invokeBridge(
-        op: String,
-        extraArgs: [String],
-        config: AMuleConnectionConfig
-    ) async throws -> (envelope: BridgeEnvelope, raw: String)
-}
-
-public protocol PasteboardShare: Sendable {
-    func writeString(_ string: String)
-    func readString() -> String?
-}
-
-@MainActor
-public protocol DeepLinkHandling: AnyObject {
-    func enqueueIncomingLink(_ rawInput: String)
-    func drainIncomingLinks() -> [String]
-    func registerIncomingLinkHandler()
-    func unregisterIncomingLinkHandler()
-    func handleOpenURL(_ url: URL)
-}
-
-public protocol CredentialStorage: Sendable {
-    func readCredential(forKey key: String) -> String?
-    func writeCredential(_ credential: String, forKey key: String)
-    func deleteCredential(forKey key: String)
-}
-
-public protocol FileExportImport: Sendable {
-    func exportData(_ data: Data, to url: URL) throws
-    func importData(from url: URL) throws -> Data
-}
-
-@MainActor
-public protocol LifecycleBackground: AnyObject {
-    func activateApplication()
-    func bringPrimaryWindowToFront()
-    func beginBackgroundActivity(reason: String) -> Any?
-    func endBackgroundActivity(_ token: Any?)
-}
-
-@MainActor
-public protocol LocalNetworkErrorPresentation: AnyObject {
-    func userFacingMessage(for error: Error) -> String
-}
 
 @MainActor
 public protocol AppLifecycleProtocol: AnyObject {
@@ -117,108 +72,109 @@ public func platformDefaultAppLifecycleService() -> AppLifecycleProtocol {
 }
 
 public struct PlatformServiceStubs {
-    final class Pasteboard: PasteboardShare, @unchecked Sendable {
+    public final class Pasteboard: PasteboardShare, @unchecked Sendable {
         private let lock = NSLock()
         private var value: String?
 
-        func writeString(_ string: String) {
+        public func writeString(_ string: String) {
             lock.lock()
             value = string
             lock.unlock()
         }
 
-        func readString() -> String? {
+        public func readString() -> String? {
             lock.lock()
             defer { lock.unlock() }
             return value
         }
     }
 
-    final class DeepLinks: DeepLinkHandling {
+    @MainActor
+    public final class DeepLinks: DeepLinkHandling {
         private var links: [String] = []
 
-        func enqueueIncomingLink(_ rawInput: String) {
+        public func enqueueIncomingLink(_ rawInput: String) {
             links.append(contentsOf: LinkImportSupport.parseLinks(from: rawInput))
         }
 
-        func drainIncomingLinks() -> [String] {
+        public func drainIncomingLinks() -> [String] {
             let drained = links
             links.removeAll()
             return drained
         }
 
-        func registerIncomingLinkHandler() {}
-        func unregisterIncomingLinkHandler() {}
-        func handleOpenURL(_ url: URL) {
-            enqueueIncomingLink(url.absoluteString)
-        }
+        public func registerIncomingLinkHandler() {}
+        public func unregisterIncomingLinkHandler() {}
     }
 
-    final class Credentials: CredentialStorage, @unchecked Sendable {
+    public final class Credentials: CredentialStorage, @unchecked Sendable {
         private let lock = NSLock()
         private var values: [String: String] = [:]
 
-        func readCredential(forKey key: String) -> String? {
+        public func readCredential(forKey key: String) -> String? {
             lock.lock()
             defer { lock.unlock() }
             return values[key]
         }
 
-        func writeCredential(_ credential: String, forKey key: String) {
+        public func writeCredential(_ credential: String, forKey key: String) {
             lock.lock()
             values[key] = credential
             lock.unlock()
         }
 
-        func deleteCredential(forKey key: String) {
+        public func deleteCredential(forKey key: String) {
             lock.lock()
             values.removeValue(forKey: key)
             lock.unlock()
         }
     }
 
-    struct Files: FileExportImport {
-        func exportData(_ data: Data, to url: URL) throws {
+    public struct Files: FileExportImport {
+        public func exportData(_ data: Data, to url: URL) throws {
             try data.write(to: url, options: .atomic)
         }
 
-        func importData(from url: URL) throws -> Data {
+        public func importData(from url: URL) throws -> Data {
             try Data(contentsOf: url)
         }
     }
 
-    final class Lifecycle: LifecycleBackground {
-        private(set) var didActivate = false
-        private(set) var didBringPrimaryWindowToFront = false
+    @MainActor
+    public final class Lifecycle: LifecycleBackground {
+        public private(set) var didActivate = false
+        public private(set) var didBringPrimaryWindowToFront = false
 
-        func activateApplication() {
+        public func activateApplication() {
             didActivate = true
         }
 
-        func bringPrimaryWindowToFront() {
+        public func bringPrimaryWindowToFront() {
             didBringPrimaryWindowToFront = true
         }
 
-        func beginBackgroundActivity(reason: String) -> Any? {
+        public func beginBackgroundActivity(reason: String) -> Any? {
             reason
         }
 
-        func endBackgroundActivity(_ token: Any?) {}
+        public func endBackgroundActivity(_ token: Any?) {}
     }
 
-    final class LocalNetworkErrors: LocalNetworkErrorPresentation {
-        func userFacingMessage(for error: Error) -> String {
+    @MainActor
+    public final class LocalNetworkErrors: LocalNetworkErrorPresentation {
+        public func userFacingMessage(for error: Error) -> String {
             error.localizedDescription
         }
     }
 
-    final class AppLifecycle: AppLifecycleProtocol {
-        var isNetworkReachable = true
+    @MainActor
+    public final class AppLifecycle: AppLifecycleProtocol {
+        public var isNetworkReachable = true
 
-        func start() {}
-        func stop() {}
+        public func start() {}
+        public func stop() {}
 
-        func handleScenePhaseChange(_ phase: ScenePhase, isSessionConnected: Bool) -> AppLifecycleEffect {
+        public func handleScenePhaseChange(_ phase: ScenePhase, isSessionConnected: Bool) -> AppLifecycleEffect {
             switch phase {
             case .background:
                 return .pauseAutoRefresh

@@ -1,4 +1,5 @@
 import SwiftUI
+import SharedCore
 
 struct MainToolbar: ToolbarContent {
     let selectedDownload: DownloadItem?

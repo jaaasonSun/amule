@@ -1,9 +1,6 @@
 import Foundation
 import AMuleECClient
 
-// MARK: - Type Aliases for SwiftEC Compatible Types
-// These types are structurally identical between SwiftEC and the app
-
 public typealias BridgeStatusPayload = ECStatus
 public typealias BridgeSearchPayload = ECSearchResult
 public typealias BridgeConnectionPrefsPayload = ECConnectionPrefs
@@ -11,12 +8,7 @@ public typealias BridgeDownloadSourcePayload = ECSource
 public typealias BridgeServerPayload = ECServer
 public typealias BridgeCapabilitiesPayload = ECCapabilities
 
-// MARK: - BridgeDownloadPayload Compatibility
-// ECDownload has required progressColors, BridgeDownloadPayload has optional
-// We extend ECDownload to provide a compatible initializer
-
 extension ECDownload {
-    /// Creates an ECDownload from BridgeDownloadPayload fields for compatibility
     public init(
         ecid: Int,
         hash: String,

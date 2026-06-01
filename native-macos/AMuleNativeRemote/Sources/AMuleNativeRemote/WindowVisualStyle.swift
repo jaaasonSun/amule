@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import SharedCore
 
 struct GlassEffectBackground: NSViewRepresentable {
     var material: NSVisualEffectView.Material = .underWindowBackground

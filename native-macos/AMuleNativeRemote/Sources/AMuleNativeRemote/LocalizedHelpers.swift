@@ -1,4 +1,5 @@
 import Foundation
+import SharedCore
 
 func L(_ key: String) -> String {
     NSLocalizedString(key, comment: "")

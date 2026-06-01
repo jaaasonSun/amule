@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import SharedCore
 
 @main
 struct AMuleNativeRemoteApp: App {

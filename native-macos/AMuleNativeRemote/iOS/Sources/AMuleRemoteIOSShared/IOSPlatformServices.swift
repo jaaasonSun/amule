@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import SharedCore
 import SharedUI
 
 public struct IOSKeychainCredentialStorage: CredentialStorage, @unchecked Sendable {
@@ -176,6 +177,7 @@ public final class IOSLocalNetworkErrorPresentation: LocalNetworkErrorPresentati
 
 #if canImport(UIKit)
 import UIKit
+import SharedCore
 
 public struct IOSPasteboardShare: PasteboardShare, @unchecked Sendable {
     public func writeString(_ string: String) {

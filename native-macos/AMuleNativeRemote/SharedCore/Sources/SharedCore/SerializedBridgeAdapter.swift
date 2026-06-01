@@ -30,9 +30,7 @@ public struct SerializedBridgeAdapter: BridgeProtocol {
     }
 
     public func search(scope: String, query: String, polls: Int, pollIntervalMs: Int, config: AMuleConnectionConfig) async throws -> (progress: Int, results: [BridgeSearchPayload], raw: String) {
-        try await queue.perform {
-            try await wrapped.search(scope: scope, query: query, polls: polls, pollIntervalMs: pollIntervalMs, config: config)
-        }
+        try await queue.perform { try await wrapped.search(scope: scope, query: query, polls: polls, pollIntervalMs: pollIntervalMs, config: config) }
     }
 
     public func searchStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
@@ -96,13 +94,95 @@ public struct SerializedBridgeAdapter: BridgeProtocol {
     }
 
     public func prefsConnectionSet(maxDownload: Int, maxUpload: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
-        try await queue.perform {
-            try await wrapped.prefsConnectionSet(maxDownload: maxDownload, maxUpload: maxUpload, config: config)
-        }
+        try await queue.perform { try await wrapped.prefsConnectionSet(maxDownload: maxDownload, maxUpload: maxUpload, config: config) }
+    }
+
+    public func kadStart(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await queue.perform { try await wrapped.kadStart(config: config) }
+    }
+
+    public func kadStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await queue.perform { try await wrapped.kadStop(config: config) }
+    }
+
+    public func kadBootstrap(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await queue.perform { try await wrapped.kadBootstrap(ip: ip, port: port, config: config) }
+    }
+
+    public func kadUpdateFromURL(url: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await queue.perform { try await wrapped.kadUpdateFromURL(url: url, config: config) }
+    }
+
+    public func uploads(config: AMuleConnectionConfig) async throws -> ([BridgeUploadPayload], String) {
+        try await queue.perform { try await wrapped.uploads(config: config) }
+    }
+
+    public func sharedFiles(config: AMuleConnectionConfig) async throws -> ([BridgeSharedFilePayload], String) {
+        try await queue.perform { try await wrapped.sharedFiles(config: config) }
+    }
+
+    public func sharedFilesReload(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await queue.perform { try await wrapped.sharedFilesReload(config: config) }
+    }
+
+    public func coreLog(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String) {
+        try await queue.perform { try await wrapped.coreLog(config: config) }
+    }
+
+    public func debugLog(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String) {
+        try await queue.perform { try await wrapped.debugLog(config: config) }
+    }
+
+    public func categories(config: AMuleConnectionConfig) async throws -> ([BridgeCategoryPayload], String) {
+        try await queue.perform { try await wrapped.categories(config: config) }
+    }
+
+    public func categoryCreate(name: String, path: String, comment: String, color: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await queue.perform { try await wrapped.categoryCreate(name: name, path: path, comment: comment, color: color, priority: priority, config: config) }
+    }
+
+    public func categoryDelete(categoryID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await queue.perform { try await wrapped.categoryDelete(categoryID: categoryID, config: config) }
+    }
+
+    public func ipfilterReload(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await queue.perform { try await wrapped.ipfilterReload(config: config) }
+    }
+
+    public func ipfilterUpdate(url: String?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await queue.perform { try await wrapped.ipfilterUpdate(url: url, config: config) }
+    }
+
+    public func friends(config: AMuleConnectionConfig) async throws -> ([BridgeFriendPayload], String) {
+        try await queue.perform { try await wrapped.friends(config: config) }
+    }
+
+    public func friendRemove(friendID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await queue.perform { try await wrapped.friendRemove(friendID: friendID, config: config) }
+    }
+
+    public func friendSlot(friendID: Int, enabled: Bool, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await queue.perform { try await wrapped.friendSlot(friendID: friendID, enabled: enabled, config: config) }
+    }
+
+    public func clearCompleted(ecids: [Int], config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await queue.perform { try await wrapped.clearCompleted(ecids: ecids, config: config) }
+    }
+
+    public func priority(hash: String, value: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await queue.perform { try await wrapped.priority(hash: hash, value: value, config: config) }
+    }
+
+    public func statsTree(capping: Int?, config: AMuleConnectionConfig) async throws -> (BridgeStatsTreeNodePayload, String) {
+        try await queue.perform { try await wrapped.statsTree(capping: capping, config: config) }
+    }
+
+    public func statsGraphs(width: Int, scale: Int, last: Double?, config: AMuleConnectionConfig) async throws -> (BridgeStatsGraphsPayload, String) {
+        try await queue.perform { try await wrapped.statsGraphs(width: width, scale: scale, last: last, config: config) }
     }
 }
 
-private actor BridgeOperationQueue {
+actor BridgeOperationQueue {
     private var isLocked = false
     private var waiters: [CheckedContinuation<Void, Never>] = []
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import SharedCore
 
 struct SearchPanel: View {
     var body: some View {

@@ -1,4 +1,5 @@
 import SwiftUI
+import SharedCore
 
 private func L2SearchScope(_ key: String) -> String {
     NSLocalizedString(key, comment: "")

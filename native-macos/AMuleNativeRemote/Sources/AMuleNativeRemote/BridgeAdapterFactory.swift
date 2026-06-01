@@ -1,11 +1,16 @@
 import Foundation
 import AMuleECBridgeAdapter
 import AMuleECClient
+import SharedCore
 
 enum BridgeAdapterFactory {
     static func makeBridgeAdapter() -> BridgeProtocol {
         SerializedBridgeAdapter(wrapping: MacOSPersistentSwiftECBridgeAdapter())
     }
+}
+
+func platformDefaultBridgeAdapter() -> BridgeProtocol {
+    BridgeAdapterFactory.makeBridgeAdapter()
 }
 
 private struct MacOSSwiftECSessionKey: Equatable, Sendable {

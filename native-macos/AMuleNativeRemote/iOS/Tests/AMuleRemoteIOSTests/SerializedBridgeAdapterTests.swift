@@ -72,6 +72,27 @@ private struct DelayedBridge: BridgeProtocol {
         try await run { (BridgeConnectionPrefsPayload(maxDownload: 0, maxUpload: 0), "{}") }
     }
     func prefsConnectionSet(maxDownload: Int, maxUpload: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await run { ("ok", "{}") } }
+    func kadStart(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await run { ("ok", "{}") } }
+    func kadStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await run { ("ok", "{}") } }
+    func kadBootstrap(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await run { ("ok", "{}") } }
+    func kadUpdateFromURL(url: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await run { ("ok", "{}") } }
+    func uploads(config: AMuleConnectionConfig) async throws -> ([BridgeUploadPayload], String) { try await run { ([], "{}") } }
+    func sharedFiles(config: AMuleConnectionConfig) async throws -> ([BridgeSharedFilePayload], String) { try await run { ([], "{}") } }
+    func sharedFilesReload(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await run { ("ok", "{}") } }
+    func coreLog(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String) { try await run { (BridgeCoreLogPayload(kind: "core", lines: []), "{}") } }
+    func debugLog(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String) { try await run { (BridgeCoreLogPayload(kind: "debug", lines: []), "{}") } }
+    func categories(config: AMuleConnectionConfig) async throws -> ([BridgeCategoryPayload], String) { try await run { ([], "{}") } }
+    func categoryCreate(name: String, path: String, comment: String, color: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await run { ("ok", "{}") } }
+    func categoryDelete(categoryID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await run { ("ok", "{}") } }
+    func ipfilterReload(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await run { ("ok", "{}") } }
+    func ipfilterUpdate(url: String?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await run { ("ok", "{}") } }
+    func friends(config: AMuleConnectionConfig) async throws -> ([BridgeFriendPayload], String) { try await run { ([], "{}") } }
+    func friendRemove(friendID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await run { ("ok", "{}") } }
+    func friendSlot(friendID: Int, enabled: Bool, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await run { ("ok", "{}") } }
+    func clearCompleted(ecids: [Int], config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await run { ("ok", "{}") } }
+    func priority(hash: String, value: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { try await run { ("ok", "{}") } }
+    func statsTree(capping: Int?, config: AMuleConnectionConfig) async throws -> (BridgeStatsTreeNodePayload, String) { try await run { (BridgeStatsTreeNodePayload(id: 0, label: "", value: 0, children: []), "{}") } }
+    func statsGraphs(width: Int, scale: Int, last: Double?, config: AMuleConnectionConfig) async throws -> (BridgeStatsGraphsPayload, String) { try await run { (BridgeStatsGraphsPayload(last: 0, samples: []), "{}") } }
 
     private func run<T>(_ operation: () -> T) async throws -> T {
         try await probe.enter()
