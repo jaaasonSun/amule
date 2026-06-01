@@ -1,13 +1,11 @@
 import Foundation
 
 public struct AMuleConnectionConfig: Sendable {
-    public var bridgePath: String
     public var host: String
     public var port: Int
     public var password: String
 
-    public init(bridgePath: String, host: String, port: Int, password: String) {
-        self.bridgePath = bridgePath
+    public init(host: String, port: Int, password: String) {
         self.host = host
         self.port = port
         self.password = password

@@ -1,13 +1,14 @@
 import XCTest
 import enum AMuleECBridgeAdapter.RenameAcknowledgement
 import AMuleECClient
+import SharedCore
 @testable import AMuleRemoteIOSShared
 
 final class SerializedBridgeAdapterTests: XCTestCase {
     func testOperationsDoNotOverlap() async throws {
         let probe = BridgeConcurrencyProbe()
         let adapter = SerializedBridgeAdapter(wrapping: DelayedBridge(probe: probe))
-        let config = AMuleConnectionConfig(bridgePath: "", host: "127.0.0.1", port: 4712, password: "secret")
+        let config = AMuleConnectionConfig(host: "127.0.0.1", port: 4712, password: "secret")
 
         async let rename: RenameAcknowledgement = adapter.rename(hash: "hash", name: "renamed.iso", config: config)
         async let downloads: ([BridgeDownloadPayload], String) = adapter.downloads(config: config)

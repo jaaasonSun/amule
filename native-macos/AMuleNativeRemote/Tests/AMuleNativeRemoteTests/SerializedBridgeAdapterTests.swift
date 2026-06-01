@@ -1,5 +1,6 @@
 import XCTest
 import enum AMuleECBridgeAdapter.RenameAcknowledgement
+import SharedCore
 
 @testable import AMuleNativeRemote
 
@@ -72,7 +73,7 @@ final class SerializedBridgeAdapterTests: XCTestCase {
     ) async throws {
         let probe = BridgeOrderingProbe()
         let adapter = SerializedBridgeAdapter(wrapping: BlockingBridgeAdapter(probe: probe))
-        let config = AMuleConnectionConfig(bridgePath: "", host: "127.0.0.1", port: 4712, password: "secret")
+        let config = AMuleConnectionConfig(host: "127.0.0.1", port: 4712, password: "secret")
 
         let firstTask = Task { try await first(adapter, config) }
         await waitForEvents([firstLabel], in: probe, file: file, line: line)

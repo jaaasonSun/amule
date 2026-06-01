@@ -94,7 +94,7 @@ final class AppModel: ObservableObject {
     }
 
     var config: AMuleConnectionConfig {
-        .init(bridgePath: bridgePath, host: host, port: port, password: password)
+        .init(host: host, port: port, password: password)
     }
 
     init(

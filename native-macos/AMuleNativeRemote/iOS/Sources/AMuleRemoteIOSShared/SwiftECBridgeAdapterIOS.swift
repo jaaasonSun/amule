@@ -287,6 +287,6 @@ public struct SwiftECBridgeAdapterIOS: SharedCore.BridgeProtocol {
     }
 }
 
-public func platformDefaultBridgeAdapter() -> BridgeProtocol {
+public func platformDefaultBridgeAdapter() -> SharedCore.BridgeProtocol {
     SerializedBridgeAdapter(wrapping: SwiftECBridgeAdapterIOS())
 }

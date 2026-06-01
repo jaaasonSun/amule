@@ -1,4 +1,5 @@
 import Foundation
+import SharedCore
 import SharedUI
 
 @available(macOS 13.0, iOS 15.0, *)

@@ -1,4 +1,5 @@
 import SwiftUI
+import SharedCore
 import SharedUI
 
 #if canImport(UIKit)

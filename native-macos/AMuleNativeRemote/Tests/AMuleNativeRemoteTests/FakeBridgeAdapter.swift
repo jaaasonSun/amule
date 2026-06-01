@@ -1,5 +1,6 @@
 import Foundation
 import enum AMuleECBridgeAdapter.RenameAcknowledgement
+import SharedCore
 
 @testable import AMuleNativeRemote
 

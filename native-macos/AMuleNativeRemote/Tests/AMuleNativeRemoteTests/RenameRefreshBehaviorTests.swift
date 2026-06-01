@@ -1,5 +1,6 @@
 import XCTest
 import enum AMuleECBridgeAdapter.RenameAcknowledgement
+import SharedCore
 
 @testable import AMuleNativeRemote
 

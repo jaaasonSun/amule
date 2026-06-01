@@ -1,6 +1,7 @@
 #if canImport(UIKit)
 import SwiftUI
 import AMuleRemoteIOSShared
+import SharedCore
 import SharedUI
 
 struct UserServer: Identifiable, Hashable, Codable {
@@ -79,7 +80,7 @@ final class IOSAppModel: ObservableObject {
     private let serverService = IOSServerService()
 
     var config: AMuleConnectionConfig {
-        .init(bridgePath: "", host: host, port: port, password: password)
+        .init(host: host, port: port, password: password)
     }
 
     init(

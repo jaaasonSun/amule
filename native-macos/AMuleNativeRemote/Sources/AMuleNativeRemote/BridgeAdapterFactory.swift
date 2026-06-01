@@ -4,12 +4,12 @@ import AMuleECClient
 import SharedCore
 
 enum BridgeAdapterFactory {
-    static func makeBridgeAdapter() -> BridgeProtocol {
+    static func makeBridgeAdapter() -> SharedCore.BridgeProtocol {
         SerializedBridgeAdapter(wrapping: MacOSPersistentSwiftECBridgeAdapter())
     }
 }
 
-func platformDefaultBridgeAdapter() -> BridgeProtocol {
+func platformDefaultBridgeAdapter() -> SharedCore.BridgeProtocol {
     BridgeAdapterFactory.makeBridgeAdapter()
 }
 
@@ -24,7 +24,7 @@ private actor MacOSSwiftECSessionStore {
     private var config: AMuleECBridgeAdapter.AMuleConnectionConfig?
     private var adapter: SwiftECBridgeAdapter?
 
-    func adapter(for config: AMuleConnectionConfig) async -> (SwiftECBridgeAdapter, AMuleECBridgeAdapter.AMuleConnectionConfig) {
+    func adapter(for config: SharedCore.AMuleConnectionConfig) async -> (SwiftECBridgeAdapter, AMuleECBridgeAdapter.AMuleConnectionConfig) {
         let key = MacOSSwiftECSessionKey(host: config.host, port: config.port, password: config.password)
         let ecConfig = config.swiftECConfig
 
@@ -48,7 +48,7 @@ private actor MacOSSwiftECSessionStore {
         return (adapter, ecConfig)
     }
 
-    func disconnect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func disconnect(config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         let ecConfig = config.swiftECConfig
         guard let adapter else {
             return try await SwiftECBridgeAdapter().disconnect(config: ecConfig)
@@ -61,140 +61,140 @@ private actor MacOSSwiftECSessionStore {
     }
 }
 
-private extension AMuleConnectionConfig {
+private extension SharedCore.AMuleConnectionConfig {
     var swiftECConfig: AMuleECBridgeAdapter.AMuleConnectionConfig {
         AMuleECBridgeAdapter.AMuleConnectionConfig(host: host, port: port, password: password)
     }
 }
 
-struct MacOSPersistentSwiftECBridgeAdapter: BridgeProtocol {
+struct MacOSPersistentSwiftECBridgeAdapter: SharedCore.BridgeProtocol {
     private let sessions = MacOSSwiftECSessionStore()
 
     private func withAdapter<T: Sendable>(
-        config: AMuleConnectionConfig,
+        config: SharedCore.AMuleConnectionConfig,
         _ operation: (SwiftECBridgeAdapter, AMuleECBridgeAdapter.AMuleConnectionConfig) async throws -> T
     ) async throws -> T {
         let (adapter, ecConfig) = await sessions.adapter(for: config)
         return try await operation(adapter, ecConfig)
     }
 
-    func connect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func connect(config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.connect(config: ecConfig)
         }
     }
 
-    func disconnect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func disconnect(config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await sessions.disconnect(config: config)
     }
 
-    func capabilities(config: AMuleConnectionConfig) async throws -> (schemaVersion: Int?, capabilities: BridgeCapabilitiesPayload, raw: String) {
+    func capabilities(config: SharedCore.AMuleConnectionConfig) async throws -> (schemaVersion: Int?, capabilities: SharedCore.BridgeCapabilitiesPayload, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.capabilities(config: ecConfig)
         }
     }
 
-    func status(config: AMuleConnectionConfig) async throws -> (BridgeStatusPayload, String) {
+    func status(config: SharedCore.AMuleConnectionConfig) async throws -> (SharedCore.BridgeStatusPayload, String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.status(config: ecConfig)
         }
     }
 
-    func downloads(config: AMuleConnectionConfig) async throws -> ([BridgeDownloadPayload], String) {
+    func downloads(config: SharedCore.AMuleConnectionConfig) async throws -> ([SharedCore.BridgeDownloadPayload], String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.downloads(config: ecConfig)
         }
     }
 
-    func search(scope: String, query: String, polls: Int, pollIntervalMs: Int, config: AMuleConnectionConfig) async throws -> (progress: Int, results: [BridgeSearchPayload], raw: String) {
+    func search(scope: String, query: String, polls: Int, pollIntervalMs: Int, config: SharedCore.AMuleConnectionConfig) async throws -> (progress: Int, results: [SharedCore.BridgeSearchPayload], raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.search(scope: scope, query: query, polls: polls, pollIntervalMs: pollIntervalMs, config: ecConfig)
         }
     }
 
-    func searchStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func searchStop(config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.searchStop(config: ecConfig)
         }
     }
 
-    func download(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func download(hash: String, config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.download(hash: hash, config: ecConfig)
         }
     }
 
-    func addLink(link: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func addLink(link: String, config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.addLink(link: link, config: ecConfig)
         }
     }
 
-    func rename(hash: String, name: String, config: AMuleConnectionConfig) async throws -> RenameAcknowledgement {
+    func rename(hash: String, name: String, config: SharedCore.AMuleConnectionConfig) async throws -> RenameAcknowledgement {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.rename(hash: hash, name: name, config: ecConfig)
         }
     }
 
-    func pause(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func pause(hash: String, config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.pause(hash: hash, config: ecConfig)
         }
     }
 
-    func resume(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func resume(hash: String, config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.resume(hash: hash, config: ecConfig)
         }
     }
 
-    func cancel(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func cancel(hash: String, config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.cancel(hash: hash, config: ecConfig)
         }
     }
 
-    func servers(config: AMuleConnectionConfig) async throws -> ([BridgeServerPayload], String) {
+    func servers(config: SharedCore.AMuleConnectionConfig) async throws -> ([SharedCore.BridgeServerPayload], String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.servers(config: ecConfig)
         }
     }
 
-    func serverConnect(ip: String?, port: Int?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func serverConnect(ip: String?, port: Int?, config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.serverConnect(ip: ip, port: port, config: ecConfig)
         }
     }
 
-    func serverDisconnect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func serverDisconnect(config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.serverDisconnect(config: ecConfig)
         }
     }
 
-    func serverAdd(address: String, name: String?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func serverAdd(address: String, name: String?, config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.serverAdd(address: address, name: name, config: ecConfig)
         }
     }
 
-    func serverRemove(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func serverRemove(ip: String, port: Int, config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.serverRemove(ip: ip, port: port, config: ecConfig)
         }
     }
 
-    func serverUpdateFromURL(url: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func serverUpdateFromURL(url: String, config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.serverUpdateFromURL(url: url, config: ecConfig)
         }
     }
 
-    func sources(hash: String, config: AMuleConnectionConfig) async throws -> ([DownloadSourceItem], String) {
+    func sources(hash: String, config: SharedCore.AMuleConnectionConfig) async throws -> ([SharedCore.DownloadSourceItem], String) {
         do {
             return try await withAdapter(config: config) { adapter, ecConfig in
                 let (payloads, raw) = try await adapter.sources(hash: hash, config: ecConfig)
-                return (DownloadSourceItem.fromBridge(payloads), raw)
+                return (SharedCore.DownloadSourceItem.fromBridge(payloads), raw)
             }
         } catch let error as ECResponseParserError {
             if case .downloadNotFound(let missingHash) = error {
@@ -204,139 +204,139 @@ struct MacOSPersistentSwiftECBridgeAdapter: BridgeProtocol {
         }
     }
 
-    func prefsConnectionGet(config: AMuleConnectionConfig) async throws -> (BridgeConnectionPrefsPayload, String) {
+    func prefsConnectionGet(config: SharedCore.AMuleConnectionConfig) async throws -> (SharedCore.BridgeConnectionPrefsPayload, String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.prefsConnectionGet(config: ecConfig)
         }
     }
 
-    func prefsConnectionSet(maxDownload: Int, maxUpload: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func prefsConnectionSet(maxDownload: Int, maxUpload: Int, config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.prefsConnectionSet(maxDownload: maxDownload, maxUpload: maxUpload, config: ecConfig)
         }
     }
 
-    func kadStart(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func kadStart(config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.kadStart(config: ecConfig)
         }
     }
 
-    func kadStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func kadStop(config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.kadStop(config: ecConfig)
         }
     }
 
-    func kadBootstrap(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func kadBootstrap(ip: String, port: Int, config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.kadBootstrap(ip: ip, port: port, config: ecConfig)
         }
     }
 
-    func kadUpdateFromURL(url: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func kadUpdateFromURL(url: String, config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.kadUpdateFromURL(url: url, config: ecConfig)
         }
     }
 
-    func uploads(config: AMuleConnectionConfig) async throws -> ([BridgeUploadPayload], String) {
+    func uploads(config: SharedCore.AMuleConnectionConfig) async throws -> ([SharedCore.BridgeUploadPayload], String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.uploads(config: ecConfig)
         }
     }
 
-    func sharedFiles(config: AMuleConnectionConfig) async throws -> ([BridgeSharedFilePayload], String) {
+    func sharedFiles(config: SharedCore.AMuleConnectionConfig) async throws -> ([SharedCore.BridgeSharedFilePayload], String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.sharedFiles(config: ecConfig)
         }
     }
 
-    func sharedFilesReload(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func sharedFilesReload(config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.sharedFilesReload(config: ecConfig)
         }
     }
 
-    func coreLog(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String) {
+    func coreLog(config: SharedCore.AMuleConnectionConfig) async throws -> (SharedCore.BridgeCoreLogPayload, String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.coreLog(config: ecConfig)
         }
     }
 
-    func debugLog(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String) {
+    func debugLog(config: SharedCore.AMuleConnectionConfig) async throws -> (SharedCore.BridgeCoreLogPayload, String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.debugLog(config: ecConfig)
         }
     }
 
-    func categories(config: AMuleConnectionConfig) async throws -> ([BridgeCategoryPayload], String) {
+    func categories(config: SharedCore.AMuleConnectionConfig) async throws -> ([SharedCore.BridgeCategoryPayload], String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.categories(config: ecConfig)
         }
     }
 
-    func categoryCreate(name: String, path: String, comment: String, color: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func categoryCreate(name: String, path: String, comment: String, color: Int, priority: Int, config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.categoryCreate(name: name, path: path, comment: comment, color: color, priority: priority, config: ecConfig)
         }
     }
 
-    func categoryDelete(categoryID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func categoryDelete(categoryID: Int, config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.categoryDelete(categoryID: categoryID, config: ecConfig)
         }
     }
 
-    func ipfilterReload(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func ipfilterReload(config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.ipfilterReload(config: ecConfig)
         }
     }
 
-    func ipfilterUpdate(url: String?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func ipfilterUpdate(url: String?, config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.ipfilterUpdate(url: url, config: ecConfig)
         }
     }
 
-    func friends(config: AMuleConnectionConfig) async throws -> ([BridgeFriendPayload], String) {
+    func friends(config: SharedCore.AMuleConnectionConfig) async throws -> ([SharedCore.BridgeFriendPayload], String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.friends(config: ecConfig)
         }
     }
 
-    func friendRemove(friendID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func friendRemove(friendID: Int, config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.friendRemove(friendID: friendID, config: ecConfig)
         }
     }
 
-    func friendSlot(friendID: Int, enabled: Bool, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func friendSlot(friendID: Int, enabled: Bool, config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.friendSlot(friendID: friendID, enabled: enabled, config: ecConfig)
         }
     }
 
-    func clearCompleted(ecids: [Int], config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func clearCompleted(ecids: [Int], config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.clearCompleted(ecids: ecids, config: ecConfig)
         }
     }
 
-    func priority(hash: String, value: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+    func priority(hash: String, value: String, config: SharedCore.AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.priority(hash: hash, value: value, config: ecConfig)
         }
     }
 
-    func statsTree(capping: Int?, config: AMuleConnectionConfig) async throws -> (BridgeStatsTreeNodePayload, String) {
+    func statsTree(capping: Int?, config: SharedCore.AMuleConnectionConfig) async throws -> (SharedCore.BridgeStatsTreeNodePayload, String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.statsTree(capping: capping, config: ecConfig)
         }
     }
 
-    func statsGraphs(width: Int, scale: Int, last: Double?, config: AMuleConnectionConfig) async throws -> (BridgeStatsGraphsPayload, String) {
+    func statsGraphs(width: Int, scale: Int, last: Double?, config: SharedCore.AMuleConnectionConfig) async throws -> (SharedCore.BridgeStatsGraphsPayload, String) {
         try await withAdapter(config: config) { adapter, ecConfig in
             try await adapter.statsGraphs(width: width, scale: scale, last: last, config: ecConfig)
         }

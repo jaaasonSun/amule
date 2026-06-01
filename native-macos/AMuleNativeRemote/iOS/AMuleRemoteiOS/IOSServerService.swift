@@ -2,6 +2,7 @@
 import SwiftUI
 import AMuleRemoteIOSShared
 import AMuleECClient
+import SharedCore
 import SharedUI
 
 @MainActor

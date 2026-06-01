@@ -1,4 +1,5 @@
 import XCTest
+import SharedCore
 import SharedUI
 
 @testable import AMuleNativeRemote

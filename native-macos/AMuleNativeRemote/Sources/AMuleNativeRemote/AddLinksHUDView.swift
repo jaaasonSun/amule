@@ -46,30 +46,3 @@ struct AddLinksSheetView: View {
         .background(GlassEffectBackground(material: .hudWindow))
     }
 }
-
-struct AddLinksHUD: View {
-    let message: String
-
-    var body: some View {
-        VStack {
-            HStack(spacing: 8) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                Text(message)
-                    .font(.callout.weight(.semibold))
-                    .lineLimit(1)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(.ultraThinMaterial, in: Capsule())
-            .overlay(
-                Capsule()
-                    .strokeBorder(Color.primary.opacity(0.14), lineWidth: 1)
-            )
-            .shadow(color: Color.black.opacity(0.18), radius: 8, x: 0, y: 3)
-        }
-        .padding(.top, 18)
-        .padding(.horizontal, 12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-    }
-}

@@ -1,4 +1,5 @@
 import Foundation
+import SharedCore
 import SharedUI
 
 @testable import AMuleNativeRemote
