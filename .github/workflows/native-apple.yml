@@ -27,9 +27,6 @@ jobs:
       - name: Shared package tests
         run: cd native-macos/AMuleNativeRemote/Packages/Shared && swift test
 
-      - name: iOS shared package tests
-        run: cd native-macos/AMuleNativeRemote/iOS && swift test
-
       - name: Native macOS tests
         run: cd native-macos/AMuleNativeRemote && swift test
 

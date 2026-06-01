@@ -56,7 +56,6 @@ final class IOSLocalizationResourceTests: XCTestCase {
         let appDirectory = testFile
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-            .deletingLastPathComponent()
             .appendingPathComponent("AMuleRemoteiOS")
         let stringsURL = appDirectory
             .appendingPathComponent("\(locale).lproj")

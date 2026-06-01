@@ -1,6 +1,6 @@
 import SwiftUI
 import XCTest
-@testable import AMuleRemoteIOSShared
+@testable import AMuleRemoteiOS
 
 final class IOSLifecycleServiceTests: XCTestCase {
     @MainActor

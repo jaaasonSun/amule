@@ -1,5 +1,5 @@
 import XCTest
-@testable import AMuleRemoteIOSShared
+@testable import AMuleRemoteiOS
 
 final class RenameVerificationTests: XCTestCase {
     func testRenameIsVerifiedByMatchingHashAndNewName() {

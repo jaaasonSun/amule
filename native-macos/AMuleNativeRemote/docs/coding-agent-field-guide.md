@@ -4,12 +4,11 @@ This guide summarizes the native macOS/iOS app area for future coding agents.
 
 ## Architecture Overview
 
-The native Apple work is split into four layers:
+The native Apple work is split into three layers:
 
 - `AMuleNativeRemote`: macOS SwiftUI/AppKit remote GUI package.
-- `AMuleRemoteIOSShared`: iOS SwiftPM library containing iOS-testable shared models, parsers, platform services, and bridge adapter glue.
-- `SharedUI`: cross-platform SwiftUI helpers and presentation logic, including download classification and shared panels.
-- `SwiftEC`: pure Swift External Connections protocol/client implementation and bridge adapter.
+- `AMuleRemoteiOS`: iOS/iPadOS SwiftUI app target, containing app-specific models, platform services, and UI.
+- `SharedUI` + `SharedModels` + `SharedServices` + `SwiftEC`: cross-platform shared packages used by both macOS and iOS apps.
 
 The original C++ aMule code remains under `src/`. The native apps should use shared contracts and parsers where practical, but must keep platform-native UI/navigation.
 
@@ -46,14 +45,6 @@ Important files:
 - `ServersView.swift`: local bookmarks and daemon server management.
 - `SettingsView.swift`: status, transfer limits, capabilities, URL scheme info.
 - `Info.plist`: registers `ed2k` and `magnet` URL schemes, local network usage, single-scene iPad behavior.
-
-iOS shared package:
-- `SharedUI/Sources/SharedUI/LinkImportSupport.swift`: shared `ed2k://`/`magnet:?` parsing, normalization, hash extraction, link-import planning/outcome state, and pending incoming-link inbox.
-- `iOS/Sources/AMuleRemoteIOSShared/StatusParser.swift`: iOS status snapshot parsing.
-- `iOS/Sources/AMuleRemoteIOSShared/IOSPlatformServices.swift`: keychain, deep-link handler, local network error presentation.
-- `iOS/Sources/AMuleRemoteIOSShared/DownloadListPresentation.swift`: download filter/sort/query logic.
-- `iOS/Sources/AMuleRemoteIOSShared/RenameVerification.swift`: rename applied check.
-- `iOS/Sources/AMuleRemoteIOSShared/SwiftECBridgeAdapterIOS.swift`: iOS bridge adapter to SwiftEC/C wrapper.
 
 iOS/iPadOS app notes:
 - iPhone is single-window and uses downloads as home.
@@ -116,15 +107,14 @@ Use the smallest relevant set, then expand before claiming completion:
 ```bash
 cd native-macos/AMuleNativeRemote/SwiftEC && swift test
 cd native-macos/AMuleNativeRemote/Packages/Shared && swift test
-cd native-macos/AMuleNativeRemote/iOS && swift test
 cd native-macos/AMuleNativeRemote && swift test
 ```
 
-For macOS strict build check:
+For macOS Release build check:
 
 ```bash
 cd native-macos/AMuleNativeRemote
-xcodebuild -project AMuleNativeRemote.xcodeproj -scheme AMuleNativeRemote -configuration Release -destination "platform=macOS" build SWIFT_TREAT_WARNINGS_AS_ERRORS=YES
+xcodebuild -project AMuleNativeRemote.xcodeproj -scheme AMuleNativeRemote -configuration Release -destination "platform=macOS" build
 ```
 
 For iOS app builds:

@@ -1,6 +1,6 @@
 import XCTest
 import SharedViews
-@testable import AMuleRemoteIOSShared
+@testable import AMuleRemoteiOS
 
 @MainActor
 final class IOSIncomingLinksTests: XCTestCase {

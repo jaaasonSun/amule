@@ -1,6 +1,6 @@
 import XCTest
 import SharedViews
-@testable import AMuleRemoteIOSShared
+@testable import AMuleRemoteiOS
 
 final class FilenameSuggestionPresentationTests: XCTestCase {
     func testSuggestionBecomesRenameDraftWhenDifferentFromCurrentName() {

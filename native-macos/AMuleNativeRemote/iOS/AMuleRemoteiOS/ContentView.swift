@@ -1,6 +1,5 @@
 #if canImport(UIKit)
 import SwiftUI
-import AMuleRemoteIOSShared
 import SharedViews
 
 enum AppTab: String, CaseIterable, Identifiable {

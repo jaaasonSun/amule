@@ -1,6 +1,5 @@
 #if canImport(UIKit)
 import SwiftUI
-import AMuleRemoteIOSShared
 
 @main
 struct AMuleRemoteiOSApp: App {

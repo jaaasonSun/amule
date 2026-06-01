@@ -1,4 +1,4 @@
-@testable import AMuleRemoteIOSShared
+@testable import AMuleRemoteiOS
 
 enum DownloadItemFixtures {
     static func download(

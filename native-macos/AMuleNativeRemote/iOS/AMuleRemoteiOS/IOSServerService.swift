@@ -1,6 +1,5 @@
 #if canImport(UIKit)
 import SwiftUI
-import AMuleRemoteIOSShared
 import AMuleECClient
 import SharedModels
 import SharedServices

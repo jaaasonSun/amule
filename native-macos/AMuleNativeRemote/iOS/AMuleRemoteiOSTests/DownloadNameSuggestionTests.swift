@@ -1,5 +1,5 @@
 import XCTest
-import AMuleRemoteIOSShared
+@testable import AMuleRemoteiOS
 import AMuleECClient
 
 final class DownloadNameSuggestionTests: XCTestCase {
