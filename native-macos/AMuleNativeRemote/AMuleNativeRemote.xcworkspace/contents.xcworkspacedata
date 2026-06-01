@@ -13,4 +13,7 @@
    <FileRef
       location = "group:SwiftEC">
    </FileRef>
+   <FileRef
+      location = "group:iOS">
+   </FileRef>
 </Workspace>
