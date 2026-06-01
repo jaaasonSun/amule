@@ -17,7 +17,7 @@ mkdir -p "$ROOT_DIR/dist"
 xcodebuild \
   -project "$ROOT_DIR/AMuleNativeRemote.xcodeproj" \
   -scheme AMuleNativeRemote \
-  -configuration Debug \
+  -configuration Release \
   -destination "platform=macOS" \
   -derivedDataPath "$XCODE_DERIVED_DATA_PATH" \
   build

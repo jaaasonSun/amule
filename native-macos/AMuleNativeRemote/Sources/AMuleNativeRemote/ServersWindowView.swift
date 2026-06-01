@@ -118,61 +118,11 @@ struct ServersWindowView: View {
 
     private var baseServersContent: some View {
         VStack(spacing: 0) {
-            Table(displayedServers, selection: $selectedServerID, sortOrder: $serverSortOrder) {
-                TableColumn("Name", value: \.name) { item in
-                    ServerRowView.name(item: item, isConnected: isConnectedServer(item))
-                        .contextMenu { serverContextMenu(item) }
-                }
-                .width(min: 180, ideal: 220, max: 420)
-
-                TableColumn("Address", value: \.endpointText) { item in
-                    let row = ServerRowView.text(item.endpointText)
-                    return row.contextMenu { serverContextMenu(item) }
-                }
-                .width(170)
-
-                TableColumn("Users", value: \.users) { item in
-                    ServerRowView.text(item.usersText)
-                        .contextMenu { serverContextMenu(item) }
-                }
-                .width(95)
-
-                TableColumn("Files", value: \.files) { item in
-                    ServerRowView.number(item.files)
-                        .contextMenu { serverContextMenu(item) }
-                }
-                .width(90)
-
-                TableColumn("Ping", value: \.ping) { item in
-                    ServerRowView.ping(item.ping)
-                        .contextMenu { serverContextMenu(item) }
-                }
-                .width(90)
-
-                TableColumn("Failed", value: \.failed) { item in
-                    ServerRowView.number(item.failed)
-                        .contextMenu { serverContextMenu(item) }
-                }
-                .width(75)
-
-                TableColumn("Version", value: \.version) { item in
-                    ServerRowView.text(item.version)
-                        .contextMenu { serverContextMenu(item) }
-                }
-                .width(90)
-
-                TableColumn("Prio", value: \.priority) { item in
-                    ServerRowView.number(item.priority)
-                        .contextMenu { serverContextMenu(item) }
-                }
-                .width(70)
-
-                TableColumn("Static") { item in
-                    ServerRowView.isStatic(item.isStatic)
-                        .contextMenu { serverContextMenu(item) }
-                }
-                .width(70)
-            }
+            ServersTableView(
+                servers: displayedServers,
+                selectedServerID: $selectedServerID,
+                sortOrder: $serverSortOrder
+            )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .scrollContentBackground(.hidden)
             .background(
@@ -282,6 +232,97 @@ struct ServersWindowView: View {
         let parts = endpoint.split(separator: ":", maxSplits: 1).map(String.init)
         guard parts.count == 2, let port = Int(parts[1]) else { return nil }
         return (ip: parts[0], port: port)
+    }
+}
+
+private struct ServersTableView: View {
+    @EnvironmentObject private var model: AppModel
+
+    let servers: [ServerItem]
+    @Binding var selectedServerID: ServerItem.ID?
+    @Binding var sortOrder: [KeyPathComparator<ServerItem>]
+
+    var body: some View {
+        Table(servers, selection: $selectedServerID, sortOrder: $sortOrder) {
+            TableColumn("Name", value: \.name) { item in
+                let connected = isConnectedServer(item)
+                let row = ServerRowView.name(item: item, isConnected: connected)
+                return row.contextMenu { serverContextMenu(item) }
+            }
+            .width(min: 180, ideal: 220, max: 420)
+
+            TableColumn("Address", value: \.endpointText) { item in
+                let row = ServerRowView.text(item.endpointText)
+                return row.contextMenu { serverContextMenu(item) }
+            }
+            .width(170)
+
+            TableColumn("Users", value: \.users) { item in
+                let row = ServerRowView.text(item.usersText)
+                return row.contextMenu { serverContextMenu(item) }
+            }
+            .width(95)
+
+            TableColumn("Files", value: \.files) { item in
+                let row = ServerRowView.number(item.files)
+                return row.contextMenu { serverContextMenu(item) }
+            }
+            .width(90)
+
+            TableColumn("Ping", value: \.ping) { item in
+                let row = ServerRowView.ping(item.ping)
+                return row.contextMenu { serverContextMenu(item) }
+            }
+            .width(90)
+
+            TableColumn("Failed", value: \.failed) { item in
+                let row = ServerRowView.number(item.failed)
+                return row.contextMenu { serverContextMenu(item) }
+            }
+            .width(75)
+
+            TableColumn("Version", value: \.version) { item in
+                let row = ServerRowView.text(item.version)
+                return row.contextMenu { serverContextMenu(item) }
+            }
+            .width(90)
+
+            TableColumn("Prio", value: \.priority) { item in
+                let row = ServerRowView.number(item.priority)
+                return row.contextMenu { serverContextMenu(item) }
+            }
+            .width(70)
+
+            TableColumn("Static") { item in
+                let row = ServerRowView.isStatic(item.isStatic)
+                return row.contextMenu { serverContextMenu(item) }
+            }
+            .width(70)
+        }
+    }
+
+    private func serverContextMenu(_ item: ServerItem) -> some View {
+        return Group {
+            Button("Connect") {
+                model.connectServer(item)
+            }
+            Button("Remove") {
+                model.removeServer(item)
+            }
+        }
+    }
+
+    private func isConnectedServer(_ server: ServerItem) -> Bool {
+        let text = model.status.ed2k.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return false }
+        guard let range = text.range(
+            of: #"\b([0-9]{1,3}(?:\.[0-9]{1,3}){3}):([0-9]{1,5})\b"#,
+            options: .regularExpression
+        ) else { return false }
+        let endpoint = String(text[range])
+        let parts = endpoint.split(separator: ":", maxSplits: 1).map(String.init)
+        guard parts.count == 2, let port = Int(parts[1]) else { return false }
+        return server.ip == parts[0] && server.port == port
     }
 }
 

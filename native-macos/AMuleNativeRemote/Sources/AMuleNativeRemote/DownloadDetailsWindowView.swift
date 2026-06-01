@@ -306,66 +306,7 @@ struct DownloadDetailsWindowView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.vertical, 4)
                         } else {
-                            Table(selectedDownloadSources, sortOrder: $sourceSortOrder) {
-                                TableColumn("Client", value: \.clientName) { source in
-                                    Text(source.clientDisplayName)
-                                }
-                                .width(min: 160, ideal: 220, max: 360)
-
-                                TableColumn("Endpoint", value: \.userIP) { source in
-                                    Text(source.endpoint)
-                                        .font(.system(.body, design: .monospaced))
-                                }
-                                .width(min: 130, ideal: 160, max: 250)
-
-                                TableColumn("Software", value: \.softwareVersion) { source in
-                                    Text(source.softwareDisplay)
-                                        .lineLimit(1)
-                                }
-                                .width(min: 120, ideal: 170, max: 260)
-
-                                TableColumn("State", value: \.downloadStateText) { source in
-                                    Text(source.downloadStateText)
-                                }
-                                .width(min: 130, ideal: 160, max: 260)
-
-                                TableColumn("Speed", value: \.downSpeedKBps) { source in
-                                    Text(source.speedText)
-                                }
-                                .width(min: 90, ideal: 110, max: 180)
-
-                                TableColumn("Avail", value: \.availableParts) { source in
-                                    Text(String(source.availableParts))
-                                }
-                                .width(min: 60, ideal: 80, max: 110)
-
-                                TableColumn("Queue", value: \.remoteQueueRank) { source in
-                                    Text(source.queueRankText)
-                                }
-                                .width(min: 70, ideal: 82, max: 120)
-
-                                TableColumn("From", value: \.sourceFromText) { source in
-                                    Text(source.sourceFromText)
-                                }
-                                .width(min: 110, ideal: 140, max: 210)
-
-                                TableColumn("Server", value: \.serverName) { source in
-                                    Text(source.serverEndpoint)
-                                        .lineLimit(1)
-                                        .truncationMode(.middle)
-                                }
-                                .width(min: 170, ideal: 240, max: 360)
-
-                                TableColumn("Remote Name", value: \.remoteFilename) { source in
-                                    Text(source.remoteFilename.isEmpty ? "-" : source.remoteFilename)
-                                        .lineLimit(1)
-                                        .truncationMode(.middle)
-                                }
-                                .width(min: 220, ideal: 340, max: 520)
-                            }
-                            .frame(height: sourcesTableHeight)
-                            .scrollContentBackground(.hidden)
-                            .background(Color.clear)
+                            SourcesTableView(sources: selectedDownloadSources, sortOrder: $sourceSortOrder)
                         }
                     }
                 }
@@ -445,5 +386,83 @@ struct DownloadDetailsWindowView: View {
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+}
+
+private struct SourcesTableView: View {
+    let sources: [DownloadSourceItem]
+    @Binding var sortOrder: [KeyPathComparator<DownloadSourceItem>]
+
+    var body: some View {
+        Table(sources, sortOrder: $sortOrder) {
+            TableColumn("Client", value: \.clientName) { source in
+                Text(source.clientDisplayName)
+            }
+            .width(min: 160, ideal: 220, max: 360)
+
+            TableColumn("Endpoint", value: \.userIP) { source in
+                Text(source.endpoint)
+                    .font(.system(.body, design: .monospaced))
+            }
+            .width(min: 130, ideal: 160, max: 250)
+
+            TableColumn("Software", value: \.softwareVersion) { source in
+                Text(source.softwareDisplay)
+                    .lineLimit(1)
+            }
+            .width(min: 120, ideal: 170, max: 260)
+
+            TableColumn("State", value: \.downloadStateText) { source in
+                Text(source.downloadStateText)
+            }
+            .width(min: 130, ideal: 160, max: 260)
+
+            TableColumn("Speed", value: \.downSpeedKBps) { source in
+                Text(source.speedText)
+            }
+            .width(min: 90, ideal: 110, max: 180)
+
+            TableColumn("Avail", value: \.availableParts) { source in
+                Text(String(source.availableParts))
+            }
+            .width(min: 60, ideal: 80, max: 110)
+
+            TableColumn("Queue", value: \.remoteQueueRank) { source in
+                Text(source.queueRankText)
+            }
+            .width(min: 70, ideal: 82, max: 120)
+
+            TableColumn("From", value: \.sourceFromText) { source in
+                Text(source.sourceFromText)
+            }
+            .width(min: 110, ideal: 140, max: 210)
+
+            TableColumn("Server", value: \.serverName) { source in
+                Text(source.serverEndpoint)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .width(min: 170, ideal: 240, max: 360)
+
+            TableColumn("Remote Name", value: \.remoteFilename) { source in
+                Text(source.remoteFilename.isEmpty ? "-" : source.remoteFilename)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .width(min: 220, ideal: 340, max: 520)
+        }
+        .frame(height: tableHeight)
+        .scrollContentBackground(.hidden)
+        .background(Color.clear)
+    }
+
+    private var tableHeight: CGFloat {
+        let rowHeight: CGFloat = 28
+        let headerHeight: CGFloat = 30
+        let clampedRows = max(1, min(sources.count, 5))
+        if sources.count <= 5 {
+            return headerHeight + rowHeight * CGFloat(clampedRows) + 4
+        }
+        return 230
     }
 }
