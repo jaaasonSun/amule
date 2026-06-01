@@ -126,8 +126,8 @@ struct ServersWindowView: View {
                 .width(min: 180, ideal: 220, max: 420)
 
                 TableColumn("Address", value: \.endpointText) { item in
-                    ServerRowView.text(item.endpointText)
-                        .contextMenu { serverContextMenu(item) }
+                    let row = ServerRowView.text(item.endpointText)
+                    return row.contextMenu { serverContextMenu(item) }
                 }
                 .width(170)
 

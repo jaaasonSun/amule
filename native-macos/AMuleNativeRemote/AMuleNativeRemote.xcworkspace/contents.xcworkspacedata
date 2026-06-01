@@ -2,9 +2,15 @@
 <Workspace
    version = "1.0">
    <FileRef
-      location = "group:">
+      location = "group:AMuleNativeRemote.xcodeproj">
    </FileRef>
    <FileRef
-      location = "group:iOS/">
+      location = "group:AMuleRemoteiOS.xcodeproj">
+   </FileRef>
+   <FileRef
+      location = "group:Packages/Shared">
+   </FileRef>
+   <FileRef
+      location = "group:SwiftEC">
    </FileRef>
 </Workspace>
