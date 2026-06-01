@@ -4,11 +4,7 @@ import AMuleECClient
 
 enum BridgeAdapterFactory {
     static func makeBridgeAdapter() -> BridgeProtocol {
-        #if os(macOS)
         SerializedBridgeAdapter(wrapping: MacOSPersistentSwiftECBridgeAdapter())
-        #else
-        FakeBridgeAdapter()
-        #endif
     }
 }
 

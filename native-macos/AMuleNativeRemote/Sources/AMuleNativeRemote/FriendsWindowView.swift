@@ -32,12 +32,7 @@ struct FriendsWindowView: View {
 
             Divider()
 
-            if !model.isBridgeOpSupported("friends") {
-                Text("Friends are unsupported by this bridge.")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .padding(18)
-            } else if model.friends.isEmpty {
+            if model.friends.isEmpty {
                 Text("No friends available.")
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

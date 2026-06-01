@@ -194,6 +194,11 @@ public enum ECOperations {
         return request(opcode: OpCode.getDownloadQueue, detail: .full)
     }
 
+    public static func downloadsUpdate(gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.downloads)
+        return request(opcode: OpCode.getUpdate, detail: .incrementalUpdate)
+    }
+
     public static func servers(gate: ECCapabilityGate? = nil) throws -> ECPacket {
         try gate?.require(.servers)
         return request(opcode: OpCode.getServerList, detail: .full)

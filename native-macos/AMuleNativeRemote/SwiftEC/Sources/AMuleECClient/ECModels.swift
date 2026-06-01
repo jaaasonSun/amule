@@ -132,15 +132,29 @@ public struct ECStatus: Codable, Equatable, Sendable {
     public let connected: Bool
     public let ed2k: String
     public let kad: String
+    public let currentServer: ECServer?
+    public let idStatus: String?
     public let downloadSpeed: Int
     public let uploadSpeed: Int
     public let queue: Int
     public let sources: Int
 
-    public init(connected: Bool, ed2k: String, kad: String, downloadSpeed: Int, uploadSpeed: Int, queue: Int, sources: Int) {
+    public init(
+        connected: Bool,
+        ed2k: String,
+        kad: String,
+        currentServer: ECServer? = nil,
+        idStatus: String? = nil,
+        downloadSpeed: Int,
+        uploadSpeed: Int,
+        queue: Int,
+        sources: Int
+    ) {
         self.connected = connected
         self.ed2k = ed2k
         self.kad = kad
+        self.currentServer = currentServer
+        self.idStatus = idStatus
         self.downloadSpeed = downloadSpeed
         self.uploadSpeed = uploadSpeed
         self.queue = queue
@@ -149,6 +163,8 @@ public struct ECStatus: Codable, Equatable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case connected, ed2k, kad, queue, sources
+        case currentServer = "current_server"
+        case idStatus = "id_status"
         case downloadSpeed = "download_speed"
         case uploadSpeed = "upload_speed"
     }

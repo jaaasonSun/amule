@@ -2,7 +2,7 @@ import Foundation
 
 public enum DownloadClassification {
     public static func isCompleted(_ item: DownloadClassifiable) -> Bool {
-        if item.isCompleted || item.statusCode == 9 {
+        if item.isCompleted || item.statusCode >= 8 {
             return true
         }
         if item.sizeBytes > 0 && item.doneBytes >= item.sizeBytes {
@@ -36,8 +36,7 @@ public enum DownloadClassification {
         if isCompleted(item) || isPaused(item) {
             return false
         }
-        if item.statusCode == 8 ||
-            item.statusCode == 2 ||
+        if item.statusCode == 2 ||
             item.statusCode == 3 ||
             item.statusCode == 10 ||
             item.statusCode == 4 ||

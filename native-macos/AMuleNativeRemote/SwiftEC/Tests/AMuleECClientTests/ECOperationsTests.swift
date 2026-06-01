@@ -202,7 +202,13 @@ final class ECOperationsTests: XCTestCase {
 
     func testStatusParserAndEnvelopeMatchBridgeShape() throws {
         let packet = ECPacket(opcode: 0x0C, tags: [
-            .integer(name: 0x0005, value: 1),
+            ECTag(name: 0x0005, type: .uint8, value: .uint(0x15), children: [
+                ECTag(name: 0x0500, type: .ipv4, value: .ipv4(ECIPv4Address(1, 2, 3, 4, port: 4662)), children: [
+                    ECTag(name: 0x0501, type: .string, value: .string("ExampleServer")),
+                    ECTag(name: 0x0503, type: .string, value: .string("1.2.3.4:4662")),
+                ]),
+                .integer(name: 0x000F, value: 0x1000000),
+            ]),
             .integer(name: 0x0201, value: 1024),
             .integer(name: 0x0200, value: 512),
             .integer(name: 0x0208, value: 7),
@@ -210,14 +216,50 @@ final class ECOperationsTests: XCTestCase {
         ])
 
         let status = try ECResponseParser.parseStatus(packet)
-        XCTAssertEqual(status, ECStatus(connected: true, ed2k: "Connected", kad: "Unknown", downloadSpeed: 1024, uploadSpeed: 512, queue: 7, sources: 99))
+        XCTAssertEqual(status, ECStatus(
+            connected: true,
+            ed2k: "Connected to ExampleServer [1.2.3.4:4662] HighID",
+            kad: "Connected",
+            currentServer: ECServer(id: 0, name: "ExampleServer", description: "", version: "", address: "1.2.3.4:4662", ip: "1.2.3.4", port: 4662, users: 0, maxUsers: 0, files: 0, ping: 0, failed: 0, priority: 0, isStatic: false),
+            idStatus: "HighID",
+            downloadSpeed: 1024,
+            uploadSpeed: 512,
+            queue: 7,
+            sources: 99
+        ))
 
         let json = try jsonObject(ECJSONEnvelope.status(status))
         XCTAssertEqual(json["ok"] as? Bool, true)
         let payload = try XCTUnwrap(json["status"] as? [String: Any])
         XCTAssertEqual(payload["download_speed"] as? Int, 1024)
         XCTAssertEqual(payload["upload_speed"] as? Int, 512)
+        XCTAssertEqual(payload["ed2k"] as? String, "Connected to ExampleServer [1.2.3.4:4662] HighID")
+        XCTAssertEqual(payload["id_status"] as? String, "HighID")
         XCTAssertNil(json["success"])
+    }
+
+    func testStatusParserHandlesConnectionBitmaskStates() throws {
+        let connecting = ECPacket(opcode: 0x0C, tags: [
+            ECTag(name: 0x0005, type: .uint8, value: .uint(0x12), children: [
+                ECTag(name: 0x0500, type: .ipv4, value: .ipv4(ECIPv4Address(5, 6, 7, 8, port: 4661)), children: [
+                    ECTag(name: 0x0501, type: .string, value: .string("ConnectingServer")),
+                ]),
+                .integer(name: 0x000F, value: 0xffffffff),
+            ]),
+        ])
+        let connectingStatus = try ECResponseParser.parseStatus(connecting)
+        XCTAssertFalse(connectingStatus.connected)
+        XCTAssertEqual(connectingStatus.ed2k, "Connecting to ConnectingServer [5.6.7.8:4661]")
+        XCTAssertEqual(connectingStatus.kad, "Connecting")
+        XCTAssertNil(connectingStatus.idStatus)
+        XCTAssertNil(connectingStatus.currentServer)
+
+        let disconnected = ECPacket(opcode: 0x0C, tags: [
+            .integer(name: 0x0005, value: 0),
+        ])
+        let disconnectedStatus = try ECResponseParser.parseStatus(disconnected)
+        XCTAssertEqual(disconnectedStatus.ed2k, "Not connected")
+        XCTAssertEqual(disconnectedStatus.kad, "Off")
     }
 
     func testDownloadParserAndEnvelopeMatchBridgeShape() throws {
@@ -564,9 +606,9 @@ final class ECOperationsTests: XCTestCase {
             actual: 0x1F
         )
         assertUnexpectedOpcode(
-            try ECResponseParser.parseDownloads(ECPacket(opcode: 0x22)),
+            try ECResponseParser.parseDownloads(ECPacket(opcode: 0x0C)),
             expected: 0x1F,
-            actual: 0x22
+            actual: 0x0C
         )
         assertUnexpectedOpcode(
             try ECResponseParser.parseDownloadFileID(hash: "00112233445566778899aabbccddeeff", in: ECPacket(opcode: 0x22)),

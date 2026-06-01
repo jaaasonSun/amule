@@ -4,16 +4,6 @@ import Carbon.HIToolbox
 import Foundation
 import SharedUI
 
-struct MacOSBridgeInvocation: BridgeInvocation {
-    func invokeBridge(
-        op: String,
-        extraArgs: [String],
-        config: AMuleConnectionConfig
-    ) async throws -> (envelope: BridgeEnvelope, raw: String) {
-        try await AMuleECBridgeClient.invoke(op: op, extraArgs: extraArgs, config: config)
-    }
-}
-
 struct MacOSPasteboardShare: PasteboardShare, @unchecked Sendable {
     private let pasteboard: NSPasteboard
 

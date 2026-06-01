@@ -33,12 +33,7 @@ struct UploadsWindowView: View {
 
             Divider()
 
-            if !model.isBridgeOpSupported("uploads") {
-                Text("Uploads are unsupported by this bridge.")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .padding(18)
-            } else if model.uploads.isEmpty {
+            if model.uploads.isEmpty {
                 Text("No active uploads.")
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

@@ -177,6 +177,47 @@ final class ECDownloadStateStoreTests: XCTestCase {
         XCTAssertEqual(store.lifecycle(forECID: 43), .completedRetained)
     }
 
+    func testSparseIncrementalUpdateRetainsExistingActiveDownload() throws {
+        var store = ECDownloadStateStore()
+        let fullPacket = ECDownloadPacketFixtures.snapshotPacket(downloads: [
+            try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "active.iso", statusCode: 3),
+        ])
+        store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(fullPacket), sourcePacket: fullPacket)
+        XCTAssertEqual(store.downloads.first?.name, "active.iso")
+        XCTAssertEqual(store.downloads.first?.statusCode, 3)
+
+        let sparsePacket = ECDownloadPacketFixtures.snapshotPacket(downloads: [
+            try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "active.iso", statusCode: 3, sourceNameEntries: [
+                ECDownloadPacketFixtures.sourceNameEntry(id: 7, name: "better.iso", count: 2),
+            ]),
+        ])
+        let sparseParsed = try ECResponseParser.parseDownloads(sparsePacket)
+        store.replaceDownloadSnapshot(sparseParsed, sourcePacket: sparsePacket)
+
+        XCTAssertEqual(store.downloads.first?.name, "active.iso")
+        XCTAssertEqual(store.downloads.first?.statusCode, 3)
+        XCTAssertEqual(store.downloads.first?.alternativeNames, [
+            ECDownload.AlternativeName(name: "better.iso", count: 2),
+        ])
+    }
+
+    func testSparseIncrementalUpdateWithStatusChangeUpdatesActiveDownload() throws {
+        var store = ECDownloadStateStore()
+        let fullPacket = ECDownloadPacketFixtures.snapshotPacket(downloads: [
+            try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "active.iso", statusCode: 3),
+        ])
+        store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(fullPacket), sourcePacket: fullPacket)
+
+        let changedPacket = ECDownloadPacketFixtures.snapshotPacket(downloads: [
+            try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "active.iso", statusCode: 4),
+        ])
+        let changedParsed = try ECResponseParser.parseDownloads(changedPacket)
+        store.replaceDownloadSnapshot(changedParsed, sourcePacket: changedPacket)
+
+        XCTAssertEqual(store.downloads.first?.name, "active.iso")
+        XCTAssertEqual(store.downloads.first?.statusCode, 4)
+    }
+
     func testReconnectSnapshotReconcilesRetainedTombstoneBackToActive() throws {
         var store = ECDownloadStateStore()
         store.replaceDownloadSnapshot([Self.download(ecid: 43, hash: Self.otherHash, name: "done.iso", completed: true)])

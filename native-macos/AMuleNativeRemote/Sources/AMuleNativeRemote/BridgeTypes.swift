@@ -85,5 +85,4 @@ public typealias BridgeCoreLogPayload = ECCoreLog
 public typealias BridgeCategoryPayload = ECCategory
 public typealias BridgeFriendPayload = ECFriend
 public typealias BridgeStatsTreeNodePayload = ECStatsTreeNode
-public typealias BridgeStatsGraphSamplePayload = ECStatsGraphSample
 public typealias BridgeStatsGraphsPayload = ECStatsGraphs

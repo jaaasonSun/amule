@@ -21,6 +21,7 @@ public enum ECResponseParser {
     public enum TagName {
         public static let connState: UInt16 = 0x0005
         public static let ecid: UInt16 = 0x000F
+        public static let ed2kID: UInt16 = 0x000F
         public static let statsUploadSpeed: UInt16 = 0x0200
         public static let statsDownloadSpeed: UInt16 = 0x0201
         public static let statsTotalSourceCount: UInt16 = 0x0206
@@ -125,11 +126,26 @@ public enum ECResponseParser {
 
     public static func parseStatus(_ packet: ECPacket) throws -> ECStatus {
         try requireOpcode(packet, ECOperations.OpCode.stats)
-        let state = packet.tags.first(named: TagName.connState)?.uintValue ?? 0
+        let connState = packet.tags.first(named: TagName.connState)
+        let state = connState?.uintValue ?? 0
+        let ed2kConnected = (state & 0x01) != 0
+        let ed2kConnecting = (state & 0x02) != 0
+        let kadConnected = (state & 0x04) != 0
+        let kadFirewalled = (state & 0x08) != 0
+        let kadRunning = (state & 0x10) != 0
+        let server = connState?.child(named: TagName.server).map(parseStatusServer)
+        let idStatus = connState?.child(named: TagName.ed2kID).flatMap { tag -> String? in
+            let value = tag.uintValue
+            guard value != 0xffffffff else { return nil }
+            return value < 0x1000000 ? "LowID" : "HighID"
+        }
+
         return ECStatus(
-            connected: state != 0,
-            ed2k: state != 0 ? "Connected" : "Not connected",
-            kad: "Unknown",
+            connected: ed2kConnected,
+            ed2k: ed2kStatusText(connected: ed2kConnected, connecting: ed2kConnecting, server: server, idStatus: idStatus),
+            kad: kadStatusText(running: kadRunning, connected: kadConnected, firewalled: kadFirewalled),
+            currentServer: ed2kConnected ? server : nil,
+            idStatus: idStatus,
             downloadSpeed: packet.tags.first(named: TagName.statsDownloadSpeed)?.intValue ?? 0,
             uploadSpeed: packet.tags.first(named: TagName.statsUploadSpeed)?.intValue ?? 0,
             queue: packet.tags.first(named: TagName.statsUploadQueueLength)?.intValue ?? 0,
@@ -137,8 +153,77 @@ public enum ECResponseParser {
         )
     }
 
+    private static func parseStatusServer(_ tag: ECTag) -> ECServer {
+        let endpoint = tag.ipv4Value
+        let ip = endpoint?.host ?? tag.child(named: TagName.serverIP)?.ipStringValue ?? ""
+        let port = endpoint?.port ?? tag.child(named: TagName.serverPort)?.intValue ?? 0
+        let explicitAddress = tag.child(named: TagName.serverAddress)?.stringValue ?? ""
+        let address = explicitAddress.isEmpty ? endpointText(ip: ip, port: port) : explicitAddress
+        return ECServer(
+            id: 0,
+            name: tag.child(named: TagName.serverName)?.stringValue ?? "",
+            description: tag.child(named: TagName.serverDescription)?.stringValue ?? "",
+            version: tag.child(named: TagName.serverVersion)?.stringValue ?? "",
+            address: address,
+            ip: ip,
+            port: port,
+            users: tag.child(named: TagName.serverUsers)?.intValue ?? 0,
+            maxUsers: tag.child(named: TagName.serverMaxUsers)?.intValue ?? 0,
+            files: tag.child(named: TagName.serverFiles)?.intValue ?? 0,
+            ping: tag.child(named: TagName.serverPing)?.intValue ?? 0,
+            failed: tag.child(named: TagName.serverFailed)?.intValue ?? 0,
+            priority: tag.child(named: TagName.serverPriority)?.intValue ?? 0,
+            isStatic: (tag.child(named: TagName.serverStatic)?.intValue ?? 0) != 0
+        )
+    }
+
+    private static func ed2kStatusText(connected: Bool, connecting: Bool, server: ECServer?, idStatus: String?) -> String {
+        if connected {
+            var text = "Connected"
+            if let server, !server.name.isEmpty {
+                text += " to \(server.name)"
+            }
+            if let endpoint = serverEndpointText(server) {
+                text += " [\(endpoint)]"
+            }
+            if let idStatus {
+                text += " \(idStatus)"
+            }
+            return text
+        }
+
+        if connecting {
+            var text = "Connecting"
+            if let server, !server.name.isEmpty {
+                text += " to \(server.name)"
+            }
+            if let endpoint = serverEndpointText(server) {
+                text += " [\(endpoint)]"
+            }
+            return text
+        }
+
+        return "Not connected"
+    }
+
+    private static func serverEndpointText(_ server: ECServer?) -> String? {
+        guard let server, !server.ip.isEmpty, server.port > 0 else { return nil }
+        return "\(server.ip):\(server.port)"
+    }
+
+    private static func kadStatusText(running: Bool, connected: Bool, firewalled: Bool) -> String {
+        guard running else { return "Off" }
+        if connected {
+            return firewalled ? "Connected (firewalled)" : "Connected"
+        }
+        return "Connecting"
+    }
+
     public static func parseDownloads(_ packet: ECPacket) throws -> [ECDownload] {
-        try requireOpcode(packet, ECOperations.OpCode.downloadQueue)
+        try checkFailure(packet)
+        guard packet.opcode == ECOperations.OpCode.downloadQueue || packet.opcode == ECOperations.OpCode.sharedFiles else {
+            throw ECResponseParserError.unexpectedOpcode(expected: ECOperations.OpCode.downloadQueue, actual: packet.opcode)
+        }
         return packet.tags.compactMap(parseDownloadTag)
     }
 
@@ -391,14 +476,14 @@ public enum ECResponseParser {
     }
 
     private static func parseDownloadTag(_ tag: ECTag) -> ECDownload? {
-        guard tag.name == TagName.partFile || tag.name == TagName.knownFile else { return nil }
+        guard tag.name == TagName.partFile else { return nil }
+        let name = tag.child(named: TagName.partFileName)?.stringValue ?? ""
         let size = tag.child(named: TagName.partFileSizeFull)?.uintValue ?? 0
         let hasStatus = tag.child(named: TagName.partFileStatus) != nil
         let statusCode = tag.child(named: TagName.partFileStatus)?.intValue ?? 9
         let done = tag.child(named: TagName.partFileSizeDone)?.uintValue ?? (hasStatus ? 0 : size)
         let sourceTotal = tag.child(named: TagName.partFileSourceCount)?.intValue ?? 0
         let sourceNotCurrent = tag.child(named: TagName.partFileSourceCountNotCurrent)?.intValue ?? 0
-        let name = tag.child(named: TagName.partFileName)?.stringValue ?? ""
         return ECDownload(
             ecid: tag.intValue,
             hash: tag.child(named: TagName.partFileHash)?.hashStringValue ?? tag.hashStringValue,
@@ -412,7 +497,7 @@ public enum ECResponseParser {
             sourcesTransferring: hasStatus ? (tag.child(named: TagName.partFileSourceCountTransfer)?.intValue ?? 0) : 0,
             sourcesA4AF: hasStatus ? (tag.child(named: TagName.partFileSourceCountA4AF)?.intValue ?? 0) : 0,
             statusCode: statusCode,
-            isCompleted: statusCode == 9,
+            isCompleted: statusCode >= 8,
             status: partFileStatusText(statusCode, sourcesTransferring: hasStatus ? (tag.child(named: TagName.partFileSourceCountTransfer)?.intValue ?? 0) : 0),
             speed: hasStatus ? (tag.child(named: TagName.partFileSpeed)?.intValue ?? 0) : 0,
             priority: hasStatus ? (tag.child(named: TagName.partFilePriority)?.intValue ?? 0) : 0,

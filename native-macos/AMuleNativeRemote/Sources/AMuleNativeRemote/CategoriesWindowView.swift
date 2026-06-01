@@ -45,12 +45,7 @@ struct CategoriesWindowView: View {
 
             Divider()
 
-            if !model.isBridgeOpSupported("categories") {
-                Text("Categories are unsupported by this bridge.")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .padding(18)
-            } else if model.categories.isEmpty {
+            if model.categories.isEmpty {
                 Text("No categories available.")
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

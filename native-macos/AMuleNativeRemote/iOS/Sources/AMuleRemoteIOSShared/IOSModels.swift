@@ -169,7 +169,7 @@ public struct DownloadItem: Identifiable, Hashable, RenameVerifiableDownload {
     }
 
     public var isCompletedLike: Bool {
-        if isCompleted || statusCode == 9 {
+        if isCompleted || statusCode >= 8 {
             return true
         }
         if sizeBytes > 0 && doneBytes >= sizeBytes {

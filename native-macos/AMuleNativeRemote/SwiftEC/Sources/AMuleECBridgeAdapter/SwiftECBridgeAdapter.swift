@@ -54,20 +54,11 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
 
     public func downloads(config: AMuleConnectionConfig) async throws -> ([BridgeDownloadPayload], String) {
         try await withAuthenticatedSession(for: config) { session in
-            let snapshotPacket = try await session.send(try ECOperations.downloads(gate: capabilityGate))
-            let snapshot = try ECResponseParser.parseDownloads(snapshotPacket)
-            var downloads = await modelState.replaceDownloads(snapshot, sourcePacket: snapshotPacket)
-
-            do {
-                let updatePacket = try await session.send(try ECOperations.sourcesUpdate(gate: capabilityGate))
-                try ECResponseParser.validateSharedFilesUpdate(updatePacket)
-                downloads = await modelState.applyIncrementalDownloadUpdate(updatePacket)
-            } catch {
-                downloads = await modelState.downloads
-            }
-
-            let raw = ECJSONEnvelope.jsonString(try ECJSONEnvelope.downloads(downloads))
-            return (downloads, raw)
+            let packet = try await session.send(try ECOperations.downloadsUpdate(gate: capabilityGate))
+            let downloads = try ECResponseParser.parseDownloads(packet)
+            let result = await modelState.replaceDownloads(downloads, sourcePacket: packet)
+            let raw = ECJSONEnvelope.jsonString(try ECJSONEnvelope.downloads(result))
+            return (result, raw)
         }
     }
 

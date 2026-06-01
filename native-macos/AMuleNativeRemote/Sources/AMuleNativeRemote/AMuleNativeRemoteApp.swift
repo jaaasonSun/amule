@@ -19,12 +19,6 @@ struct AMuleNativeRemoteApp: App {
         }
         .windowStyle(.hiddenTitleBar)
 
-        WindowGroup("Mock Search", id: "search-mock-window") {
-            SearchWindowView(mockMode: true)
-                .environmentObject(model)
-        }
-        .windowStyle(.hiddenTitleBar)
-
         WindowGroup("eD2k", id: "servers-window") {
             ServersWindowView()
                 .environmentObject(model)

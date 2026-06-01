@@ -44,7 +44,14 @@ public struct ECDownloadStateStore: Sendable {
         let incoming = uniqueDownloads(from: snapshot)
         let liveECIDs = Set(incoming.map(\.ecid))
 
+        var hasPartFileStatus: Set<Int> = []
         if let sourcePacket {
+            for tag in sourcePacket.tags where tag.name == TagName.partFile || tag.name == TagName.knownFile {
+                let ecid = tag.intValue
+                if tag.child(named: 0x0308) != nil {
+                    hasPartFileStatus.insert(ecid)
+                }
+            }
             for tag in sourcePacket.tags where tag.name == TagName.partFile {
                 let ecid = tag.intValue
                 guard liveECIDs.contains(ecid) else { continue }
@@ -60,9 +67,16 @@ public struct ECDownloadStateStore: Sendable {
         var nextOrder = incoming.map(\.ecid)
 
         for download in incoming {
-            let merged = download.replacingAlternativeNames(alternativeNames(for: download))
-            nextDownloadsByECID[download.ecid] = merged
-            nextLifecycleByECID[download.ecid] = lifecycle(for: merged)
+            let ecid = download.ecid
+            if sourcePacket != nil, !hasPartFileStatus.contains(ecid), let existing = downloadsByECID[ecid] {
+                let merged = existing.replacingAlternativeNames(alternativeNames(for: existing))
+                nextDownloadsByECID[ecid] = merged
+                nextLifecycleByECID[ecid] = lifecycle(for: merged)
+            } else {
+                let merged = download.replacingAlternativeNames(alternativeNames(for: download))
+                nextDownloadsByECID[ecid] = merged
+                nextLifecycleByECID[ecid] = lifecycle(for: merged)
+            }
         }
 
         for ecid in previousOrder where !liveECIDs.contains(ecid) {
@@ -119,7 +133,7 @@ public struct ECDownloadStateStore: Sendable {
     }
 
     private func shouldRetainWhenOmitted(_ download: ECDownload) -> Bool {
-        download.isCompleted || download.statusCode == 9 || (download.size > 0 && download.done >= download.size)
+        download.isCompleted || download.statusCode >= 8 || (download.size > 0 && download.done >= download.size)
     }
 
     private func isSharedOnly(_ download: ECDownload) -> Bool {

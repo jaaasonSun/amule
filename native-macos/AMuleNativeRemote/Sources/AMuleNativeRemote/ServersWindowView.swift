@@ -12,78 +12,6 @@ private func LF2(_ key: String, _ args: CVarArg...) -> String {
     String(format: NSLocalizedString(key, comment: ""), locale: .current, arguments: args)
 }
 
-private enum ServerWindowConnectionState2 {
-    case connected
-    case disconnected
-    case transitional
-    case unknown
-}
-
-private func connectionState2(from value: String) -> ServerWindowConnectionState2 {
-    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-    if trimmed.isEmpty || trimmed == "-" { return .unknown }
-
-    let lower = trimmed.lowercased()
-    if ["disconnected", "not connected", "offline", "stopped", "off", "断开", "未连接", "離線", "离线", "未連線"]
-        .contains(where: { lower.contains($0) }) {
-        return .disconnected
-    }
-    if ["connecting", "starting", "initializing", "pending", "run", "running", "连接中", "正在连接", "連線中", "初始化"]
-        .contains(where: { lower.contains($0) }) {
-        return .transitional
-    }
-    if ["connected", "lowid", "highid", "firewalled", "on", "已连接", "已連線", "连接", "連線"]
-        .contains(where: { lower.contains($0) }) {
-        return .connected
-    }
-    return .unknown
-}
-
-private func localizedConnectionStateText2(_ state: ServerWindowConnectionState2) -> String {
-    switch state {
-    case .connected: return L2("Connected")
-    case .disconnected: return L2("Disconnected")
-    case .transitional: return L2("Connecting")
-    case .unknown: return L2("Unknown")
-    }
-}
-
-private func extractED2kServerName2(from value: String) -> String? {
-    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-    let prefixes = ["Connected to ", "Connecting to "]
-    guard let prefix = prefixes.first(where: { trimmed.hasPrefix($0) }) else { return nil }
-
-    var rest = String(trimmed.dropFirst(prefix.count))
-    if let suffixRange = rest.range(of: #"\s+(LowID|HighID)\s*$"#, options: .regularExpression) {
-        rest.removeSubrange(suffixRange)
-    }
-    if let endpointRange = rest.range(
-        of: #"\s+\[?[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+(?::[0-9]+)?\]?$"#,
-        options: .regularExpression
-    ) {
-        rest.removeSubrange(endpointRange)
-    }
-    let name = rest.trimmingCharacters(in: .whitespacesAndNewlines)
-    return name.isEmpty ? nil : name
-}
-
-private func localizedED2kStatusSummary2(_ value: String) -> String {
-    let state = connectionState2(from: value)
-    switch state {
-    case .connected:
-        if let name = extractED2kServerName2(from: value) {
-            return LF2("Connected to %@", name)
-        }
-    case .transitional:
-        if let name = extractED2kServerName2(from: value) {
-            return LF2("Connecting to %@", name)
-        }
-    case .disconnected, .unknown:
-        break
-    }
-    return localizedConnectionStateText2(state)
-}
-
 struct ServersWindowView: View {
     @EnvironmentObject private var model: AppModel
 
@@ -190,64 +118,55 @@ struct ServersWindowView: View {
         VStack(spacing: 0) {
             Table(displayedServers, selection: $selectedServerID, sortOrder: $serverSortOrder) {
                 TableColumn("Name", value: \.name) { item in
-                    HStack(spacing: 6) {
-                        if isConnectedServer(item) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                                .help("Connected Server")
-                        }
-                        Text(item.name.isEmpty ? L2("(unnamed)") : item.name)
-                            .fontWeight(isConnectedServer(item) ? .semibold : .regular)
-                    }
+                    ServerRowView.name(item: item, isConnected: isConnectedServer(item))
                         .contextMenu { serverContextMenu(item) }
                 }
                 .width(min: 180, ideal: 220, max: 420)
 
                 TableColumn("Address", value: \.endpointText) { item in
-                    Text(item.endpointText)
+                    ServerRowView.text(item.endpointText)
                         .contextMenu { serverContextMenu(item) }
                 }
                 .width(170)
 
                 TableColumn("Users", value: \.users) { item in
-                    Text(item.usersText)
+                    ServerRowView.text(item.usersText)
                         .contextMenu { serverContextMenu(item) }
                 }
                 .width(95)
 
                 TableColumn("Files", value: \.files) { item in
-                    let filesText = String(item.files)
-                    Text(filesText)
+                    ServerRowView.number(item.files)
                         .contextMenu { serverContextMenu(item) }
                 }
                 .width(90)
 
                 TableColumn("Ping", value: \.ping) { item in
-                    Text(item.ping > 0 ? "\(item.ping) ms" : "-")
+                    ServerRowView.ping(item.ping)
                         .contextMenu { serverContextMenu(item) }
                 }
                 .width(90)
 
                 TableColumn("Failed", value: \.failed) { item in
-                    Text(String(item.failed))
+                    ServerRowView.number(item.failed)
                         .contextMenu { serverContextMenu(item) }
                 }
                 .width(75)
 
                 TableColumn("Version", value: \.version) { item in
-                    Text(item.version)
+                    ServerRowView.text(item.version)
                         .contextMenu { serverContextMenu(item) }
                 }
                 .width(90)
 
                 TableColumn("Prio", value: \.priority) { item in
-                    Text(String(item.priority))
+                    ServerRowView.number(item.priority)
                         .contextMenu { serverContextMenu(item) }
                 }
                 .width(70)
 
                 TableColumn("Static") { item in
-                    Text(item.isStatic ? L2("Yes") : L2("No"))
+                    ServerRowView.isStatic(item.isStatic)
                         .contextMenu { serverContextMenu(item) }
                 }
                 .width(70)
@@ -272,11 +191,7 @@ struct ServersWindowView: View {
                         .truncationMode(.tail)
                 }
                 Spacer()
-                Text(localizedED2kStatusSummary2(model.status.ed2k))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                ServerConnectionStatusView(statusText: model.status.ed2k)
                 Text(LF2("%lld server(s)", Int64(displayedServers.count)))
                     .font(.caption)
                     .foregroundStyle(.secondary)

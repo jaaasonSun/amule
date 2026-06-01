@@ -39,12 +39,7 @@ struct SharedFilesWindowView: View {
 
             Divider()
 
-            if !model.isBridgeOpSupported("shared-files") {
-                Text("Shared files are unsupported by this bridge.")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .padding(18)
-            } else if model.sharedFiles.isEmpty {
+            if model.sharedFiles.isEmpty {
                 Text("No shared files available.")
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
