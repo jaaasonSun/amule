@@ -1,7 +1,8 @@
 import Foundation
-import SharedUI
+import SharedViews
 import SwiftUI
-import SharedCore
+import SharedModels
+import SharedServices
 
 extension AppModel {
     func requestAddLinksPanel() {

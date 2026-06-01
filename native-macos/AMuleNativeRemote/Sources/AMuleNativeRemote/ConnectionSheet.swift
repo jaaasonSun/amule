@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
-import SharedCore
+import SharedModels
+import SharedServices
 
 enum ConnectionState {
     case connected

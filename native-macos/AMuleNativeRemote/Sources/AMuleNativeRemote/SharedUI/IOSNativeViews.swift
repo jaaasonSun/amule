@@ -1,6 +1,7 @@
 import SwiftUI
-import SharedCore
-import SharedUI
+import SharedModels
+import SharedServices
+import SharedViews
 
 #if canImport(UIKit)
 

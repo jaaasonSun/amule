@@ -1,7 +1,8 @@
 import SwiftUI
 import AppKit
-import SharedUI
-import SharedCore
+import SharedViews
+import SharedModels
+import SharedServices
 
 struct ContentView: View {
     @EnvironmentObject private var model: AppModel

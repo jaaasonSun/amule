@@ -1,6 +1,8 @@
 import Foundation
-import SharedUI
-import SharedCore
+import SharedViews
+import AMuleECBridgeAdapter
+import SharedModels
+import SharedServices
 
 extension AppModel {
     func refreshDownloads() {

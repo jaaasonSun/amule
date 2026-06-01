@@ -1,12 +1,14 @@
 import Foundation
 import AMuleECClient
-import SharedCore
-import SharedUI
+import AMuleECBridgeAdapter
+import SharedModels
+import SharedServices
+import SharedViews
 
-typealias DownloadAlternativeName = SharedCore.DownloadAlternativeName
-typealias SearchResult = SharedCore.SearchResult
-typealias DownloadItem = SharedCore.DownloadItem
-typealias ServerItem = SharedCore.ServerItem
+typealias DownloadAlternativeName = SharedModels.DownloadAlternativeName
+typealias SearchResult = SharedModels.SearchResult
+typealias DownloadItem = SharedModels.DownloadItem
+typealias ServerItem = SharedModels.ServerItem
 
 struct BridgeStatsPayload: Decodable {
     let tree: BridgeStatsTreeNodePayload?

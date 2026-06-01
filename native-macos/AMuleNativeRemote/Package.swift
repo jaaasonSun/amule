@@ -10,18 +10,18 @@ let package = Package(
         .executable(name: "AMuleNativeRemote", targets: ["AMuleNativeRemote"])
     ],
     dependencies: [
-        .package(path: "SharedUI"),
-        .package(path: "SwiftEC"),
-        .package(path: "SharedCore")
+        .package(path: "Packages/Shared"),
+        .package(path: "SwiftEC")
     ],
     targets: [
         .executableTarget(
             name: "AMuleNativeRemote",
             dependencies: [
-                "SharedUI",
+                .product(name: "SharedViews", package: "Shared"),
+                .product(name: "SharedModels", package: "Shared"),
+                .product(name: "SharedServices", package: "Shared"),
                 .product(name: "AMuleECClient", package: "SwiftEC"),
-                .product(name: "AMuleECBridgeAdapter", package: "SwiftEC"),
-                .product(name: "SharedCore", package: "SharedCore")
+                .product(name: "AMuleECBridgeAdapter", package: "SwiftEC")
             ]
         ),
         .testTarget(

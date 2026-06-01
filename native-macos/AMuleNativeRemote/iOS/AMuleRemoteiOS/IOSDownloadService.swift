@@ -2,8 +2,9 @@
 import SwiftUI
 import AMuleRemoteIOSShared
 import AMuleECClient
-import SharedCore
-import SharedUI
+import SharedModels
+import SharedServices
+import SharedViews
 
 @MainActor
 struct IOSDownloadService {

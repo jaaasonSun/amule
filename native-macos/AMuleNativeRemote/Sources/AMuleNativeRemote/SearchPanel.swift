@@ -1,5 +1,6 @@
 import SwiftUI
-import SharedCore
+import SharedModels
+import SharedServices
 
 struct SearchPanel: View {
     var body: some View {

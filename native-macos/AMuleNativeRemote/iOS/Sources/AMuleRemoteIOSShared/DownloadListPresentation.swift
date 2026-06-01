@@ -1,6 +1,7 @@
 import Foundation
-import SharedCore
-import SharedUI
+import SharedModels
+import SharedServices
+import SharedViews
 
 @available(macOS 13.0, iOS 15.0, *)
 public enum DownloadListFilter: String, CaseIterable, Identifiable, Sendable {

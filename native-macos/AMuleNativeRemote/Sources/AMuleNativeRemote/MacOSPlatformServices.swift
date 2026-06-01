@@ -3,8 +3,9 @@ import AppKit
 import AMuleECBridgeAdapter
 import Carbon.HIToolbox
 import Foundation
-import SharedUI
-import SharedCore
+import SharedViews
+import SharedModels
+import SharedServices
 
 extension AMuleConnectionConfig {
     static let fallbackBridgeCommand = "amule-ec-bridge"

@@ -1,7 +1,9 @@
 import Foundation
-import SharedUI
+import SharedViews
 import SwiftUI
-import SharedCore
+import AMuleECBridgeAdapter
+import SharedModels
+import SharedServices
 
 struct DownloadRenameSuggestionRequest: Equatable {
     let downloadID: String

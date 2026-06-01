@@ -1,6 +1,7 @@
 import Foundation
-import SharedCore
-import SharedUI
+import SharedModels
+import SharedServices
+import SharedViews
 
 @testable import AMuleNativeRemote
 

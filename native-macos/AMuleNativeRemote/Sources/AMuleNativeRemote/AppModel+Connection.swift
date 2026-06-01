@@ -1,5 +1,7 @@
 import Foundation
-import SharedCore
+import AMuleECBridgeAdapter
+import SharedModels
+import SharedServices
 
 extension AppModel {
     func refreshBridgeCapabilities(logOutput: Bool = false, suppressErrors: Bool = true) async {

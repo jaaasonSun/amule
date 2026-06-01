@@ -1,5 +1,6 @@
 import SwiftUI
-import SharedCore
+import SharedModels
+import SharedServices
 
 struct AddLinksSheetView: View {
     @EnvironmentObject private var model: AppModel

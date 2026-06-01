@@ -1,6 +1,7 @@
 import SwiftUI
-import SharedUI
-import SharedCore
+import SharedViews
+import SharedModels
+import SharedServices
 
 private func L2(_ key: String) -> String {
     NSLocalizedString(key, comment: "")

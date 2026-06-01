@@ -1,5 +1,7 @@
 import Foundation
-import SharedCore
+import AMuleECBridgeAdapter
+import SharedModels
+import SharedServices
 
 struct ServerManagementService: Sendable {
     let bridge: BridgeProtocol

@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
-import SharedCore
+import SharedModels
+import SharedServices
 
 private func L2SearchRow(_ key: String) -> String {
     NSLocalizedString(key, comment: "")

@@ -1,3 +1,3 @@
-import SharedUI
+import SharedViews
 
-public typealias RenameVerification = SharedUI.RenameVerification
+public typealias RenameVerification = SharedViews.RenameVerification

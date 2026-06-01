@@ -1,7 +1,7 @@
 #if canImport(UIKit)
 import SwiftUI
 import AMuleRemoteIOSShared
-import SharedUI
+import SharedViews
 
 struct DownloadsView: View {
     @ObservedObject var model: IOSAppModel

@@ -1,7 +1,8 @@
 import Foundation
 import Network
 import SwiftUI
-import SharedCore
+import SharedModels
+import SharedServices
 
 public enum AppLifecycleEffect: Equatable {
     case none

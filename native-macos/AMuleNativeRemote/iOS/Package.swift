@@ -12,8 +12,7 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../SwiftEC"),
-        .package(path: "../SharedUI"),
-        .package(path: "../SharedCore")
+        .package(path: "../Packages/Shared")
     ],
     targets: [
         .target(
@@ -21,8 +20,9 @@ let package = Package(
             dependencies: [
                 .product(name: "AMuleECClient", package: "SwiftEC"),
                 .product(name: "AMuleECBridgeAdapter", package: "SwiftEC"),
-                .product(name: "SharedUI", package: "SharedUI"),
-                .product(name: "SharedCore", package: "SharedCore")
+                .product(name: "SharedViews", package: "Shared"),
+                .product(name: "SharedModels", package: "Shared"),
+                .product(name: "SharedServices", package: "Shared")
             ],
             path: "Sources"
         ),

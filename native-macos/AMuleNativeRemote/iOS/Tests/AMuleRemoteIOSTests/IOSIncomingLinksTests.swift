@@ -1,5 +1,5 @@
 import XCTest
-import SharedUI
+import SharedViews
 @testable import AMuleRemoteIOSShared
 
 @MainActor

@@ -1,6 +1,8 @@
 import XCTest
-import SharedCore
-import SharedUI
+import AMuleECBridgeAdapter
+import SharedModels
+import SharedServices
+import SharedViews
 
 @testable import AMuleNativeRemote
 

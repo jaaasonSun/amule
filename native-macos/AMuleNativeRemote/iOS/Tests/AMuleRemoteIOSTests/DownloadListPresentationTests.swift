@@ -1,6 +1,6 @@
 import XCTest
 import AMuleRemoteIOSShared
-import SharedUI
+import SharedViews
 
 final class DownloadListPresentationTests: XCTestCase {
     func testSearchQueryFiltersDownloadNamesAndStatus() {

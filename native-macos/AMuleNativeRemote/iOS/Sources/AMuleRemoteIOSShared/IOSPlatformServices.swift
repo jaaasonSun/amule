@@ -1,8 +1,9 @@
 import Foundation
 import AMuleECBridgeAdapter
 import Security
-import SharedCore
-import SharedUI
+import SharedModels
+import SharedServices
+import SharedViews
 
 public func platformDefaultBridgeAdapter() -> AMuleECBridgeAdapter.BridgeProtocol {
     SwiftECBridgeAdapter()
@@ -182,7 +183,8 @@ public final class IOSLocalNetworkErrorPresentation: LocalNetworkErrorPresentati
 
 #if canImport(UIKit)
 import UIKit
-import SharedCore
+import SharedModels
+import SharedServices
 
 public struct IOSPasteboardShare: PasteboardShare, @unchecked Sendable {
     public func writeString(_ string: String) {

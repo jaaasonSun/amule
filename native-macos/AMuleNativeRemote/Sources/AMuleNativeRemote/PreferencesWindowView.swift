@@ -1,7 +1,8 @@
 import SwiftUI
 import AppKit
-import SharedUI
-import SharedCore
+import SharedViews
+import SharedModels
+import SharedServices
 
 struct PreferencesWindowView: View {
     @EnvironmentObject private var model: AppModel

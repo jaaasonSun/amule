@@ -1,6 +1,6 @@
 #if canImport(XCTest)
 import XCTest
-import SharedUI
+import SharedViews
 
 @testable import AMuleNativeRemote
 

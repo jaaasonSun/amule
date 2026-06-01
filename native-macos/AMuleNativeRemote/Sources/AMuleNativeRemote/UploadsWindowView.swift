@@ -1,8 +1,9 @@
 import SwiftUI
 import AppKit
-#if canImport(SharedUI)
-import SharedUI
-import SharedCore
+#if canImport(SharedViews)
+import SharedViews
+import SharedModels
+import SharedServices
 #endif
 
 private func L2(_ key: String) -> String {

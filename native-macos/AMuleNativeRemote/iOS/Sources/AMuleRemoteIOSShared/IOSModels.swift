@@ -1,11 +1,12 @@
 import Foundation
-import SharedUI
-import SharedCore
+import SharedViews
+import SharedModels
+import SharedServices
 
-public typealias DownloadAlternativeName = SharedCore.DownloadAlternativeName
-public typealias SearchResult = SharedCore.SearchResult
-public typealias DownloadItem = SharedCore.DownloadItem
-public typealias ServerItem = SharedCore.ServerItem
+public typealias DownloadAlternativeName = SharedModels.DownloadAlternativeName
+public typealias SearchResult = SharedModels.SearchResult
+public typealias DownloadItem = SharedModels.DownloadItem
+public typealias ServerItem = SharedModels.ServerItem
 
 public enum SourceDownloadState: Int {
     case connecting          = 1

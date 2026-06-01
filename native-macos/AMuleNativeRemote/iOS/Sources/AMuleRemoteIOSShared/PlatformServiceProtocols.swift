@@ -1,6 +1,7 @@
 import Foundation
-import SharedUI
-import SharedCore
+import SharedViews
+import SharedModels
+import SharedServices
 import SwiftUI
 
 @MainActor

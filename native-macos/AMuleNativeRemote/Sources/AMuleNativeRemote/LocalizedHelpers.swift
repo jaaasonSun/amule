@@ -1,5 +1,6 @@
 import Foundation
-import SharedCore
+import SharedModels
+import SharedServices
 
 func L(_ key: String) -> String {
     NSLocalizedString(key, comment: "")

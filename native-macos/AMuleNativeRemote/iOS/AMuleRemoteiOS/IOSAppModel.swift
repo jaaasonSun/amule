@@ -1,8 +1,10 @@
 #if canImport(UIKit)
 import SwiftUI
 import AMuleRemoteIOSShared
-import SharedCore
-import SharedUI
+import AMuleECBridgeAdapter
+import SharedModels
+import SharedServices
+import SharedViews
 
 struct UserServer: Identifiable, Hashable, Codable {
     let id: UUID
