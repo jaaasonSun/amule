@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 REPO_ROOT="$(cd "$ROOT_DIR/../.." && pwd)"
 APP_NAME="${AMULE_APP_NAME:-aMule Remote}"
-APP_VERSION="${AMULE_APP_VERSION:-0.1.0}"
+APP_VERSION="${AMULE_APP_VERSION:-0.1.1}"
 BUILD_NUMBER="${AMULE_BUILD_NUMBER:-$APP_VERSION}"
 BUILD_COMMIT="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo dev)"
 XCODE_DERIVED_DATA_PATH="${AMULE_XCODE_DERIVED_DATA:-${TMPDIR:-/tmp}/amule-xcodebuild}"

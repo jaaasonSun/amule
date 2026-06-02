@@ -122,7 +122,7 @@
 		B20000000000000000000050 /* aMule Remote.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "aMule Remote.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		B20000000000000000000051 /* AMuleNativeRemoteTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AMuleNativeRemoteTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B20000000000000000000060 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
-		B20000000000000000000061 /* zh_CN */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = zh_CN; path = "zh_CN.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		B20000000000000000000061 /* zh_CN */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = zh_CN; path = zh_CN.lproj/Localizable.strings; sourceTree = "<group>"; };
 		B20000000000000000000063 /* aMule.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = aMule.icon; sourceTree = SOURCE_ROOT; };
 		B20000000000000000000101 /* BridgeEnvelopeFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeEnvelopeFixtures.swift; sourceTree = "<group>"; };
 		B20000000000000000000102 /* CapabilitiesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapabilitiesTests.swift; sourceTree = "<group>"; };
@@ -169,15 +169,15 @@
 		B20000030000000000000001 = {
 			isa = PBXGroup;
 			children = (
-				B20000030000000000000002 /* Sources/AMuleNativeRemote */,
-				B20000030000000000000003 /* Tests/AMuleNativeRemoteTests */,
+				B20000030000000000000002 /* AMuleNativeRemote */,
+				B20000030000000000000003 /* AMuleNativeRemoteTests */,
 				B20000030000000000000004 /* Resources */,
 				B20000000000000000000063 /* aMule.icon */,
 				B20000030000000000000005 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		B20000030000000000000002 /* Sources/AMuleNativeRemote */ = {
+		B20000030000000000000002 /* AMuleNativeRemote */ = {
 			isa = PBXGroup;
 			children = (
 				B20000000000000000000001 /* AddLinksHUDView.swift */,
@@ -222,7 +222,7 @@
 			path = Sources/AMuleNativeRemote;
 			sourceTree = SOURCE_ROOT;
 		};
-		B20000030000000000000003 /* Tests/AMuleNativeRemoteTests */ = {
+		B20000030000000000000003 /* AMuleNativeRemoteTests */ = {
 			isa = PBXGroup;
 			children = (
 				B20000000000000000000101 /* BridgeEnvelopeFixtures.swift */,
@@ -567,9 +567,9 @@
 			buildSettings = {
 				AMULE_BUILD_COMMIT = local;
 				AMULE_LSUIELEMENT = false;
+				CODE_SIGNING_ALLOWED = NO;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
-				CODE_SIGNING_ALLOWED = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -581,7 +581,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				OTHER_SWIFT_FLAGS = "-Xfrontend -disable-availability-checking -Xfrontend -solver-expression-time-threshold=1000";
 				PRODUCT_BUNDLE_IDENTIFIER = org.amule.remote;
 				PRODUCT_NAME = "aMule Remote";
@@ -598,9 +598,9 @@
 			buildSettings = {
 				AMULE_BUILD_COMMIT = local;
 				AMULE_LSUIELEMENT = false;
+				CODE_SIGNING_ALLOWED = NO;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
-				CODE_SIGNING_ALLOWED = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -612,7 +612,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				OTHER_SWIFT_FLAGS = "-Xfrontend -disable-availability-checking -Xfrontend -solver-expression-time-threshold=1000";
 				PRODUCT_BUNDLE_IDENTIFIER = org.amule.remote;
 				PRODUCT_NAME = "aMule Remote";
@@ -627,13 +627,13 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
-				CODE_SIGNING_ALLOWED = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = org.amule.remote.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
@@ -648,13 +648,13 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
-				CODE_SIGNING_ALLOWED = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = org.amule.remote.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
