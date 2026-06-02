@@ -231,6 +231,43 @@ final class ECDownloadStateStoreTests: XCTestCase {
         XCTAssertEqual(store.lifecycle(forECID: 43), .active)
     }
 
+    func testSparseUpdateMergesNameChangeFromIncomingDownload() throws {
+        var store = ECDownloadStateStore()
+        let fullPacket = ECDownloadPacketFixtures.snapshotPacket(downloads: [
+            try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "old_name.iso", statusCode: 3),
+        ])
+        store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(fullPacket), sourcePacket: fullPacket)
+        XCTAssertEqual(store.downloads.first?.name, "old_name.iso")
+        XCTAssertEqual(store.downloads.first?.statusCode, 3)
+
+        let sparsePacket = ECDownloadPacketFixtures.snapshotPacket(downloads: [
+            try ECDownloadPacketFixtures.sparsePartFile(ecid: 42, hash: Self.hash, name: "new_name.iso"),
+        ])
+        let sparseParsed = try ECResponseParser.parseDownloads(sparsePacket)
+        store.replaceDownloadSnapshot(sparseParsed, sourcePacket: sparsePacket)
+
+        XCTAssertEqual(store.downloads.first?.name, "new_name.iso")
+        XCTAssertEqual(store.downloads.first?.statusCode, 3)
+    }
+
+    func testSparseUpdateRetainsExistingNameWhenIncomingNameIsEmpty() throws {
+        var store = ECDownloadStateStore()
+        let fullPacket = ECDownloadPacketFixtures.snapshotPacket(downloads: [
+            try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "existing.iso", statusCode: 3),
+        ])
+        store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(fullPacket), sourcePacket: fullPacket)
+
+        let sparseTag = ECTag.integer(name: 0x0300, value: UInt64(42), children: [
+            ECTag.integer(name: 0x0303, value: 100),
+        ])
+        let sparsePacket = ECDownloadPacketFixtures.snapshotPacket(downloads: [sparseTag])
+        let sparseParsed = try ECResponseParser.parseDownloads(sparsePacket)
+        store.replaceDownloadSnapshot(sparseParsed, sourcePacket: sparsePacket)
+
+        XCTAssertEqual(store.downloads.first?.name, "existing.iso")
+        XCTAssertEqual(store.downloads.first?.statusCode, 3)
+    }
+
     func testSharedOnlyAndMalformedLifecycleStatesAreRecorded() throws {
         var store = ECDownloadStateStore()
         let packet = ECDownloadPacketFixtures.snapshotPacket(downloads: [

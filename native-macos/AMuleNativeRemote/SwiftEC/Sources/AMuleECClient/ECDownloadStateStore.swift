@@ -69,9 +69,15 @@ public struct ECDownloadStateStore: Sendable {
         for download in incoming {
             let ecid = download.ecid
             if sourcePacket != nil, !hasPartFileStatus.contains(ecid), let existing = downloadsByECID[ecid] {
-                let merged = existing.replacingAlternativeNames(alternativeNames(for: existing))
-                nextDownloadsByECID[ecid] = merged
-                nextLifecycleByECID[ecid] = lifecycle(for: merged)
+                let merged: ECDownload
+                if !download.name.isEmpty, download.name != existing.name {
+                    merged = existing.replacingName(download.name)
+                } else {
+                    merged = existing
+                }
+                let withAltNames = merged.replacingAlternativeNames(alternativeNames(for: merged))
+                nextDownloadsByECID[ecid] = withAltNames
+                nextLifecycleByECID[ecid] = lifecycle(for: withAltNames)
             } else {
                 let merged = download.replacingAlternativeNames(alternativeNames(for: download))
                 nextDownloadsByECID[ecid] = merged
@@ -242,6 +248,38 @@ extension ECDownload {
             ecid: ecid,
             hash: hash,
             name: name,
+            nameEncodingSuspect: nameEncodingSuspect,
+            nameEncodingSuggestion: nameEncodingSuggestion,
+            size: size,
+            done: done,
+            transferred: transferred,
+            progress: progress,
+            sourcesCurrent: sourcesCurrent,
+            sourcesTotal: sourcesTotal,
+            sourcesTransferring: sourcesTransferring,
+            sourcesA4AF: sourcesA4AF,
+            statusCode: statusCode,
+            isCompleted: isCompleted,
+            status: status,
+            speed: speed,
+            priority: priority,
+            category: category,
+            partMet: partMet,
+            lastSeenComplete: lastSeenComplete,
+            lastReceived: lastReceived,
+            activeSeconds: activeSeconds,
+            availableParts: availableParts,
+            shared: shared,
+            alternativeNames: alternativeNames,
+            progressColors: progressColors
+        )
+    }
+
+    func replacingName(_ newName: String) -> ECDownload {
+        ECDownload(
+            ecid: ecid,
+            hash: hash,
+            name: newName,
             nameEncodingSuspect: nameEncodingSuspect,
             nameEncodingSuggestion: nameEncodingSuggestion,
             size: size,
