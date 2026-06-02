@@ -39,6 +39,10 @@ struct DownloadsView: View {
         )
     }
 
+    private var completedDownloads: [DownloadItem] {
+        model.downloads.filter(\.isCompletedLike)
+    }
+
     var body: some View {
         downloadsList
             .listStyle(.plain)
@@ -156,6 +160,13 @@ struct DownloadsView: View {
             }
 
             addLinksButton
+
+            Button {
+                model.clearCompletedDownloads(completedDownloads)
+            } label: {
+                Label("Clear Completed", systemImage: "checkmark")
+            }
+            .disabled(completedDownloads.isEmpty || model.isBusy || !model.isSessionConnected)
         }
     }
 
@@ -184,6 +195,13 @@ struct DownloadsView: View {
             filterMenu
             sortMenu
             addLinksButton
+
+            Button {
+                model.clearCompletedDownloads(completedDownloads)
+            } label: {
+                Label("Clear Completed", systemImage: "checkmark")
+            }
+            .disabled(completedDownloads.isEmpty || model.isBusy || !model.isSessionConnected)
         }
     }
 

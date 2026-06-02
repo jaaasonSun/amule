@@ -76,8 +76,15 @@ struct IOSDownloadService {
         let bridge = model.bridgeClient
         Task {
             do {
-                let _ = try await bridge.rename(hash: item.id, name: trimmed, config: config)
-                try? await Task.sleep(nanoseconds: 300_000_000)
+                let acknowledgement = try await bridge.rename(hash: item.id, name: trimmed, config: config)
+                guard acknowledgement.requiresPostRefreshVerification else {
+                    await MainActor.run {
+                        model.lastError = acknowledgement.verificationFailureMessage
+                        model.isBusy = false
+                    }
+                    return
+                }
+
                 let (payloads, _) = try await bridge.downloads(config: config)
                 let refreshedDownloads = DownloadItem.fromBridge(payloads)
                 let didApply = RenameVerification.wasApplied(
@@ -87,9 +94,7 @@ struct IOSDownloadService {
                 )
                 await MainActor.run {
                     model.downloads = refreshedDownloads
-                    model.lastError = didApply
-                        ? ""
-                        : L("Rename request was sent, but the filename was not changed.")
+                    model.lastError = didApply ? "" : acknowledgement.verificationFailureMessage
                     model.isBusy = false
                 }
             } catch {
@@ -131,6 +136,34 @@ struct IOSDownloadService {
         Task {
             do {
                 let _ = try await bridge.cancel(hash: item.id, config: config)
+                let (payloads, _) = try await bridge.downloads(config: config)
+                await MainActor.run {
+                    model.downloads = DownloadItem.fromBridge(payloads)
+                    model.isBusy = false
+                }
+            } catch {
+                await MainActor.run {
+                    model.lastError = model.localNetworkErrorPresenter.userFacingMessage(for: error)
+                    model.isBusy = false
+                }
+            }
+        }
+    }
+
+    func clearCompleted(_ items: [DownloadItem], model: IOSAppModel) {
+        guard model.isSessionConnected else { return }
+        guard BridgeCapabilityGate.isSupported("clear-completed", by: model.bridgeOps) else { return }
+
+        let ecids = items.map(\.ecid)
+        guard !ecids.isEmpty else { return }
+
+        model.isBusy = true
+        model.lastError = ""
+        let config = model.config
+        let bridge = model.bridgeClient
+        Task {
+            do {
+                let _ = try await bridge.clearCompleted(ecids: ecids, config: config)
                 let (payloads, _) = try await bridge.downloads(config: config)
                 await MainActor.run {
                     model.downloads = DownloadItem.fromBridge(payloads)

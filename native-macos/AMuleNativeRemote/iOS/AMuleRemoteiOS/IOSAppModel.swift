@@ -215,6 +215,10 @@ final class IOSAppModel: ObservableObject {
         downloadService.removeDownload(item, model: self)
     }
 
+    func clearCompletedDownloads(_ items: [DownloadItem]) {
+        downloadService.clearCompleted(items, model: self)
+    }
+
     func connectServer(_ server: ServerItem?) {
         serverService.connectServer(server, model: self)
     }
