@@ -97,6 +97,33 @@ AMULE_NOTARY_PROFILE="notarytool-profile-name" \
 
 If `AMULE_NOTARY_PROFILE` is omitted, signing is performed and notarization is skipped.
 
+## Release Process
+
+Bump version before cutting a release:
+
+```bash
+./scripts/bump-version.sh 0.2.0
+```
+
+This updates `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in both the macOS and iOS Xcode projects.
+
+Then build and create the GitHub release:
+
+```bash
+# macOS
+AMULE_APP_VERSION=0.2.0 ./scripts/build-app.sh
+
+# iOS (unsigned for AltStore)
+AMULE_IOS_CODE_SIGNING_ALLOWED=NO ./scripts/build-ios-altstore.sh
+
+# Create release
+gh release create v0.2.0 \
+  --title "aMule Remote 0.2.0" \
+  --notes "Release notes..." \
+  dist/aMule\ Remote.app.zip \
+  dist/ios-altstore/AMuleRemoteiOS-0.2.0-*.ipa
+```
+
 ## Icon Workflow
 This branch supports both:
 - classic `.icns`
