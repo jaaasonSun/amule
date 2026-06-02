@@ -18,6 +18,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 concurrency:
   group: ios-altstore-release
@@ -75,25 +77,18 @@ jobs:
           cp native-macos/AMuleNativeRemote/dist/ios-altstore/aMule.png public/aMule.png
 
       - name: Upload Pages artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: altstore-pages
           path: public
 
   deploy-pages:
     needs: build-release
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - name: Download Pages artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: altstore-pages
-          path: public
-
       - name: Deploy AltStore source to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./public
-          keep_files: true
+        id: deployment
+        uses: actions/deploy-pages@v4
