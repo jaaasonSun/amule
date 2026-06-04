@@ -16,6 +16,10 @@ public struct DownloadAlternativeName: Hashable, Identifiable {
     public var meaningfulNameEncodingSuggestion: String? {
         FileNameEncodingRepair.repairedSuggestion(for: name)
     }
+
+    public func meaningfulFilenameSuggestion(prefixes: [String]) -> String? {
+        FileNameSuggestionPolicy.suggestion(currentName: name, prefixes: prefixes)
+    }
 }
 
 public struct SearchResult: Identifiable, Hashable {
@@ -153,6 +157,14 @@ public struct DownloadItem: Identifiable, Hashable {
         guard !trimmedSuggestion.isEmpty else { return nil }
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedSuggestion == trimmedName ? nil : trimmedSuggestion
+    }
+
+    public func meaningfulFilenameSuggestion(prefixes: [String]) -> String? {
+        FileNameSuggestionPolicy.suggestion(
+            currentName: name,
+            providedSuggestion: nameEncodingSuggestion,
+            prefixes: prefixes
+        )
     }
 
     public var hasMeaningfulNameEncodingSuggestion: Bool {

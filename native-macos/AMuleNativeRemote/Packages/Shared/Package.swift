@@ -35,7 +35,7 @@ let package = Package(
         ),
         .testTarget(
             name: "SharedViewsTests",
-            dependencies: ["SharedViews"],
+            dependencies: ["SharedViews", "SharedModels"],
             path: "Tests/SharedViewsTests"
         )
     ]

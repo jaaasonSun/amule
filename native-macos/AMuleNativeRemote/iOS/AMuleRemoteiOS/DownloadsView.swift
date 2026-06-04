@@ -1,5 +1,6 @@
 #if canImport(UIKit)
 import SwiftUI
+import SharedModels
 import SharedViews
 
 struct DownloadsView: View {
@@ -14,6 +15,11 @@ struct DownloadsView: View {
     @State private var addLinksDraft = ""
     @State private var showAddLinksSheet = false
     @State private var suggestedRenameRequest: SuggestedRenameRequest?
+    @AppStorage(FilenameCleanupPreferences.storageKey) private var filenameCleanupPrefixesRaw = "[]"
+
+    private var filenameCleanupPrefixes: [String] {
+        FilenameCleanupPreferences.decode(filenameCleanupPrefixesRaw)
+    }
 
     private var selectedSort: DownloadListSort {
         DownloadListSort(rawValue: selectedSortRaw) ?? .name
@@ -87,10 +93,10 @@ struct DownloadsView: View {
                     NavigationLink {
                         DownloadDetailView(model: model, item: item)
                     } label: {
-                        DownloadRow(item: item)
+                        DownloadRow(item: item, filenameCleanupPrefixes: filenameCleanupPrefixes)
                     }
                     .contextMenu {
-                        if let suggestion = item.meaningfulNameEncodingSuggestion {
+                        if let suggestion = item.meaningfulFilenameSuggestion(prefixes: filenameCleanupPrefixes) {
                             Button {
                                 if let draft = FilenameSuggestionPresentation.renameDraft(from: suggestion, currentName: item.name) {
                                     suggestedRenameRequest = SuggestedRenameRequest(item: item, suggestion: draft)

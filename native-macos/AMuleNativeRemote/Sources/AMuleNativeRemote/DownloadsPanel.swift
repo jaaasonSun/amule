@@ -9,6 +9,7 @@ struct DownloadsPanel: View {
     @Binding var sortOrder: [KeyPathComparator<DownloadItem>]
     @Binding var nameFilterQuery: String
     let alwaysShowSuggestedFilename: Bool
+    let filenameCleanupPrefixes: [String]
     let canRenameDownload: (DownloadItem) -> Bool
     let showDetails: (DownloadItem) -> Void
     let useSuggestedFilename: (DownloadItem, String) -> Void
@@ -34,24 +35,24 @@ struct DownloadsPanel: View {
                         Text(item.name)
                             .lineLimit(1)
                             .truncationMode(.middle)
-                        if item.hasDisplayedNameEncodingValue(alwaysShowDiagnostic: alwaysShowSuggestedFilename) {
+                        if hasDisplayedFilenameSuggestion(for: item) {
                             Label(
-                                item.usesDiagnosticNameEncodingFallback(alwaysShowDiagnostic: alwaysShowSuggestedFilename)
+                                isDiagnosticFilenameValue(for: item)
                                     ? "Diagnostic filename value available"
-                                    : (item.nameEncodingSuspect ? "Suggested filename available" : "Diagnostic filename suggestion available"),
+                                    : "Suggested filename available",
                                 systemImage: "wand.and.stars"
                             )
                                 .labelStyle(.iconOnly)
                                 .font(.caption2.weight(.semibold))
                                 .foregroundStyle(
-                                    item.usesDiagnosticNameEncodingFallback(alwaysShowDiagnostic: alwaysShowSuggestedFilename) || !item.nameEncodingSuspect
+                                    isDiagnosticFilenameValue(for: item)
                                         ? Color.secondary
                                         : Color.orange
                                 )
                                 .help(
-                                    item.usesDiagnosticNameEncodingFallback(alwaysShowDiagnostic: alwaysShowSuggestedFilename)
+                                    isDiagnosticFilenameValue(for: item)
                                         ? "Diagnostic filename value available"
-                                        : (item.nameEncodingSuspect ? "Suggested filename available" : "Diagnostic filename suggestion available")
+                                        : "Suggested filename available"
                                 )
                         }
                     }
@@ -117,7 +118,7 @@ struct DownloadsPanel: View {
         Button("Details…") {
             showDetails(item)
         }
-        if let suggestion = item.meaningfulNameEncodingSuggestion {
+        if let suggestion = item.meaningfulFilenameSuggestion(prefixes: filenameCleanupPrefixes) {
             Button("Use Suggested Filename…") {
                 useSuggestedFilename(item, suggestion)
             }
@@ -144,6 +145,16 @@ struct DownloadsPanel: View {
             Button("High") { setPriority(item, "high") }
             Button("Auto") { setPriority(item, "auto") }
         }
+    }
+
+    private func hasDisplayedFilenameSuggestion(for item: DownloadItem) -> Bool {
+        item.meaningfulFilenameSuggestion(prefixes: filenameCleanupPrefixes) != nil ||
+            item.hasDisplayedNameEncodingValue(alwaysShowDiagnostic: alwaysShowSuggestedFilename)
+    }
+
+    private func isDiagnosticFilenameValue(for item: DownloadItem) -> Bool {
+        item.meaningfulFilenameSuggestion(prefixes: filenameCleanupPrefixes) == nil &&
+            item.usesDiagnosticNameEncodingFallback(alwaysShowDiagnostic: alwaysShowSuggestedFilename)
     }
 
     private func downloadStatusSymbol(for status: String) -> String {
@@ -209,6 +220,7 @@ private extension DownloadsPanel {
             sortOrder: .constant([KeyPathComparator(\DownloadItem.name, order: .forward)]),
             nameFilterQuery: .constant(""),
             alwaysShowSuggestedFilename: false,
+            filenameCleanupPrefixes: [],
             canRenameDownload: { _ in true },
             showDetails: { _ in },
             useSuggestedFilename: { _, _ in },

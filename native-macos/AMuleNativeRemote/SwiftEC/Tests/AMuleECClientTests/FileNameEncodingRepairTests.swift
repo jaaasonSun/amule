@@ -78,6 +78,66 @@ final class FileNameEncodingRepairTests: XCTestCase {
         ])
     }
 
+    func testFilenameSuggestionPolicyRemovesLiteralPrefixesCaseInsensitively() {
+        XCTAssertEqual(
+            FileNameSuggestionPolicy.suggestion(
+                currentName: "ABCDED - Movie.mkv",
+                prefixes: ["ABCDED - "]
+            ),
+            "Movie.mkv"
+        )
+        XCTAssertEqual(
+            FileNameSuggestionPolicy.suggestion(
+                currentName: "abcded - Movie.mkv",
+                prefixes: ["ABCDED - "]
+            ),
+            "Movie.mkv"
+        )
+        XCTAssertNil(
+            FileNameSuggestionPolicy.suggestion(
+                currentName: "ABCDED- Movie.mkv",
+                prefixes: ["ABCDED - "]
+            )
+        )
+    }
+
+    func testFilenameSuggestionPolicyAppliesEncodingRepairBeforePrefixCleanup() {
+        XCTAssertEqual(
+            FileNameSuggestionPolicy.suggestion(
+                currentName: "ABCDED - FranÃ§ais.mkv",
+                prefixes: ["ABCDED - "]
+            ),
+            "Français.mkv"
+        )
+    }
+
+    func testFilenameSuggestionPolicyUsesLongestMatchingPrefixAndFiltersEmptyResults() {
+        XCTAssertEqual(
+            FileNameSuggestionPolicy.suggestion(
+                currentName: "ABCDED Extended - Movie.mkv",
+                prefixes: ["ABCDED ", "ABCDED Extended - "]
+            ),
+            "Movie.mkv"
+        )
+        XCTAssertNil(
+            FileNameSuggestionPolicy.suggestion(
+                currentName: "ABCDED - ",
+                prefixes: ["ABCDED - "]
+            )
+        )
+    }
+
+    func testFilenameSuggestionPolicyCleansProvidedSuggestionBeforeCurrentName() {
+        XCTAssertEqual(
+            FileNameSuggestionPolicy.suggestion(
+                currentName: "Original.mkv",
+                providedSuggestion: "ABCDED - Better.mkv",
+                prefixes: ["ABCDED - "]
+            ),
+            "Better.mkv"
+        )
+    }
+
     func testDownloadInitAndDecoderShareNormalizationFixtures() throws {
         let fixtures: [NormalizationFixture] = [
             .init(

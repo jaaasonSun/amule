@@ -1,5 +1,6 @@
 #if canImport(UIKit)
 import SwiftUI
+import SharedModels
 import SharedViews
 
 struct SettingsView: View {
@@ -28,6 +29,8 @@ struct SettingsView: View {
 
             TransferLimitsSection(model: model)
 
+            FilenameCleanupSettingsSection()
+
             CapabilitiesSection(model: model)
 
             Section {
@@ -50,6 +53,59 @@ struct SettingsView: View {
         }
         return Text(value.isEmpty ? L("Unknown") : value)
             .foregroundStyle(color)
+    }
+}
+
+private struct FilenameCleanupSettingsSection: View {
+    @AppStorage(FilenameCleanupPreferences.storageKey) private var filenameCleanupPrefixesRaw = "[]"
+    @State private var draft = ""
+
+    private var prefixes: [String] {
+        FilenameCleanupPreferences.decode(filenameCleanupPrefixesRaw)
+    }
+
+    var body: some View {
+        Section {
+            HStack {
+                TextField("Prefix to remove", text: $draft)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                Button {
+                    addPrefix()
+                } label: {
+                    Label("Add", systemImage: "plus.circle")
+                }
+                .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+
+            ForEach(prefixes, id: \.self) { prefix in
+                HStack {
+                    Text(prefix)
+                        .font(.body.monospaced())
+                        .textSelection(.enabled)
+                    Spacer()
+                    Button(role: .destructive) {
+                        removePrefix(prefix)
+                    } label: {
+                        Label("Remove", systemImage: "minus.circle")
+                    }
+                    .labelStyle(.iconOnly)
+                }
+            }
+        } header: {
+            Text("Filename Cleanup")
+        } footer: {
+            Text("Matching is case-insensitive and literal. Spaces and punctuation are part of the prefix.")
+        }
+    }
+
+    private func addPrefix() {
+        filenameCleanupPrefixesRaw = FilenameCleanupPreferences.encode(prefixes + [draft])
+        draft = ""
+    }
+
+    private func removePrefix(_ prefix: String) {
+        filenameCleanupPrefixesRaw = FilenameCleanupPreferences.encode(prefixes.filter { $0 != prefix })
     }
 }
 

@@ -325,6 +325,11 @@
 "Information" = "信息";
 "URL Schemes" = "URL Scheme";
 "Supported" = "支持";
+"Filename Cleanup" = "文件名清理";
+"Prefix to remove" = "要移除的前缀";
+"Add" = "添加";
+"Remove" = "移除";
+"Matching is case-insensitive and literal. Spaces and punctuation are part of the prefix." = "匹配不区分大小写，并按字面文本处理。空格和标点也是前缀的一部分。";
 
 "Host is required." = "必须填写主机。";
 "No valid links found." = "未找到有效链接。";

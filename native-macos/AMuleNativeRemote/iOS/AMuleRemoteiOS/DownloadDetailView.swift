@@ -9,6 +9,7 @@ struct DownloadDetailView: View {
     let item: DownloadItem
     @State private var renameDraft = ""
     @State private var isRenaming = false
+    @AppStorage(FilenameCleanupPreferences.storageKey) private var filenameCleanupPrefixesRaw = "[]"
 
     private var currentItem: DownloadItem {
         model.downloads.first(where: { $0.id == item.id }) ?? item
@@ -20,6 +21,10 @@ struct DownloadDetailView: View {
 
     private var canRename: Bool {
         !currentItem.isCompletedLike && !model.isBusy
+    }
+
+    private var filenameCleanupPrefixes: [String] {
+        FilenameCleanupPreferences.decode(filenameCleanupPrefixesRaw)
     }
 
     var body: some View {
@@ -102,7 +107,7 @@ struct DownloadDetailView: View {
 
     private var nameSuggestionSection: some View {
         Group {
-            if let suggestion = currentItem.meaningfulNameEncodingSuggestion {
+            if let suggestion = currentItem.meaningfulFilenameSuggestion(prefixes: filenameCleanupPrefixes) {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(alignment: .top, spacing: 8) {
@@ -221,7 +226,7 @@ struct DownloadDetailView: View {
                                     .lineLimit(2)
                                     .truncationMode(.middle)
                                     .textSelection(.enabled)
-                                if let suggestion = alt.meaningfulNameEncodingSuggestion {
+                                if let suggestion = alt.meaningfulFilenameSuggestion(prefixes: filenameCleanupPrefixes) {
                                     Label(suggestion, systemImage: "wand.and.stars")
                                         .font(.caption)
                                         .foregroundStyle(.orange)
@@ -235,7 +240,9 @@ struct DownloadDetailView: View {
                                 .foregroundStyle(.secondary)
                             if canRename {
                                 Button {
-                                    useSuggestionForRename(alt.meaningfulNameEncodingSuggestion ?? alt.name)
+                                    useSuggestionForRename(
+                                        alt.meaningfulFilenameSuggestion(prefixes: filenameCleanupPrefixes) ?? alt.name
+                                    )
                                 } label: {
                                     Label("Use", systemImage: "checkmark")
                                 }

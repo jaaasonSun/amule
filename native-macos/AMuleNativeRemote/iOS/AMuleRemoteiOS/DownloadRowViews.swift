@@ -122,6 +122,12 @@ struct RenameSuggestionSheet: View {
 
 struct DownloadRow: View {
     let item: DownloadItem
+    let filenameCleanupPrefixes: [String]
+
+    init(item: DownloadItem, filenameCleanupPrefixes: [String] = []) {
+        self.item = item
+        self.filenameCleanupPrefixes = filenameCleanupPrefixes
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -138,7 +144,7 @@ struct DownloadRow: View {
                         .lineLimit(2)
                         .truncationMode(.middle)
 
-                    if item.meaningfulNameEncodingSuggestion != nil {
+                    if item.meaningfulFilenameSuggestion(prefixes: filenameCleanupPrefixes) != nil {
                         Image(systemName: "wand.and.stars")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.orange)
@@ -146,7 +152,7 @@ struct DownloadRow: View {
                     }
                 }
 
-                if let suggestion = item.meaningfulNameEncodingSuggestion {
+                if let suggestion = item.meaningfulFilenameSuggestion(prefixes: filenameCleanupPrefixes) {
                     Label(suggestion, systemImage: "wand.and.stars")
                         .font(.caption)
                         .foregroundStyle(.orange)

@@ -1,4 +1,5 @@
 import XCTest
+import SharedModels
 @testable import SharedViews
 
 final class FilenameSuggestionPresentationTests: XCTestCase {
@@ -15,6 +16,85 @@ final class FilenameSuggestionPresentationTests: XCTestCase {
     func testSuggestionDoesNotBecomeDraftWhenEmptyOrUnchanged() {
         XCTAssertNil(FilenameSuggestionPresentation.renameDraft(from: "   ", currentName: "Mojibake.mkv"))
         XCTAssertNil(FilenameSuggestionPresentation.renameDraft(from: "Mojibake.mkv", currentName: "Mojibake.mkv"))
+    }
+}
+
+final class SharedFilenameSuggestionTests: XCTestCase {
+    func testDownloadItemSuggestionRemovesConfiguredPrefix() {
+        let item = makeDownload(
+            name: "ABCDED - Movie.mkv",
+            suspect: false,
+            suggestion: nil
+        )
+
+        XCTAssertEqual(item.meaningfulFilenameSuggestion(prefixes: ["ABCDED - "]), "Movie.mkv")
+    }
+
+    func testDownloadItemSuggestionRepairsEncodingBeforePrefixCleanup() {
+        let item = makeDownload(
+            name: "ABCDED - FranÃ§ais.mkv",
+            suspect: false,
+            suggestion: nil
+        )
+
+        XCTAssertEqual(item.meaningfulFilenameSuggestion(prefixes: ["ABCDED - "]), "Français.mkv")
+    }
+
+    func testAlternativeNameSuggestionRemovesConfiguredPrefix() {
+        let alternative = DownloadAlternativeName(name: "abcded - 中文.avi", count: 3)
+
+        XCTAssertEqual(alternative.meaningfulFilenameSuggestion(prefixes: ["ABCDED - "]), "中文.avi")
+    }
+
+    private func makeDownload(name: String, suspect: Bool, suggestion: String?) -> DownloadItem {
+        DownloadItem(
+            ecid: 1,
+            id: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            name: name,
+            nameEncodingSuspect: suspect,
+            nameEncodingSuggestion: suggestion,
+            sizeBytes: 123,
+            doneBytes: 0,
+            transferredBytes: 0,
+            progressValue: 0,
+            sourceCurrent: 0,
+            sourceTotal: 0,
+            sourceTransferring: 0,
+            sourceA4AF: 0,
+            statusCode: 0,
+            isCompleted: false,
+            status: "Waiting",
+            speedBytes: 0,
+            priority: 0,
+            category: 0,
+            partMetName: "001.part.met",
+            lastSeenComplete: 0,
+            lastReceived: 0,
+            activeSeconds: 0,
+            availableParts: 0,
+            shared: false,
+            alternativeNames: [],
+            progressColors: []
+        )
+    }
+}
+
+final class FilenameCleanupPreferencesTests: XCTestCase {
+    func testEncodeAndDecodePrefixList() {
+        let encoded = FilenameCleanupPreferences.encode(["ABCDED - ", "Group: "])
+
+        XCTAssertEqual(FilenameCleanupPreferences.decode(encoded), ["ABCDED - ", "Group: "])
+    }
+
+    func testDecodeBadJSONFallsBackToEmptyList() {
+        XCTAssertEqual(FilenameCleanupPreferences.decode("{bad json"), [])
+    }
+
+    func testNormalizationFiltersEmptyEntriesAndExactDuplicates() {
+        XCTAssertEqual(
+            FilenameCleanupPreferences.normalized(["ABCDED - ", "   ", "ABCDED - ", "abcded - "]),
+            ["ABCDED - ", "abcded - "]
+        )
     }
 }
 

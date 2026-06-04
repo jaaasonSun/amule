@@ -15,6 +15,7 @@ private func LF2(_ key: String, _ args: CVarArg...) -> String {
 struct DownloadDetailsWindowView: View {
     @EnvironmentObject private var model: AppModel
     @AppStorage("amule.ui.alwaysShowSuggestedFilename") private var alwaysShowSuggestedFilename = false
+    @AppStorage(FilenameCleanupPreferences.storageKey) private var filenameCleanupPrefixesRaw = "[]"
 
     @State private var sourceSortOrder = [KeyPathComparator(\DownloadSourceItem.clientName, order: .forward)]
     @State private var downloadRenameDraft: String = ""
@@ -34,7 +35,23 @@ struct DownloadDetailsWindowView: View {
         return !item.isCompletedLike
     }
 
+    private var filenameCleanupPrefixes: [String] {
+        FilenameCleanupPreferences.decode(filenameCleanupPrefixesRaw)
+    }
+
+    private func actionableFilenameSuggestion(for item: DownloadItem) -> String? {
+        item.meaningfulFilenameSuggestion(prefixes: filenameCleanupPrefixes)
+    }
+
+    private func displayedFilenameValue(for item: DownloadItem) -> String? {
+        actionableFilenameSuggestion(for: item) ??
+            item.displayedNameEncodingValue(alwaysShowDiagnostic: alwaysShowSuggestedFilename)
+    }
+
     private func shouldShowSuggestion(for item: DownloadItem, suggestion: String) -> Bool {
+        if actionableFilenameSuggestion(for: item) == suggestion {
+            return true
+        }
         guard alwaysShowSuggestedFilename else { return false }
         if item.usesDiagnosticNameEncodingFallback(alwaysShowDiagnostic: alwaysShowSuggestedFilename) {
             return item.displayedNameEncodingValue(alwaysShowDiagnostic: alwaysShowSuggestedFilename) == suggestion
@@ -51,6 +68,9 @@ struct DownloadDetailsWindowView: View {
     }
 
     private func suggestionSectionTitle(for item: DownloadItem) -> String {
+        if actionableFilenameSuggestion(for: item) != nil {
+            return "Suggested Filename"
+        }
         if item.usesDiagnosticNameEncodingFallback(alwaysShowDiagnostic: alwaysShowSuggestedFilename) {
             return "Current Filename (Diagnostic)"
         }
@@ -61,6 +81,9 @@ struct DownloadDetailsWindowView: View {
     }
 
     private func suggestionHelpText(for item: DownloadItem) -> String {
+        if actionableFilenameSuggestion(for: item) != nil {
+            return "Review or edit the suggestion before applying it. The original filename remains unchanged until you apply a rename."
+        }
         if item.usesDiagnosticNameEncodingFallback(alwaysShowDiagnostic: alwaysShowSuggestedFilename) {
             return "Diagnostic display only. No distinct filename suggestion was detected, so this shows the current/original filename."
         }
@@ -71,6 +94,9 @@ struct DownloadDetailsWindowView: View {
     }
 
     private func suggestionHeaderTitle(for item: DownloadItem) -> String {
+        if actionableFilenameSuggestion(for: item) != nil {
+            return "Suggested Filename"
+        }
         if item.usesDiagnosticNameEncodingFallback(alwaysShowDiagnostic: alwaysShowSuggestedFilename) {
             return "Current Filename (Diagnostic)"
         }
@@ -78,9 +104,12 @@ struct DownloadDetailsWindowView: View {
     }
 
     private func suggestionHeaderColor(for item: DownloadItem) -> Color {
-        item.usesDiagnosticNameEncodingFallback(alwaysShowDiagnostic: alwaysShowSuggestedFilename)
-            ? .secondary
-            : (item.nameEncodingSuspect ? .orange : .secondary)
+        if actionableFilenameSuggestion(for: item) != nil {
+            return Color.orange
+        }
+        return item.usesDiagnosticNameEncodingFallback(alwaysShowDiagnostic: alwaysShowSuggestedFilename)
+            ? Color.secondary
+            : (item.nameEncodingSuspect ? Color.orange : Color.secondary)
     }
 
     private var sourcesTableHeight: CGFloat {
@@ -126,7 +155,7 @@ struct DownloadDetailsWindowView: View {
                                     .lineLimit(2)
                                     .truncationMode(.middle)
 
-                                if let suggestion = item.displayedNameEncodingValue(alwaysShowDiagnostic: alwaysShowSuggestedFilename) {
+                                if let suggestion = displayedFilenameValue(for: item) {
                                     HStack(spacing: 8) {
                                         Label(suggestionHeaderTitle(for: item), systemImage: "wand.and.stars")
                                             .font(.caption.weight(.semibold))
@@ -136,7 +165,7 @@ struct DownloadDetailsWindowView: View {
                                             .foregroundStyle(.secondary)
                                             .lineLimit(1)
                                             .truncationMode(.middle)
-                                        if item.meaningfulNameEncodingSuggestion != nil && canRenameSelectedDownload {
+                                        if actionableFilenameSuggestion(for: item) != nil && canRenameSelectedDownload {
                                             Button("Use Suggested Filename") {
                                                 useSuggestionForRename(item, suggestion: suggestion)
                                             }
@@ -164,7 +193,7 @@ struct DownloadDetailsWindowView: View {
                         .font(.callout.monospaced())
                         .foregroundStyle(.secondary)
 
-                    if let suggestion = item.displayedNameEncodingValue(alwaysShowDiagnostic: alwaysShowSuggestedFilename),
+                    if let suggestion = displayedFilenameValue(for: item),
                        shouldShowSuggestion(for: item, suggestion: suggestion) {
                         VStack(alignment: .leading, spacing: 8) {
                             Text(suggestionSectionTitle(for: item))
@@ -180,7 +209,7 @@ struct DownloadDetailsWindowView: View {
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
-                                if item.meaningfulNameEncodingSuggestion != nil && canRenameSelectedDownload {
+                                if actionableFilenameSuggestion(for: item) != nil && canRenameSelectedDownload {
                                     Button("Use Suggested Filename") {
                                         useSuggestionForRename(item, suggestion: suggestion)
                                     }
@@ -256,7 +285,7 @@ struct DownloadDetailsWindowView: View {
                                                 .font(.body)
                                                 .lineLimit(1)
                                                 .truncationMode(.middle)
-                                            if let suggestion = alt.meaningfulNameEncodingSuggestion {
+                                            if let suggestion = alt.meaningfulFilenameSuggestion(prefixes: filenameCleanupPrefixes) {
                                                 Label(suggestion, systemImage: "wand.and.stars")
                                                     .font(.caption)
                                                     .foregroundStyle(.orange)
@@ -270,7 +299,10 @@ struct DownloadDetailsWindowView: View {
                                             .foregroundStyle(.secondary)
                                         if canRenameSelectedDownload {
                                             Button("Use") {
-                                                useSuggestionForRename(item, suggestion: alt.meaningfulNameEncodingSuggestion ?? alt.name)
+                                                useSuggestionForRename(
+                                                    item,
+                                                    suggestion: alt.meaningfulFilenameSuggestion(prefixes: filenameCleanupPrefixes) ?? alt.name
+                                                )
                                             }
                                             .buttonStyle(.bordered)
                                             .controlSize(.small)

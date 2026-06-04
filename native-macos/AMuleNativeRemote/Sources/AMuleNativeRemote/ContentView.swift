@@ -8,6 +8,7 @@ struct ContentView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.openWindow) private var openWindow
     @AppStorage("amule.ui.alwaysShowSuggestedFilename") private var alwaysShowSuggestedFilename = false
+    @AppStorage(FilenameCleanupPreferences.storageKey) private var filenameCleanupPrefixesRaw = "[]"
 
     private enum DownloadSidebarFilter: String, CaseIterable, Identifiable {
         case all = "All"
@@ -88,6 +89,10 @@ struct ContentView: View {
             }
     }
 
+    private var filenameCleanupPrefixes: [String] {
+        FilenameCleanupPreferences.decode(filenameCleanupPrefixesRaw)
+    }
+
     private var activeSidebarFilter: DownloadSidebarFilter {
         if case .downloads(let filter) = selectedSidebarSelection {
             return filter
@@ -166,6 +171,7 @@ struct ContentView: View {
             sortOrder: $downloadSortOrder,
             nameFilterQuery: $downloadNameFilterQuery,
             alwaysShowSuggestedFilename: alwaysShowSuggestedFilename,
+            filenameCleanupPrefixes: filenameCleanupPrefixes,
             canRenameDownload: canRenameDownload,
             showDetails: { openDownloadDetailsWindow(for: $0, refreshSources: false) },
             useSuggestedFilename: { item, suggestion in

@@ -34,6 +34,7 @@ let package = Package(
         ),
         .target(
             name: "Fixtures",
+            dependencies: ["AMuleECProtocol"],
             path: "Tests/Fixtures",
             sources: [
                 "ECTagFixtures.swift",

@@ -6,6 +6,12 @@ import SharedServices
 
 struct PreferencesWindowView: View {
     @EnvironmentObject private var model: AppModel
+    @AppStorage(FilenameCleanupPreferences.storageKey) private var filenameCleanupPrefixesRaw = "[]"
+    @State private var filenameCleanupPrefixDraft = ""
+
+    private var filenameCleanupPrefixes: [String] {
+        FilenameCleanupPreferences.decode(filenameCleanupPrefixesRaw)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -45,6 +51,47 @@ struct PreferencesWindowView: View {
                             placeholder: "0"
                         )
                         Text("Values are in KiB/s. Use 0 for unlimited speed.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 6)
+                }
+
+                Section("Filename Cleanup") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 8) {
+                            TextField("Prefix to remove", text: $filenameCleanupPrefixDraft)
+                                .textFieldStyle(.roundedBorder)
+                            Button("Add") {
+                                addFilenameCleanupPrefix()
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(filenameCleanupPrefixDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        }
+
+                        if filenameCleanupPrefixes.isEmpty {
+                            Text("No filename prefixes are configured.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(filenameCleanupPrefixes, id: \.self) { prefix in
+                                HStack(spacing: 8) {
+                                    Text(prefix)
+                                        .font(.body.monospaced())
+                                        .textSelection(.enabled)
+                                    Spacer()
+                                    Button {
+                                        removeFilenameCleanupPrefix(prefix)
+                                    } label: {
+                                        Label("Remove", systemImage: "minus.circle")
+                                    }
+                                    .labelStyle(.iconOnly)
+                                    .buttonStyle(.borderless)
+                                }
+                            }
+                        }
+
+                        Text("Matching is case-insensitive and literal. Spaces and punctuation are part of the prefix.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -124,6 +171,19 @@ struct PreferencesWindowView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    private func addFilenameCleanupPrefix() {
+        filenameCleanupPrefixesRaw = FilenameCleanupPreferences.encode(
+            filenameCleanupPrefixes + [filenameCleanupPrefixDraft]
+        )
+        filenameCleanupPrefixDraft = ""
+    }
+
+    private func removeFilenameCleanupPrefix(_ prefix: String) {
+        filenameCleanupPrefixesRaw = FilenameCleanupPreferences.encode(
+            filenameCleanupPrefixes.filter { $0 != prefix }
+        )
     }
 }
 
