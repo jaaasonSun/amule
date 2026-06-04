@@ -126,3 +126,15 @@ struct PreferencesWindowView: View {
         }
     }
 }
+
+#if DEBUG
+#Preview("Disconnected Preferences") {
+    PreferencesWindowView()
+        .environmentObject(AppModel.previewDisconnected())
+}
+
+#Preview("Connected with Limits") {
+    PreferencesWindowView()
+        .environmentObject(AppModel.previewWithPreferences())
+}
+#endif

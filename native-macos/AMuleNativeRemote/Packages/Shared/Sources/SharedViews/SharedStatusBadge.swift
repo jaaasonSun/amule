@@ -63,3 +63,48 @@ public struct DownloadStatusIcon: View {
         Image(systemName: DownloadStatusSymbol.symbolName(for: status))
     }
 }
+
+#if DEBUG
+#Preview("Connection Badges") {
+    VStack(spacing: 20) {
+        HStack(spacing: 12) {
+            ConnectionStateBadge(state: .connected)
+            ConnectionStateDot(state: .connected)
+            ConnectionStateLabel(state: .connected)
+        }
+        HStack(spacing: 12) {
+            ConnectionStateBadge(state: .disconnected)
+            ConnectionStateDot(state: .disconnected)
+            ConnectionStateLabel(state: .disconnected)
+        }
+        HStack(spacing: 12) {
+            ConnectionStateBadge(state: .transitional)
+            ConnectionStateDot(state: .transitional)
+            ConnectionStateLabel(state: .transitional)
+        }
+    }
+    .padding()
+}
+
+#Preview("Download Status Icons") {
+    VStack(spacing: 16) {
+        HStack(spacing: 8) {
+            DownloadStatusIcon(status: "Downloading")
+            Text("Downloading")
+        }
+        HStack(spacing: 8) {
+            DownloadStatusIcon(status: "Paused")
+            Text("Paused")
+        }
+        HStack(spacing: 8) {
+            DownloadStatusIcon(status: "Completed")
+            Text("Completed")
+        }
+        HStack(spacing: 8) {
+            DownloadStatusIcon(status: "Error")
+            Text("Error")
+        }
+    }
+    .padding()
+}
+#endif

@@ -6,9 +6,6 @@ struct DownloadsView: View {
     @ObservedObject var model: IOSAppModel
     var presentation: DownloadsViewPresentation = .phone
     var onShowConnection: () -> Void = {}
-    var onShowSearch: () -> Void = {}
-    var onShowServers: () -> Void = {}
-    var onShowSettings: () -> Void = {}
 
     @State private var selectedFilter: DownloadListFilter = .all
     @AppStorage("downloads.sort") private var selectedSortRaw = DownloadListSort.name.rawValue
@@ -53,14 +50,15 @@ struct DownloadsView: View {
 
                 if presentation == .phone {
                     phoneToolbarItems
-                    phoneBottomToolbarItems
                 } else {
                     padToolbarItems
                 }
             }
-            .if(presentation == .pad) { view in
-                view.searchable(text: $searchQuery, placement: .toolbar, prompt: Text(searchPlaceholder))
-            }
+            .searchable(
+                text: $searchQuery,
+                placement: presentation == .pad ? .toolbar : .navigationBarDrawer(displayMode: .automatic),
+                prompt: Text(searchPlaceholder)
+            )
             .sheet(isPresented: $showAddLinksSheet) {
                 AddLinksSheet(model: model, draft: $addLinksDraft)
             }
@@ -147,18 +145,6 @@ struct DownloadsView: View {
     @ToolbarContentBuilder
     private var phoneToolbarItems: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
-            Button(action: onShowSearch) {
-                Label("Search", systemImage: "magnifyingglass")
-            }
-
-            Button(action: onShowServers) {
-                Label("Servers", systemImage: "server.rack")
-            }
-
-            Button(action: onShowSettings) {
-                Label("Settings", systemImage: "gearshape")
-            }
-
             addLinksButton
 
             Button {
@@ -167,25 +153,6 @@ struct DownloadsView: View {
                 Label("Clear Completed", systemImage: "checkmark")
             }
             .disabled(completedDownloads.isEmpty || model.isBusy || !model.isSessionConnected)
-        }
-    }
-
-    @ToolbarContentBuilder
-    private var phoneBottomToolbarItems: some ToolbarContent {
-        ToolbarItem(placement: .bottomBar) {
-            filterMenu
-        }
-
-        ToolbarSpacer(.fixed, placement: .bottomBar)
-
-        ToolbarItem(placement: .bottomBar) {
-            bottomSearchField
-        }
-
-        ToolbarSpacer(.fixed, placement: .bottomBar)
-
-        ToolbarItem(placement: .bottomBar) {
-            sortMenu
         }
     }
 
@@ -212,31 +179,6 @@ struct DownloadsView: View {
             Label("Add Links", systemImage: "plus")
         }
         .disabled(!model.isSessionConnected || model.isBusy)
-    }
-
-    private var bottomSearchField: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-            TextField(searchPlaceholder, text: $searchQuery)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .submitLabel(.search)
-                .lineLimit(1)
-
-            if !searchQuery.isEmpty {
-                Button {
-                    searchQuery = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.tertiary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Clear Search")
-            }
-        }
-        .font(.body)
-        .padding(.horizontal)
     }
 
     private var connectionStatusIndicator: some View {
@@ -357,23 +299,34 @@ struct DownloadsView: View {
 
 }
 
-#Preview {
+#Preview("Disconnected") {
     NavigationStack {
-        DownloadsView(model: IOSAppModel())
+        DownloadsView(model: IOSAppModel.previewDisconnected())
     }
 }
 
-private extension View {
-    @ViewBuilder
-    func `if`<Content: View>(
-        _ condition: Bool,
-        transform: (Self) -> Content
-    ) -> some View {
-        if condition {
-            transform(self)
-        } else {
-            self
-        }
+#Preview("Empty Connected") {
+    NavigationStack {
+        DownloadsView(model: IOSAppModel.previewConnectedEmpty())
     }
 }
+
+#Preview("Active Downloads") {
+    NavigationStack {
+        DownloadsView(model: IOSAppModel.previewWithDownloads())
+    }
+}
+
+#Preview("Completed Downloads") {
+    NavigationStack {
+        DownloadsView(model: IOSAppModel.previewWithCompletedDownloads())
+    }
+}
+
+#Preview("iPad") {
+    NavigationStack {
+        DownloadsView(model: IOSAppModel.previewWithDownloads(), presentation: .pad)
+    }
+}
+
 #endif

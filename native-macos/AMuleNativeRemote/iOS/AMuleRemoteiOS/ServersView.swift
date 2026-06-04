@@ -321,9 +321,21 @@ extension ServerFormMode {
     }
 }
 
-#Preview {
+#Preview("Disconnected Empty") {
     NavigationStack {
-        ServersView(model: IOSAppModel())
+        ServersView(model: IOSAppModel.previewDisconnected())
+    }
+}
+
+#Preview("Connected Empty") {
+    NavigationStack {
+        ServersView(model: IOSAppModel.previewConnectedEmpty())
+    }
+}
+
+#Preview("With Servers") {
+    NavigationStack {
+        ServersView(model: IOSAppModel.previewWithServers())
     }
 }
 #endif

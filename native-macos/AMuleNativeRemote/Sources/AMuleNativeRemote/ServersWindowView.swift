@@ -479,3 +479,28 @@ private struct ImportServerMetSheetView: View {
         .frame(width: 520)
     }
 }
+
+#if DEBUG
+#Preview("Empty Servers") {
+    ServersWindowView()
+        .environmentObject(AppModel.previewConnected())
+}
+
+#Preview("With Servers") {
+    ServersWindowView()
+        .environmentObject(AppModel.previewWithServers())
+}
+
+#Preview("Connected Server Highlighted") {
+    let model = AppModel.previewWithServers()
+    model.status = StatusSnapshot(
+        connected: true,
+        ed2k: "Connected to Server [1.2.3.4:4661] HighID",
+        kad: "Connected",
+        downloadBytesPerSecond: 0,
+        uploadBytesPerSecond: 0
+    )
+    return ServersWindowView()
+        .environmentObject(model)
+}
+#endif

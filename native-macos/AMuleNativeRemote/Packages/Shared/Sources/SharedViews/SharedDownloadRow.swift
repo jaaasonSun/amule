@@ -184,3 +184,65 @@ public struct ConnectionFooterBar: View {
         .padding(.vertical, 5)
     }
 }
+
+#if DEBUG
+import SharedModels
+
+#Preview("Downloading Row") {
+    List {
+        DownloadRowContent(
+            item: PreviewFixtures.downloadingDownload.asClassifiable,
+            name: PreviewFixtures.downloadingDownload.name,
+            progressText: "3.0 / 5.0 GB (60%)",
+            speedText: "512 KB/s",
+            sourcesText: "5/42 (3)",
+            progressColors: PreviewFixtures.downloadingDownload.progressColors,
+            progressDisplayValue: PreviewFixtures.downloadingDownload.progressValue
+        )
+    }
+}
+
+#Preview("Paused Row") {
+    List {
+        DownloadRowContent(
+            item: PreviewFixtures.pausedDownload.asClassifiable,
+            name: PreviewFixtures.pausedDownload.name,
+            progressText: "1.0 / 3.0 GB (33%)",
+            speedText: "-",
+            sourcesText: "0/20",
+            progressColors: PreviewFixtures.pausedDownload.progressColors,
+            progressDisplayValue: PreviewFixtures.pausedDownload.progressValue
+        )
+    }
+}
+
+#Preview("Completed Row") {
+    List {
+        DownloadRowContent(
+            item: PreviewFixtures.completedDownload.asClassifiable,
+            name: PreviewFixtures.completedDownload.name,
+            progressText: "1.0 GB (100%)",
+            speedText: "",
+            sourcesText: "-",
+            progressColors: PreviewFixtures.completedDownload.progressColors,
+            progressDisplayValue: PreviewFixtures.completedDownload.progressValue
+        )
+    }
+}
+
+#Preview("Row with Suggested Filename") {
+    List {
+        DownloadRowContent(
+            item: PreviewFixtures.suggestedNameDownload.asClassifiable,
+            name: PreviewFixtures.suggestedNameDownload.name,
+            progressText: "3.0 / 5.0 GB (60%)",
+            speedText: "512 KB/s",
+            sourcesText: "5/42 (3)",
+            progressColors: PreviewFixtures.suggestedNameDownload.progressColors,
+            progressDisplayValue: PreviewFixtures.suggestedNameDownload.progressValue,
+            nameEncodingSuspect: PreviewFixtures.suggestedNameDownload.nameEncodingSuspect,
+            displayedNameEncodingValue: PreviewFixtures.suggestedNameDownload.nameEncodingSuggestion
+        )
+    }
+}
+#endif

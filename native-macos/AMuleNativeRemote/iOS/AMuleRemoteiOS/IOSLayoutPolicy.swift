@@ -11,7 +11,7 @@ public enum IOSHorizontalSize: Sendable {
 }
 
 public enum IOSRootLayout: Sendable, Equatable {
-    case downloadsFirst
+    case tabView
     case sidebarDetail
 }
 
@@ -21,13 +21,13 @@ public enum DownloadsViewPresentation: Sendable, Equatable {
 }
 
 public enum IOSDownloadsSearchPlacement: Sendable, Equatable {
-    case bottomToolbar
+    case navigationBarDrawer
     case toolbarSearchable
 }
 
 public enum IOSLayoutPolicy {
     public static func rootLayout(device: IOSDeviceClass, horizontalSize: IOSHorizontalSize) -> IOSRootLayout {
-        device == .pad && horizontalSize == .regular ? .sidebarDetail : .downloadsFirst
+        device == .pad && horizontalSize == .regular ? .sidebarDetail : .tabView
     }
 
     public static func downloadsPresentation(device: IOSDeviceClass, horizontalSize: IOSHorizontalSize) -> DownloadsViewPresentation {
@@ -35,6 +35,6 @@ public enum IOSLayoutPolicy {
     }
 
     public static func downloadsSearchPlacement(device: IOSDeviceClass, horizontalSize: IOSHorizontalSize) -> IOSDownloadsSearchPlacement {
-        rootLayout(device: device, horizontalSize: horizontalSize) == .sidebarDetail ? .toolbarSearchable : .bottomToolbar
+        rootLayout(device: device, horizontalSize: horizontalSize) == .sidebarDetail ? .toolbarSearchable : .navigationBarDrawer
     }
 }

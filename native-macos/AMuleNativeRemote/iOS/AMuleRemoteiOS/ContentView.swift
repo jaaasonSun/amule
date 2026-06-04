@@ -34,7 +34,6 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @ObservedObject var model: IOSAppModel
     @State private var selectedTab: AppTab = .downloads
-    @State private var presentedIPhoneSheet: AppTab?
     @State private var isConnectionDialogPresented = false
     @State private var connectionHostDraft = ""
     @State private var connectionPortDraft = ""
@@ -45,7 +44,7 @@ struct ContentView: View {
             if rootLayout == .sidebarDetail {
                 ipadLayout
             } else {
-                iphoneLayout
+                compactLayout
             }
         }
         .overlay {
@@ -129,29 +128,46 @@ struct ContentView: View {
         )
     }
 
-    private var iphoneLayout: some View {
-        NavigationStack {
-            DownloadsView(
-                model: model,
-                onShowConnection: showConnectionDialog,
-                onShowSearch: { presentedIPhoneSheet = .search },
-                onShowServers: { presentedIPhoneSheet = .servers },
-                onShowSettings: { presentedIPhoneSheet = .settings }
-            )
-            .navigationTitle(Text("Downloads"))
-        }
-        .sheet(item: $presentedIPhoneSheet) { tab in
-            NavigationStack {
-                detailView(for: tab)
-                    .navigationTitle(tab.label)
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Done") {
-                                presentedIPhoneSheet = nil
+    private var compactLayout: some View {
+        TabView(selection: $selectedTab) {
+            Tab(L("Downloads"), systemImage: AppTab.downloads.systemImage, value: .downloads) {
+                NavigationStack {
+                    DownloadsView(model: model, onShowConnection: showConnectionDialog)
+                        .navigationTitle(Text("Downloads"))
+                }
+            }
+            Tab(L("Search"), systemImage: AppTab.search.systemImage, value: .search) {
+                NavigationStack {
+                    SearchView(model: model)
+                        .navigationTitle(Text("Search"))
+                        .toolbar {
+                            ToolbarItem(placement: .topBarLeading) {
+                                connectionStatusButton
                             }
                         }
-                    }
+                }
+            }
+            Tab(L("Servers"), systemImage: AppTab.servers.systemImage, value: .servers) {
+                NavigationStack {
+                    ServersView(model: model)
+                        .navigationTitle(Text("Servers"))
+                        .toolbar {
+                            ToolbarItem(placement: .topBarLeading) {
+                                connectionStatusButton
+                            }
+                        }
+                }
+            }
+            Tab(L("Settings"), systemImage: AppTab.settings.systemImage, value: .settings) {
+                NavigationStack {
+                    SettingsView(model: model)
+                        .navigationTitle(Text("Settings"))
+                        .toolbar {
+                            ToolbarItem(placement: .topBarLeading) {
+                                connectionStatusButton
+                            }
+                        }
+                }
             }
         }
     }
@@ -203,6 +219,46 @@ struct ContentView: View {
         return model.isSessionConnected ? L("Connected") : L("Disconnected")
     }
 
+    private var connectionStatusButton: some View {
+        Button(action: showConnectionDialog) {
+            Label(connectionStatusTitle, systemImage: connectionStatusSystemImage)
+                .labelStyle(.iconOnly)
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(connectionStatusColor)
+        }
+        .accessibilityLabel("Connection")
+    }
+
+    private var connectionStatusTitle: String {
+        if model.isSessionConnected {
+            return L("Connected")
+        }
+        if model.isBusy {
+            return L("Connecting")
+        }
+        return L("Disconnected")
+    }
+
+    private var connectionStatusSystemImage: String {
+        if model.isSessionConnected {
+            return "wifi"
+        }
+        if model.isBusy {
+            return "arrow.triangle.2.circlepath"
+        }
+        return "wifi.slash"
+    }
+
+    private var connectionStatusColor: Color {
+        if model.isSessionConnected {
+            return .green
+        }
+        if model.isBusy {
+            return .orange
+        }
+        return .secondary
+    }
+
     private var rootLayout: IOSRootLayout {
         IOSLayoutPolicy.rootLayout(device: deviceClass, horizontalSize: sizeClass)
     }
@@ -239,7 +295,15 @@ struct ContentView: View {
     }
 }
 
-#Preview {
-    ContentView(model: IOSAppModel())
+#Preview("Phone - Disconnected") {
+    ContentView(model: IOSAppModel.previewDisconnected())
+}
+
+#Preview("Phone - Connected") {
+    ContentView(model: IOSAppModel.previewConnectedEmpty())
+}
+
+#Preview("iPad - Sidebar") {
+    ContentView(model: IOSAppModel.previewConnectedEmpty())
 }
 #endif

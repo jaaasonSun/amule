@@ -466,3 +466,51 @@ private struct SourcesTableView: View {
         return 230
     }
 }
+
+#if DEBUG
+#Preview("No Selection") {
+    DownloadDetailsWindowView()
+        .environmentObject(AppModel.previewWithDownloads())
+}
+
+#Preview("Downloading Selection") {
+    let model = AppModel.previewWithDownloads()
+    model.selectedDownloadID = model.downloads.first(where: { !$0.isCompleted })?.id
+    return DownloadDetailsWindowView()
+        .environmentObject(model)
+}
+
+#Preview("With Sources") {
+    let model = AppModel.previewWithDownloads()
+    let downloading = model.downloads.first(where: { !$0.isCompleted })
+    model.selectedDownloadID = downloading?.id
+    if let downloadId = downloading?.id {
+        model.downloadSourcesByHash[downloadId] = [
+            DownloadSourceItem(
+                id: 1, requestFileID: 1, clientName: "eMule v0.60",
+                userIP: "192.168.1.100", userPort: 4662,
+                serverName: "ExampleServer", serverIP: "5.45.85.226", serverPort: 6584,
+                software: "eMule", softwareVersion: "0.60",
+                downloadState: 4, downloadStateText: "Downloading",
+                sourceFrom: 1, sourceFromText: "Server",
+                downSpeedKBps: 125.5, availableParts: 64,
+                remoteQueueRank: 0, obfuscationStatus: 0,
+                extendedProtocol: false, remoteFilename: "Ubuntu ISO"
+            ),
+            DownloadSourceItem(
+                id: 2, requestFileID: 1, clientName: "aMule v2.3",
+                userIP: "10.0.0.50", userPort: 4662,
+                serverName: "Server", serverIP: "1.2.3.4", serverPort: 4661,
+                software: "aMule", softwareVersion: "2.3",
+                downloadState: 1, downloadStateText: "On Queue",
+                sourceFrom: 2, sourceFromText: "Kad",
+                downSpeedKBps: 0, availableParts: 32,
+                remoteQueueRank: 150, obfuscationStatus: 0,
+                extendedProtocol: true, remoteFilename: "Ubuntu ISO"
+            )
+        ]
+    }
+    return DownloadDetailsWindowView()
+        .environmentObject(model)
+}
+#endif

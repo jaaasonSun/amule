@@ -100,7 +100,7 @@ Run:
 
 ```bash
 cd native-macos/AMuleNativeRemote && swift test --filter AMuleNativeRemoteTests
-cd native-macos/AMuleNativeRemote/iOS && swift test
+cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" -derivedDataPath /tmp/amule-ios-sim-test test
 ```
 
 ## Task 4: Split Oversized Model And Window Files
@@ -121,7 +121,7 @@ Run:
 
 ```bash
 cd native-macos/AMuleNativeRemote && swift test
-cd native-macos/AMuleNativeRemote/iOS && swift test
+cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" -derivedDataPath /tmp/amule-ios-sim-test test
 ```
 
 ## Task 5: Harden iOS URL Intake And Add HUD Feedback
@@ -143,7 +143,7 @@ cd native-macos/AMuleNativeRemote/iOS && swift test
 Run:
 
 ```bash
-cd native-macos/AMuleNativeRemote/iOS && swift test --filter AMuleRemoteIOSTests
+cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" -derivedDataPath /tmp/amule-ios-sim-test test
 ```
 
 ## Task 6: Formalize iPad/iPhone Layout Rules
@@ -153,7 +153,7 @@ cd native-macos/AMuleNativeRemote/iOS && swift test --filter AMuleRemoteIOSTests
 - Modify: `native-macos/AMuleNativeRemote/iOS/AMuleRemoteiOS/DownloadsView.swift`
 - Add tests or static validation under `native-macos/AMuleNativeRemote/iOS/Tests/AMuleRemoteIOSTests/`
 
-- [x] Keep iPhone downloads-first layout with bottom search/filter/sort.
+- [x] Keep iPhone/compact iPad downloads-first `TabView` layout with compact search/filter/sort reachable from Downloads.
 - [x] Keep iPad regular width sidebar/detail layout with top `.searchable`.
 - [x] Keep iPad compact width from stranding users in sidebar-only mode.
 - [x] Add a static UI validation test for `DownloadsViewPresentation` rules and a manual QA checklist for real iPad resizing.
@@ -161,7 +161,7 @@ cd native-macos/AMuleNativeRemote/iOS && swift test --filter AMuleRemoteIOSTests
 Run:
 
 ```bash
-cd native-macos/AMuleNativeRemote/iOS && swift test
+cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" -derivedDataPath /tmp/amule-ios-sim-test test
 cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS,id=00008150-001C48DE3C20401C" -derivedDataPath /tmp/amule-iphone-build build
 ```
 
@@ -179,7 +179,7 @@ cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodepro
 Run:
 
 ```bash
-cd native-macos/AMuleNativeRemote/iOS && swift test --filter IOSLocalizationResourceTests
+cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" -derivedDataPath /tmp/amule-ios-sim-test test
 ```
 
 ## Task 8: SwiftEC Protocol Parity And Regression Coverage
@@ -207,7 +207,7 @@ Run:
 ```bash
 cd native-macos/AMuleNativeRemote/SwiftEC && swift test
 cd native-macos/AMuleNativeRemote/SharedUI && swift test
-cd native-macos/AMuleNativeRemote/iOS && swift test
+cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" -derivedDataPath /tmp/amule-ios-sim-test test
 cd native-macos/AMuleNativeRemote && swift test
 cd native-macos/AMuleNativeRemote && swift build -Xswiftc -warnings-as-errors
 cd native-macos/AMuleNativeRemote && AMULE_EC_BRIDGE_PATH=/usr/bin/true ./scripts/build-app.sh

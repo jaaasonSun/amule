@@ -295,9 +295,15 @@ private struct AboutView: View {
     }
 }
 
-#Preview {
+#Preview("Disconnected") {
     NavigationStack {
-        SettingsView(model: IOSAppModel())
+        SettingsView(model: IOSAppModel.previewDisconnected())
+    }
+}
+
+#Preview("Connected") {
+    NavigationStack {
+        SettingsView(model: IOSAppModel.previewWithSettings())
     }
 }
 #endif

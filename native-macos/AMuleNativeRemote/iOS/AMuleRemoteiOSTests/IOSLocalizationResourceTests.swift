@@ -5,11 +5,16 @@ final class IOSLocalizationResourceTests: XCTestCase {
         let localization = try loadLocalization(locale: "zh-Hans")
 
         XCTAssertEqual(localization["Downloads"], "下载")
+        XCTAssertEqual(localization["Search"], "搜索")
+        XCTAssertEqual(localization["Servers"], "服务器")
+        XCTAssertEqual(localization["Settings"], "设置")
         XCTAssertEqual(localization["Connect"], "连接")
         XCTAssertEqual(localization["Filter Downloads"], "筛选下载")
         XCTAssertEqual(localization["Search files"], "搜索文件")
         XCTAssertEqual(localization["No Matching Downloads"], "没有匹配的下载")
         XCTAssertEqual(localization["Connection Status"], "连接状态")
+        XCTAssertNotNil(localization["Add Links"])
+        XCTAssertNotNil(localization["Clear Completed"])
     }
 
     func testChineseLocalizationResourcesIncludeDetailAndSettingsKeys() throws {

@@ -49,10 +49,10 @@ swift test
 ./Scripts/check-forbidden-deps.sh
 ```
 
-From `native-macos/AMuleNativeRemote/iOS`:
+For the iOS app test target, run from `native-macos/AMuleNativeRemote`:
 
 ```bash
-swift test
+xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" -derivedDataPath /tmp/amule-ios-sim-test test
 ```
 
 For the iOS app target, build from `native-macos/AMuleNativeRemote`:

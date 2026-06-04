@@ -254,3 +254,22 @@ struct SearchWindowView: View {
         }
     }
 }
+
+#if DEBUG
+#Preview("Empty Search") {
+    SearchWindowView(embeddedInMainWindow: true)
+        .environmentObject(AppModel.previewConnected())
+}
+
+#Preview("Search Results") {
+    SearchWindowView(embeddedInMainWindow: true)
+        .environmentObject(AppModel.previewWithSearchResults())
+}
+
+#Preview("Search In Progress") {
+    let model = AppModel.previewConnected()
+    model.isSearchInProgress = true
+    return SearchWindowView(embeddedInMainWindow: true)
+        .environmentObject(model)
+}
+#endif

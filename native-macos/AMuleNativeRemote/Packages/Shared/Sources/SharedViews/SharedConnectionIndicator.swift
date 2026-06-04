@@ -93,3 +93,37 @@ public struct StatusTintedContent<Content: View>: View {
         }
     }
 }
+
+#if DEBUG
+#Preview("Connection Indicator - Connected") {
+    ConnectionStateIndicator(state: .connected)
+        .padding()
+}
+
+#Preview("Connection Indicator - Disconnected") {
+    ConnectionStateIndicator(state: .disconnected)
+        .padding()
+}
+
+#Preview("Connection Indicator - Connecting") {
+    ConnectionStateIndicator(state: .transitional)
+        .padding()
+}
+
+#Preview("Connection Indicator - Compact") {
+    HStack(spacing: 16) {
+        ConnectionStateIndicator(state: .connected, compact: true)
+        ConnectionStateIndicator(state: .disconnected, compact: true)
+        ConnectionStateIndicator(state: .transitional, compact: true)
+    }
+    .padding()
+}
+
+#Preview("Metric Chips") {
+    HStack {
+        MetricChipView(title: "Down", value: "512 KB/s")
+        MetricChipView(title: "Up", value: "128 KB/s")
+    }
+    .padding()
+}
+#endif

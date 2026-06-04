@@ -65,3 +65,17 @@ public struct AddLinksHUD: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }
+
+#if DEBUG
+#Preview("Empty State") {
+    EmptyStateView(
+        icon: "tray",
+        title: "No Downloads",
+        subtitle: "Downloads will appear here when you start downloading files."
+    )
+}
+
+#Preview("Add Links HUD") {
+    AddLinksHUD(message: "Link added to download queue")
+}
+#endif

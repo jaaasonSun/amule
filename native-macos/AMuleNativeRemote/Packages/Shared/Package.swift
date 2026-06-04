@@ -26,6 +26,7 @@ let package = Package(
         ),
         .target(
             name: "SharedViews",
+            dependencies: ["SharedModels"],
             path: "Sources/SharedViews"
         ),
         .target(

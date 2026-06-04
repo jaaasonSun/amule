@@ -423,3 +423,15 @@ struct ContentView: View {
         !item.isCompletedLike
     }
 }
+
+#if DEBUG
+#Preview("Disconnected") {
+    ContentView()
+        .environmentObject(AppModel.previewDisconnected())
+}
+
+#Preview("Connected with Downloads") {
+    ContentView()
+        .environmentObject(AppModel.previewWithDownloads())
+}
+#endif

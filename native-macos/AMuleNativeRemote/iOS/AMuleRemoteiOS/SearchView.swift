@@ -122,9 +122,27 @@ private struct SearchResultRow: View {
     }
 }
 
-#Preview {
+#Preview("Disconnected") {
     NavigationStack {
-        SearchView(model: IOSAppModel())
+        SearchView(model: IOSAppModel.previewDisconnected())
+    }
+}
+
+#Preview("Empty Connected") {
+    NavigationStack {
+        SearchView(model: IOSAppModel.previewConnectedEmpty())
+    }
+}
+
+#Preview("With Results") {
+    NavigationStack {
+        SearchView(model: IOSAppModel.previewWithSearchResults())
+    }
+}
+
+#Preview("Search In Progress") {
+    NavigationStack {
+        SearchView(model: IOSAppModel.previewSearchInProgress())
     }
 }
 

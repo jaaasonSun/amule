@@ -37,9 +37,9 @@ App target root: `native-macos/AMuleNativeRemote/iOS/AMuleRemoteiOS`.
 
 Important files:
 - `AMuleRemoteiOSApp.swift`: app entry point.
-- `ContentView.swift`: chooses iPhone vs iPad layout. iPad regular uses `NavigationSplitView`; compact width falls back to iPhone-style layout.
+- `ContentView.swift`: chooses iPhone vs iPad layout. iPad regular uses `NavigationSplitView`; iPhone and compact iPad use `TabView`.
 - `IOSAppModel.swift`: iOS `@MainActor` model for connection, lifecycle reconnect, downloads, search, servers, rename, URL intake, transfer limits, and sharing.
-- `DownloadsView.swift`: download list, filters/sorts, iPhone bottom toolbar, iPad top search via `.searchable`.
+- `DownloadsView.swift`: download list, filters/sorts, compact navigation drawer search, and iPad regular top search via `.searchable`.
 - `DownloadDetailView.swift`: download detail/source/rename UI.
 - `SearchView.swift`: search form/results and download feedback.
 - `ServersView.swift`: local bookmarks and daemon server management.
@@ -47,7 +47,7 @@ Important files:
 - `Info.plist`: registers `ed2k` and `magnet` URL schemes, local network usage, single-scene iPad behavior.
 
 iOS/iPadOS app notes:
-- iPhone is single-window and uses downloads as home.
+- iPhone is single-window and uses a compact tab layout with downloads as the first tab.
 - iPad v1 is single-scene. Regular width should use sidebar/detail. Compact width should not strand the user in sidebar-only mode.
 - `ed2k://` and `magnet:?` intake flows through `ContentView.onOpenURL` -> `IOSAppModel.handleOpenURL` -> `IOSDeepLinkHandler` -> `PendingIncomingLinkInbox` -> `addLinks`.
 - Password is stored via iOS Keychain; macOS currently stores in user defaults.
@@ -95,7 +95,7 @@ Targets:
 
 ## Manual QA Checklist
 
-- iPhone: launch to the downloads list, confirm search/filter/sort stay in the bottom toolbar, and confirm Search/Servers/Settings open as sheets from the downloads toolbar.
+- iPhone: launch to the downloads tab, confirm search/filter/sort stay reachable, and confirm Search/Servers/Settings are available from the compact tab bar.
 - iPad regular width: confirm the sidebar/detail layout shows downloads in the detail area, Search/Servers/Settings live in the sidebar, and downloads search appears in the top toolbar.
 - iPad compact-width window: resize the app to phone-like width and confirm it switches to downloads-first navigation rather than showing only the sidebar.
 - Incoming links: from Safari, open a percent-encoded `ed2k://%7Cfile...` URL and a `magnet:?xt=urn:ed2k:...` URL; confirm the app opens, queues/imports the link, and shows the add-link HUD without blocking interaction.
@@ -108,6 +108,7 @@ Use the smallest relevant set, then expand before claiming completion:
 cd native-macos/AMuleNativeRemote/SwiftEC && swift test
 cd native-macos/AMuleNativeRemote/Packages/Shared && swift test
 cd native-macos/AMuleNativeRemote && swift test
+cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" -derivedDataPath /tmp/amule-ios-sim-test test
 ```
 
 For macOS Release build check:

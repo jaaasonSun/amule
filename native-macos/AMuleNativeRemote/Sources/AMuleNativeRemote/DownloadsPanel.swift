@@ -196,3 +196,45 @@ struct DownloadsPanel: View {
             }
     }
 }
+
+#if DEBUG
+private extension DownloadsPanel {
+    static func preview(
+        downloads: [DownloadItem],
+        selectedIDs: Set<DownloadItem.ID> = []
+    ) -> DownloadsPanel {
+        DownloadsPanel(
+            displayedDownloads: downloads,
+            selectedDownloadIDs: .constant(selectedIDs),
+            sortOrder: .constant([KeyPathComparator(\DownloadItem.name, order: .forward)]),
+            nameFilterQuery: .constant(""),
+            alwaysShowSuggestedFilename: false,
+            canRenameDownload: { _ in true },
+            showDetails: { _ in },
+            useSuggestedFilename: { _, _ in },
+            copyED2KLink: { _ in },
+            pauseDownload: { _ in },
+            resumeDownload: { _ in },
+            removeDownload: { _ in },
+            setPriority: { _, _ in },
+            isBusy: false
+        )
+    }
+}
+
+#Preview("Empty Downloads") {
+    DownloadsPanel.preview(downloads: [])
+}
+
+#Preview("Active Downloads") {
+    DownloadsPanel.preview(
+        downloads: AppModel.previewWithDownloads().downloads
+    )
+}
+
+#Preview("Completed Downloads") {
+    DownloadsPanel.preview(
+        downloads: AppModel.previewWithDownloads().downloads.filter(\.isCompleted)
+    )
+}
+#endif

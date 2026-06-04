@@ -139,3 +139,52 @@ public struct DownloadRowSegmentBackground: View {
         (UInt32(b & 0xff) << 16) | (UInt32(g & 0xff) << 8) | UInt32(r & 0xff)
     }
 }
+
+#if DEBUG
+import SharedModels
+
+#Preview("Segmented Progress Bar") {
+    VStack(spacing: 16) {
+        DownloadSegmentedProgressBar(
+            colors: PreviewFixtures.downloadingDownload.progressColors,
+            fallbackProgress: PreviewFixtures.downloadingDownload.progressValue / 100.0
+        )
+        DownloadRowSegmentBackground(
+            colors: PreviewFixtures.downloadingDownload.progressColors,
+            fallbackProgress: PreviewFixtures.downloadingDownload.progressValue / 100.0
+        )
+        .frame(height: 24)
+    }
+    .padding()
+}
+
+#Preview("Progress Bar - Fallback") {
+    VStack(spacing: 16) {
+        DownloadSegmentedProgressBar(
+            colors: [],
+            fallbackProgress: 0.33
+        )
+        DownloadRowSegmentBackground(
+            colors: [],
+            fallbackProgress: 0.33
+        )
+        .frame(height: 24)
+    }
+    .padding()
+}
+
+#Preview("Progress Bar - Complete") {
+    VStack(spacing: 16) {
+        DownloadSegmentedProgressBar(
+            colors: PreviewFixtures.completedDownload.progressColors,
+            fallbackProgress: 1.0
+        )
+        DownloadRowSegmentBackground(
+            colors: PreviewFixtures.completedDownload.progressColors,
+            fallbackProgress: 1.0
+        )
+        .frame(height: 24)
+    }
+    .padding()
+}
+#endif

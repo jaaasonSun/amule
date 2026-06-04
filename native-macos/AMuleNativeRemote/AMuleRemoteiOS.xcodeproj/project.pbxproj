@@ -27,6 +27,7 @@
 		A10000010000000000000007 /* ServersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000007 /* ServersView.swift */; };
 		A10000010000000000000008 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000008 /* SettingsView.swift */; };
 		A10000010000000000000009 /* IOSAppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000009 /* IOSAppModel.swift */; };
+		A10000010000000000000022 /* PreviewHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000022 /* PreviewHelpers.swift */; };
 		A10000010000000000000011 /* Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000011 /* Localization.swift */; };
 		A10000010000000000000014 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000014 /* Localizable.strings */; };
 		A10000010000000000000015 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000015 /* Assets.xcassets */; };
@@ -79,6 +80,7 @@
 		A10000000000000000000007 /* ServersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServersView.swift; sourceTree = "<group>"; };
 		A10000000000000000000008 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A10000000000000000000009 /* IOSAppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSAppModel.swift; sourceTree = "<group>"; };
+		A10000000000000000000022 /* PreviewHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewHelpers.swift; sourceTree = "<group>"; };
 		A10000000000000000000010 /* AMuleRemoteiOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AMuleRemoteiOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000011 /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
 		A10000000000000000000012 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
@@ -153,6 +155,7 @@
 				A10000000000000000000007 /* ServersView.swift */,
 				A10000000000000000000008 /* SettingsView.swift */,
 				A10000000000000000000009 /* IOSAppModel.swift */,
+				A10000000000000000000022 /* PreviewHelpers.swift */,
 				A10000000000000000000017 /* DownloadRowViews.swift */,
 				A10000000000000000000018 /* IOSConnectionService.swift */,
 				A10000000000000000000019 /* IOSDownloadService.swift */,
@@ -326,6 +329,7 @@
 				A10000010000000000000007 /* ServersView.swift in Sources */,
 				A10000010000000000000008 /* SettingsView.swift in Sources */,
 				A10000010000000000000009 /* IOSAppModel.swift in Sources */,
+				A10000010000000000000022 /* PreviewHelpers.swift in Sources */,
 				A10000010000000000000017 /* DownloadRowViews.swift in Sources */,
 				A10000010000000000000018 /* IOSConnectionService.swift in Sources */,
 				A10000010000000000000019 /* IOSDownloadService.swift in Sources */,

@@ -233,3 +233,50 @@ public struct KadPanelContent: View {
         }
     }
 }
+
+#if DEBUG
+#Preview("Connection Panel - Connected") {
+    ConnectionPanelContent(
+        host: .constant("localhost"),
+        port: .constant(4712),
+        password: .constant("••••••••"),
+        isConnected: true,
+        isBusy: false,
+        onConnect: {},
+        onDisconnect: {},
+        onClose: {}
+    )
+    .padding()
+    .frame(width: 350)
+}
+
+#Preview("Connection Panel - Disconnected") {
+    ConnectionPanelContent(
+        host: .constant("localhost"),
+        port: .constant(4712),
+        password: .constant(""),
+        isConnected: false,
+        isBusy: false,
+        onConnect: {},
+        onDisconnect: {},
+        onClose: {}
+    )
+    .padding()
+    .frame(width: 350)
+}
+
+#Preview("Connection Panel - Busy") {
+    ConnectionPanelContent(
+        host: .constant("192.168.1.100"),
+        port: .constant(4712),
+        password: .constant("••••••••"),
+        isConnected: false,
+        isBusy: true,
+        onConnect: {},
+        onDisconnect: {},
+        onClose: {}
+    )
+    .padding()
+    .frame(width: 350)
+}
+#endif

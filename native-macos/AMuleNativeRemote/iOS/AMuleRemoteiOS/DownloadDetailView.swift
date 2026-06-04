@@ -403,39 +403,38 @@ struct DownloadDetailView: View {
     }
 }
 
-#Preview {
+#Preview("Downloading") {
     NavigationStack {
         DownloadDetailView(
-            model: IOSAppModel(),
-            item: DownloadItem(
-                ecid: 1,
-                id: "ABCDEF0123456789ABCDEF0123456789",
-                name: "Ubuntu 24.04 Desktop amd64.iso",
-                nameEncodingSuspect: false,
-                nameEncodingSuggestion: nil,
-                sizeBytes: 5_100_000_000,
-                doneBytes: 3_060_000_000,
-                transferredBytes: 3_200_000_000,
-                progressValue: 60.0,
-                sourceCurrent: 5,
-                sourceTotal: 42,
-                sourceTransferring: 3,
-                sourceA4AF: 0,
-                statusCode: 4,
-                isCompleted: false,
-                status: "Downloading",
-                speedBytes: 512_000,
-                priority: 1,
-                category: 0,
-                partMetName: "001.part.met",
-                lastSeenComplete: 0,
-                lastReceived: 0,
-                activeSeconds: 3600,
-                availableParts: 200,
-                shared: false,
-                alternativeNames: [],
-                progressColors: []
-            )
+            model: IOSAppModel.previewWithDownloads(),
+            item: PreviewFixtures.downloadingDownload
+        )
+    }
+}
+
+#Preview("Paused") {
+    NavigationStack {
+        DownloadDetailView(
+            model: IOSAppModel.previewWithDownloads(),
+            item: PreviewFixtures.pausedDownload
+        )
+    }
+}
+
+#Preview("Completed") {
+    NavigationStack {
+        DownloadDetailView(
+            model: IOSAppModel.previewWithCompletedDownloads(),
+            item: PreviewFixtures.completedDownload
+        )
+    }
+}
+
+#Preview("Suggested Names") {
+    NavigationStack {
+        DownloadDetailView(
+            model: IOSAppModel.previewWithDownloads(),
+            item: PreviewFixtures.suggestedNameDownload
         )
     }
 }
