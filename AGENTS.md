@@ -15,7 +15,7 @@ This file is the starting point for coding agents working in this repository.
 ## Worktree Rules
 
 - The worktree may be dirty. Do not revert or delete existing changes unless the user explicitly asks.
-- Treat generated build products as disposable, but do not remove them without user approval. Common local artifacts include `build/`, `build-native-bridge/`, `build-filename/`, `native-macos/AMuleNativeRemote/.build/`, `native-macos/AMuleNativeRemote/iOS/.build/`, and `build-ios-bridge-probe/`.
+- Treat generated build products as disposable, but do not remove them without user approval. Common local artifacts include `build/`, `build-filename/`, `native-macos/AMuleNativeRemote/.build/`, `native-macos/AMuleNativeRemote/iOS/.build/`, and `build-ios-bridge-probe/`.
 - Use `rg`/`rg --files` for search. Exclude `.build` directories when scanning Swift code.
 - Use `apply_patch` for manual edits.
 - Keep macOS and iOS platform behavior separate. Do not make macOS adopt iPhone navigation, tab structure, or mobile-only chrome.
@@ -39,7 +39,7 @@ From `native-macos/AMuleNativeRemote`:
 ```bash
 swift test
 swift build -Xswiftc -warnings-as-errors
-AMULE_EC_BRIDGE_PATH=/usr/bin/true ./scripts/build-app.sh
+./scripts/build-app.sh
 ```
 
 From `native-macos/AMuleNativeRemote/SwiftEC`:

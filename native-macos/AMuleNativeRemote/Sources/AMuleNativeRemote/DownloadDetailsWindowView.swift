@@ -48,49 +48,10 @@ struct DownloadDetailsWindowView: View {
             item.displayedNameEncodingValue(alwaysShowDiagnostic: alwaysShowSuggestedFilename)
     }
 
-    private func shouldShowSuggestion(for item: DownloadItem, suggestion: String) -> Bool {
-        if actionableFilenameSuggestion(for: item) == suggestion {
-            return true
-        }
-        guard alwaysShowSuggestedFilename else { return false }
-        if item.usesDiagnosticNameEncodingFallback(alwaysShowDiagnostic: alwaysShowSuggestedFilename) {
-            return item.displayedNameEncodingValue(alwaysShowDiagnostic: alwaysShowSuggestedFilename) == suggestion
-        }
-        guard !item.nameEncodingSuspect else { return false }
-        guard item.displayedNameEncodingValue(alwaysShowDiagnostic: alwaysShowSuggestedFilename) == suggestion else { return false }
-        return true
-    }
-
     private func useSuggestionForRename(_ item: DownloadItem, suggestion: String) {
         guard let draft = FilenameSuggestionPresentation.renameDraft(from: suggestion, currentName: item.name) else { return }
         downloadRenameDraft = draft
         isEditingDownloadName = true
-    }
-
-    private func suggestionSectionTitle(for item: DownloadItem) -> String {
-        if actionableFilenameSuggestion(for: item) != nil {
-            return "Suggested Filename"
-        }
-        if item.usesDiagnosticNameEncodingFallback(alwaysShowDiagnostic: alwaysShowSuggestedFilename) {
-            return "Current Filename (Diagnostic)"
-        }
-        if alwaysShowSuggestedFilename && !item.nameEncodingSuspect {
-            return "Suggested Filename (Diagnostic)"
-        }
-        return "Suggested Filename"
-    }
-
-    private func suggestionHelpText(for item: DownloadItem) -> String {
-        if actionableFilenameSuggestion(for: item) != nil {
-            return "Review or edit the suggestion before applying it. The original filename remains unchanged until you apply a rename."
-        }
-        if item.usesDiagnosticNameEncodingFallback(alwaysShowDiagnostic: alwaysShowSuggestedFilename) {
-            return "Diagnostic display only. No distinct filename suggestion was detected, so this shows the current/original filename."
-        }
-        if canRenameSelectedDownload {
-            return "Diagnostic guess only. The original filename stays unchanged until you apply a rename."
-        }
-        return "Diagnostic guess only. The original filename is preserved, and renaming is not available for this download."
     }
 
     private func suggestionHeaderTitle(for item: DownloadItem) -> String {
@@ -192,36 +153,6 @@ struct DownloadDetailsWindowView: View {
                     Text(item.id)
                         .font(.callout.monospaced())
                         .foregroundStyle(.secondary)
-
-                    if let suggestion = displayedFilenameValue(for: item),
-                       shouldShowSuggestion(for: item, suggestion: suggestion) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(suggestionSectionTitle(for: item))
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                            HStack(alignment: .top, spacing: 10) {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(suggestion)
-                                        .font(.body)
-                                        .textSelection(.enabled)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                    Text(suggestionHelpText(for: item))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                if actionableFilenameSuggestion(for: item) != nil && canRenameSelectedDownload {
-                                    Button("Use Suggested Filename") {
-                                        useSuggestionForRename(item, suggestion: suggestion)
-                                    }
-                                    .buttonStyle(.bordered)
-                                    .controlSize(.small)
-                                    .disabled(model.isBusy)
-                                }
-                            }
-                        }
-
-                        Divider()
-                    }
 
                     VStack(alignment: .leading, spacing: 4) {
                         DownloadSegmentedProgressBar(

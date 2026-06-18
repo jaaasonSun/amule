@@ -24,6 +24,7 @@ final class RenameRefreshBehaviorTests: XCTestCase {
             messageRaw: #"{"ok":true,"message":"Rename requested"}"#
         )
         let model = AppModel(bridge: bridge)
+        model.renameVerificationRetryDelayNanoseconds = 0
 
         model.refreshDownloads()
         await waitForDownloads(in: model, expectedNames: ["Original.mkv"])
@@ -38,6 +39,40 @@ final class RenameRefreshBehaviorTests: XCTestCase {
     }
 
     @MainActor
+    func testRenameDownloadWaitsForDelayedServerUpdateAfterSuccessAcknowledgement() async throws {
+        let originalJSON = try BridgeEnvelopeFixtures.downloadEnvelope(downloads: [
+            BridgeEnvelopeFixtures.completedMovie(name: "Original.mkv"),
+        ])
+        let originalPayload = try decodeDownloads(from: originalJSON)
+
+        let renamedJSON = try BridgeEnvelopeFixtures.downloadEnvelope(downloads: [
+            BridgeEnvelopeFixtures.completedMovie(name: "Corrected.mkv"),
+        ])
+        let renamedPayload = try decodeDownloads(from: renamedJSON)
+
+        let bridge = RecordingFakeBridgeAdapter(
+            downloadsResults: [
+                (originalPayload, originalJSON),
+                (originalPayload, originalJSON),
+                (renamedPayload, renamedJSON),
+            ],
+            messageRaw: #"{"ok":true,"message":"Rename requested"}"#
+        )
+        let model = AppModel(bridge: bridge)
+        model.renameVerificationRetryDelayNanoseconds = 0
+
+        model.refreshDownloads()
+        await waitForDownloads(in: model, expectedNames: ["Original.mkv"])
+
+        let item = try XCTUnwrap(model.downloads.first)
+        model.renameDownload(item, to: "Corrected.mkv")
+        await waitForDownloads(in: model, expectedNames: ["Corrected.mkv"])
+
+        XCTAssertEqual(model.lastDownloadsRawOutput, renamedJSON)
+        XCTAssertEqual(model.lastError, "")
+    }
+
+    @MainActor
     func testRenameDownloadFailureSurfacesErrorWithoutRefresh() async throws {
         let originalJSON = try BridgeEnvelopeFixtures.downloadEnvelope(downloads: [
             BridgeEnvelopeFixtures.completedMovie(name: "Original.mkv"),
@@ -47,6 +82,7 @@ final class RenameRefreshBehaviorTests: XCTestCase {
         let bridge = RecordingFakeBridgeAdapter(downloadsResults: [(originalPayload, originalJSON)])
         bridge.renameResult = .failure(message: "Unable to rename file.", raw: #"{"error":"Unable to rename file.","ok":false}"#)
         let model = AppModel(bridge: bridge)
+        model.renameVerificationRetryDelayNanoseconds = 0
 
         model.refreshDownloads()
         await waitForDownloads(in: model, expectedNames: ["Original.mkv"])
@@ -96,9 +132,15 @@ final class RenameRefreshBehaviorTests: XCTestCase {
         ])
         let refreshedPayload = try decodeDownloads(from: refreshedJSON)
 
-        let bridge = RecordingFakeBridgeAdapter(downloadsResults: [(originalPayload, originalJSON), (refreshedPayload, refreshedJSON)])
+        let bridge = RecordingFakeBridgeAdapter(downloadsResults: [
+            (originalPayload, originalJSON),
+            (refreshedPayload, refreshedJSON),
+            (refreshedPayload, refreshedJSON),
+            (refreshedPayload, refreshedJSON),
+        ])
         bridge.renameResult = .timeout(message: "Rename requested", raw: #"{"ok":true,"message":"Rename requested"}"#)
         let model = AppModel(bridge: bridge)
+        model.renameVerificationRetryDelayNanoseconds = 0
 
         model.refreshDownloads()
         await waitForDownloads(in: model, expectedNames: ["Original.mkv"])
@@ -129,6 +171,7 @@ final class RenameRefreshBehaviorTests: XCTestCase {
         let bridge = RecordingFakeBridgeAdapter(downloadsResults: [(originalPayload, originalJSON), (refreshedPayload, refreshedJSON)])
         bridge.renameResult = .timeout(message: "Rename requested", raw: #"{"ok":true,"message":"Rename requested"}"#)
         let model = AppModel(bridge: bridge)
+        model.renameVerificationRetryDelayNanoseconds = 0
 
         model.refreshDownloads()
         await waitForDownloads(in: model, expectedNames: ["Original.mkv"])
@@ -158,6 +201,7 @@ final class RenameRefreshBehaviorTests: XCTestCase {
         let bridge = RecordingFakeBridgeAdapter(downloadsResults: [(originalPayload, originalJSON), (refreshedPayload, refreshedJSON)])
         bridge.renameResult = .disconnectedAfterSend(message: "Rename requested", raw: #"{"ok":true,"message":"Rename requested"}"#)
         let model = AppModel(bridge: bridge)
+        model.renameVerificationRetryDelayNanoseconds = 0
 
         model.refreshDownloads()
         await waitForDownloads(in: model, expectedNames: ["Original.mkv"])

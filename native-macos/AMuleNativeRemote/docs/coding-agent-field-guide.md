@@ -22,7 +22,7 @@ Important files:
 - `Sources/AMuleNativeRemote/ContentView.swift`: primary downloads window/sidebar and macOS toolbar/footer behavior.
 - `Sources/AMuleNativeRemote/SecondaryWindows.swift`: search, details, servers, diagnostics, uploads/shared/categories/friends/stats/preferences windows. This file is very large.
 - `Sources/AMuleNativeRemote/MacOSPlatformServices.swift`: pasteboard, deep-link Apple Event handler, credentials, file import/export, lifecycle helpers.
-- `Sources/AMuleNativeRemote/AMuleECBridgeClient.swift`: legacy process-based `amule-ec-bridge` invoker.
+- `SwiftEC/Sources/AMuleECBridgeAdapter/SwiftECBridgeAdapter.swift`: native Swift EC adapter used by the Apple clients.
 - `Sources/AMuleNativeRemote/BridgeAdapterFactory.swift`: bridge selection/adaptation between legacy CLI bridge and SwiftEC.
 
 macOS app notes:
@@ -129,6 +129,6 @@ For macOS packaging smoke:
 
 ```bash
 cd native-macos/AMuleNativeRemote
-AMULE_EC_BRIDGE_PATH=/usr/bin/true ./scripts/build-app.sh
+./scripts/build-app.sh
 plutil -lint "dist/aMule Remote.app/Contents/Info.plist"
 ```

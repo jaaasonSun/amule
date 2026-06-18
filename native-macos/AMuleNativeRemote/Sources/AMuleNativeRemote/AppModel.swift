@@ -20,7 +20,6 @@ func LF3(_ key: String, _ args: CVarArg...) -> String {
 
 @MainActor
 final class AppModel: ObservableObject {
-    @AppStorage("amule.bridgePath") var bridgePath: String = AMuleConnectionConfig.preferredDefaultPath()
     @AppStorage("amule.host") var host: String = "127.0.0.1"
     @AppStorage("amule.port") var port: Int = 4712
     @AppStorage("amule.password") var password: String = ""
@@ -83,6 +82,8 @@ final class AppModel: ObservableObject {
     var pendingRenameSuggestionRequest: DownloadRenameSuggestionRequest?
     var hudDismissTask: Task<Void, Never>?
     var searchTask: Task<Void, Never>?
+    var renameVerificationMaxAttempts = 3
+    var renameVerificationRetryDelayNanoseconds: UInt64 = 300_000_000
     let pasteboardShare: PasteboardShare
     let bridge: BridgeProtocol
     let serverManagementService: ServerManagementService

@@ -12,6 +12,7 @@ public struct ECDownloadStateStore: Sendable {
     }
 
     public private(set) var downloads: [ECDownload] = []
+    public private(set) var hasBaseline = false
 
     private var downloadsByECID: [Int: ECDownload] = [:]
     private var lifecycleByECID: [Int: Lifecycle] = [:]
@@ -40,6 +41,7 @@ public struct ECDownloadStateStore: Sendable {
     }
 
     public mutating func replaceDownloadSnapshot(_ snapshot: [ECDownload], sourcePacket: ECPacket?) {
+        hasBaseline = true
         let previousOrder = orderedECIDs
         let incoming = uniqueDownloads(from: snapshot)
         let liveECIDs = Set(incoming.map(\.ecid))
@@ -113,6 +115,18 @@ public struct ECDownloadStateStore: Sendable {
             applyPartFileDelta(tag)
         }
         publishDownloads()
+    }
+
+    public func incrementalUpdateNeedsFullResync(_ packet: ECPacket) -> Bool {
+        guard hasBaseline else { return true }
+        for tag in packet.tags where tag.name == TagName.partFile || tag.name == TagName.knownFile {
+            let ecid = tag.intValue
+            guard ecid > 0, downloadsByECID[ecid] == nil else { continue }
+            if !tag.hasCompleteFileIdentity {
+                return true
+            }
+        }
+        return false
     }
 
     private mutating func applyPartFileDelta(_ tag: ECTag) {
@@ -234,10 +248,13 @@ public struct ECDownloadStateStore: Sendable {
         }
     }
 
-    private enum TagName {
+    fileprivate enum TagName {
         static let partFile: UInt16 = 0x0300
+        static let partFileName: UInt16 = 0x0301
+        static let partFileSizeFull: UInt16 = 0x0303
         static let partFileSourceNames: UInt16 = 0x0315
         static let partFileSourceNameCounts: UInt16 = 0x031C
+        static let partFileHash: UInt16 = 0x031E
         static let knownFile: UInt16 = 0x0400
     }
 }
@@ -313,6 +330,16 @@ private extension ECTag {
         children.first { $0.name == name }
     }
 
+    var hasCompleteFileIdentity: Bool {
+        guard let name = child(named: ECDownloadStateStore.TagName.partFileName)?.stringValue,
+              !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              child(named: ECDownloadStateStore.TagName.partFileHash)?.hashStringValue?.isEmpty == false,
+              child(named: ECDownloadStateStore.TagName.partFileSizeFull) != nil else {
+            return false
+        }
+        return true
+    }
+
     var intValue: Int {
         if case .uint(let value) = value {
             return Int(value)
@@ -323,6 +350,13 @@ private extension ECTag {
     var stringValue: String? {
         if case .string(let value) = value {
             return value
+        }
+        return nil
+    }
+
+    var hashStringValue: String? {
+        if case .hash16(let data) = value {
+            return data.map { String(format: "%02x", $0) }.joined()
         }
         return nil
     }

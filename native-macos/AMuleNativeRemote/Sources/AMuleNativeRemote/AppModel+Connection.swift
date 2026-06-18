@@ -23,15 +23,6 @@ extension AppModel {
         }
     }
 
-    func ensurePreferredBridgePath() {
-        let current = bridgePath.trimmingCharacters(in: .whitespacesAndNewlines)
-        if current.isEmpty ||
-            current.hasSuffix("/amulecmd") ||
-            !FileManager.default.isExecutableFile(atPath: current) {
-            bridgePath = AMuleConnectionConfig.preferredDefaultPath()
-        }
-    }
-
     func connectAll() {
         run(label: "connect") {
             try await self.connectNow()

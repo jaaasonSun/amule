@@ -120,21 +120,40 @@ extension AppModel {
                 return
             }
 
-            try await self.refreshDownloadsNow(logOutput: false)
-
-            let didApply = await MainActor.run {
-                RenameVerification.wasApplied(
-                    downloadID: item.id,
-                    newName: trimmed,
-                    downloads: self.downloads
-                )
-            }
+            let didApply = try await self.waitForRenameVerification(
+                downloadID: item.id,
+                newName: trimmed
+            )
             guard !didApply else { return }
 
             await MainActor.run {
                 self.lastError = acknowledgement.verificationFailureMessage
             }
         }
+    }
+
+    private func waitForRenameVerification(downloadID: String, newName: String) async throws -> Bool {
+        let attempts = await MainActor.run { max(1, self.renameVerificationMaxAttempts) }
+        for attempt in 0..<attempts {
+            try await self.refreshDownloadsNow(logOutput: false)
+            let didApply = await MainActor.run {
+                RenameVerification.wasApplied(
+                    downloadID: downloadID,
+                    newName: newName,
+                    downloads: self.downloads
+                )
+            }
+            if didApply {
+                return true
+            }
+
+            guard attempt + 1 < attempts else { break }
+            let delay = await MainActor.run { self.renameVerificationRetryDelayNanoseconds }
+            if delay > 0 {
+                try await Task.sleep(nanoseconds: delay)
+            }
+        }
+        return false
     }
 
     func requestRenameSuggestion(_ item: DownloadItem, suggestion: String) {

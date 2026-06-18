@@ -79,6 +79,8 @@ final class IOSAppModel: ObservableObject {
     private let downloadService = IOSDownloadService()
     private let searchService = IOSSearchService()
     private let serverService = IOSServerService()
+    var renameVerificationMaxAttempts = 3
+    var renameVerificationRetryDelayNanoseconds: UInt64 = 300_000_000
 
     var config: AMuleConnectionConfig {
         .init(host: host, port: port, password: password)

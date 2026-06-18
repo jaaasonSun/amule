@@ -80,7 +80,7 @@ jobs:
       - name: Native macOS strict build
         run: native-macos/AMuleNativeRemote/scripts/swiftpm.sh build --package-path native-macos/AMuleNativeRemote -Xswiftc -warnings-as-errors
       - name: Packaging smoke
-        run: cd native-macos/AMuleNativeRemote && AMULE_EC_BRIDGE_PATH=/usr/bin/true ./scripts/build-app.sh && plutil -lint "dist/aMule Remote.app/Contents/Info.plist"
+        run: cd native-macos/AMuleNativeRemote && ./scripts/build-app.sh && plutil -lint "dist/aMule Remote.app/Contents/Info.plist"
 ```
 
 - [x] Run each command locally before relying on CI.
@@ -210,6 +210,6 @@ cd native-macos/AMuleNativeRemote/SharedUI && swift test
 cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" -derivedDataPath /tmp/amule-ios-sim-test test
 cd native-macos/AMuleNativeRemote && swift test
 cd native-macos/AMuleNativeRemote && swift build -Xswiftc -warnings-as-errors
-cd native-macos/AMuleNativeRemote && AMULE_EC_BRIDGE_PATH=/usr/bin/true ./scripts/build-app.sh
+cd native-macos/AMuleNativeRemote && ./scripts/build-app.sh
 cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS,id=00008150-001C48DE3C20401C" -derivedDataPath /tmp/amule-iphone-build build
 ```

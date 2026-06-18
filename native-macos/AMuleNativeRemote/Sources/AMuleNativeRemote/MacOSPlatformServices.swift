@@ -1,59 +1,10 @@
 #if os(macOS)
 import AppKit
-import AMuleECBridgeAdapter
 import Carbon.HIToolbox
 import Foundation
 import SharedViews
 import SharedModels
 import SharedServices
-
-extension AMuleConnectionConfig {
-    static let fallbackBridgeCommand = "amule-ec-bridge"
-
-    static var bundledBridgePath: String? {
-        let fm = FileManager.default
-        if let resource = Bundle.main.resourceURL?.appendingPathComponent("amule-ec-bridge").path,
-           fm.isExecutableFile(atPath: resource) {
-            return resource
-        }
-
-        let appBundlePath = Bundle.main.bundleURL
-            .appendingPathComponent("Contents/Resources/amule-ec-bridge")
-            .path
-        if fm.isExecutableFile(atPath: appBundlePath) {
-            return appBundlePath
-        }
-        return nil
-    }
-
-    static func preferredDefaultPath() -> String {
-        let fm = FileManager.default
-        if let bundled = bundledBridgePath {
-            return bundled
-        }
-
-        let cwd = fm.currentDirectoryPath
-        let candidates = [
-            URL(fileURLWithPath: cwd)
-                .appendingPathComponent("build/src/amule-ec-bridge")
-                .path,
-            URL(fileURLWithPath: cwd)
-                .appendingPathComponent("../build/src/amule-ec-bridge")
-                .standardized.path,
-            URL(fileURLWithPath: cwd)
-                .appendingPathComponent("../../build/src/amule-ec-bridge")
-                .standardized.path,
-            "/opt/homebrew/bin/amule-ec-bridge",
-            "/usr/local/bin/amule-ec-bridge"
-        ]
-
-        for candidate in candidates where fm.isExecutableFile(atPath: candidate) {
-            return candidate
-        }
-
-        return fallbackBridgeCommand
-    }
-}
 
 struct MacOSPasteboardShare: PasteboardShare, @unchecked Sendable {
     private let pasteboard: NSPasteboard

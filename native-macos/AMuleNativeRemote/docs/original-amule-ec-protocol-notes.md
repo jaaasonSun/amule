@@ -1,6 +1,6 @@
 # Original aMule EC Protocol Behavior And Swift Audit
 
-This document is the protocol reference for native Apple EC work. It intentionally treats the original aMule EC protocol implementation as the source of truth, not the native `amule-ec-bridge` helper.
+This document is the protocol reference for native Apple EC work. It intentionally treats the original aMule EC protocol implementation as the source of truth for the SwiftEC client.
 
 Primary protocol authorities:
 

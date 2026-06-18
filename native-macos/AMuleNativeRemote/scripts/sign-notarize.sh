@@ -20,19 +20,13 @@ if [[ ! -d "$APP_PATH" ]]; then
 fi
 
 APP_BIN="$APP_PATH/Contents/MacOS/$APP_NAME"
-BRIDGE_BIN="$APP_PATH/Contents/Resources/amule-ec-bridge"
 
 if [[ ! -x "$APP_BIN" ]]; then
   echo "ERROR: app executable not found: $APP_BIN" >&2
   exit 1
 fi
-if [[ ! -x "$BRIDGE_BIN" ]]; then
-  echo "ERROR: bundled bridge not found: $BRIDGE_BIN" >&2
-  exit 1
-fi
 
 echo "Signing binaries..."
-codesign --force --timestamp --options runtime --sign "$SIGN_IDENTITY" "$BRIDGE_BIN"
 codesign --force --timestamp --options runtime --sign "$SIGN_IDENTITY" "$APP_BIN"
 codesign --force --timestamp --options runtime --sign "$SIGN_IDENTITY" "$APP_PATH"
 

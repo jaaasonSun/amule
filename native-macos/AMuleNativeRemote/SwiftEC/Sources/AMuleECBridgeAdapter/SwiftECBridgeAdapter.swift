@@ -51,7 +51,23 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
 
     public func downloads(config: AMuleConnectionConfig) async throws -> ([BridgeDownloadPayload], String) {
         try await withAuthenticatedSession(for: config) { session in
+            guard await modelState.hasDownloadBaseline else {
+                let packet = try await session.send(try ECOperations.downloads(gate: capabilityGate))
+                let downloads = try ECResponseParser.parseDownloads(packet)
+                let result = await modelState.replaceDownloads(downloads, sourcePacket: packet)
+                let raw = ECJSONEnvelope.jsonString(try ECJSONEnvelope.downloads(result))
+                return (result, raw)
+            }
+
             let packet = try await session.send(try ECOperations.downloadsUpdate(gate: capabilityGate))
+            if await modelState.downloadUpdateNeedsFullResync(packet) {
+                let fullPacket = try await session.send(try ECOperations.downloads(gate: capabilityGate))
+                let downloads = try ECResponseParser.parseDownloads(fullPacket)
+                let result = await modelState.replaceDownloads(downloads, sourcePacket: fullPacket)
+                let raw = ECJSONEnvelope.jsonString(try ECJSONEnvelope.downloads(result))
+                return (result, raw)
+            }
+
             let downloads = try ECResponseParser.parseDownloads(packet)
             let result = await modelState.replaceDownloads(downloads, sourcePacket: packet)
             let raw = ECJSONEnvelope.jsonString(try ECJSONEnvelope.downloads(result))
@@ -370,8 +386,16 @@ private actor ECBridgeModelState {
     private var downloadStore = ECDownloadStateStore()
     private var sourceStore = ECSourceStateStore()
 
+    var hasDownloadBaseline: Bool {
+        downloadStore.hasBaseline
+    }
+
     var downloads: [ECDownload] {
         downloadStore.downloads
+    }
+
+    func downloadUpdateNeedsFullResync(_ packet: ECPacket) -> Bool {
+        downloadStore.incrementalUpdateNeedsFullResync(packet)
     }
 
     func replaceDownloads(_ downloads: [ECDownload], sourcePacket: ECPacket) -> [ECDownload] {

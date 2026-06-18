@@ -19,7 +19,7 @@ Branch Note (This Fork / Branch)
 --------------------------------
 
 This branch includes an additional native macOS remote GUI project at
-`native-macos/AMuleNativeRemote` (SwiftUI/AppKit, backed by `amule-ec-bridge`).
+`native-macos/AMuleNativeRemote` (SwiftUI/AppKit, backed by the pure Swift EC client).
 
 The native macOS app in this branch is entirely vibe coded.
 

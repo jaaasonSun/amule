@@ -221,7 +221,6 @@ struct ContentView: View {
                 model.setDownloadAutoRefreshEnabled(false)
             }
             .task {
-                model.ensurePreferredBridgePath()
                 await model.refreshBridgeCapabilities(logOutput: false, suppressErrors: true)
                 model.startAutoRefresh()
                 await model.refreshStatus(logOutput: false, suppressErrors: true)

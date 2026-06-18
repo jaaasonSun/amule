@@ -1,8 +1,6 @@
 import Foundation
 
 public enum AMuleClientError: LocalizedError, Sendable {
-    case missingBridge(String)
-    case processFailure(Int32, String)
     case invalidResponse(String)
     case bridgeFailure(String)
     case downloadNotFound(String)
@@ -16,10 +14,6 @@ public enum AMuleClientError: LocalizedError, Sendable {
 
     public var errorDescription: String? {
         switch self {
-        case .missingBridge(let path):
-            return "amule-ec-bridge not found at: \(path)"
-        case .processFailure(let code, let output):
-            return "amule-ec-bridge exited with code \(code).\n\(output)"
         case .invalidResponse(let output):
             return "Invalid bridge response.\n\(output)"
         case .bridgeFailure(let message):

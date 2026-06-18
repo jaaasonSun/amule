@@ -1,5 +1,6 @@
 #if canImport(UIKit)
 import SwiftUI
+import AMuleECBridgeAdapter
 import AMuleECClient
 import SharedModels
 import SharedServices
@@ -85,29 +86,27 @@ struct IOSDownloadService {
                     return
                 }
 
-                let (payloads, _) = try await bridge.downloads(config: config)
-                let refreshedDownloads = DownloadItem.fromBridge(payloads)
-                let didApply = RenameVerification.wasApplied(
+                let didApply = try await verifyRename(
                     downloadID: item.id,
                     newName: trimmed,
-                    downloads: refreshedDownloads
+                    bridge: bridge,
+                    config: config,
+                    model: model
                 )
                 await MainActor.run {
-                    model.downloads = refreshedDownloads
                     model.lastError = didApply ? "" : acknowledgement.verificationFailureMessage
                     model.isBusy = false
                 }
             } catch {
                 do {
-                    let (payloads, _) = try await bridge.downloads(config: config)
-                    let refreshedDownloads = DownloadItem.fromBridge(payloads)
-                    let didApply = RenameVerification.wasApplied(
+                    let didApply = try await verifyRename(
                         downloadID: item.id,
                         newName: trimmed,
-                        downloads: refreshedDownloads
+                        bridge: bridge,
+                        config: config,
+                        model: model
                     )
                     await MainActor.run {
-                        model.downloads = refreshedDownloads
                         model.lastError = didApply
                             ? ""
                             : "\(model.localNetworkErrorPresenter.userFacingMessage(for: error)) \(L("The filename was not changed."))"
@@ -121,6 +120,38 @@ struct IOSDownloadService {
                 }
             }
         }
+    }
+
+    private func verifyRename(
+        downloadID: String,
+        newName: String,
+        bridge: BridgeProtocol,
+        config: AMuleConnectionConfig,
+        model: IOSAppModel
+    ) async throws -> Bool {
+        let attempts = await MainActor.run { max(1, model.renameVerificationMaxAttempts) }
+        for attempt in 0..<attempts {
+            let (payloads, _) = try await bridge.downloads(config: config)
+            let refreshedDownloads = DownloadItem.fromBridge(payloads)
+            let didApply = RenameVerification.wasApplied(
+                downloadID: downloadID,
+                newName: newName,
+                downloads: refreshedDownloads
+            )
+            await MainActor.run {
+                model.downloads = refreshedDownloads
+            }
+            if didApply {
+                return true
+            }
+
+            guard attempt + 1 < attempts else { break }
+            let delay = await MainActor.run { model.renameVerificationRetryDelayNanoseconds }
+            if delay > 0 {
+                try await Task.sleep(nanoseconds: delay)
+            }
+        }
+        return false
     }
 
     func removeDownload(_ item: DownloadItem, model: IOSAppModel) {
