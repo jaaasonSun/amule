@@ -295,6 +295,7 @@ struct ContentView: View {
     }
 }
 
+#if DEBUG
 #Preview("Phone - Disconnected") {
     ContentView(model: IOSAppModel.previewDisconnected())
 }
@@ -306,4 +307,5 @@ struct ContentView: View {
 #Preview("iPad - Sidebar") {
     ContentView(model: IOSAppModel.previewConnectedEmpty())
 }
+#endif
 #endif

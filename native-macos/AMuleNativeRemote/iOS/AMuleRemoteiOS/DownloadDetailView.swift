@@ -410,6 +410,7 @@ struct DownloadDetailView: View {
     }
 }
 
+#if DEBUG
 #Preview("Downloading") {
     NavigationStack {
         DownloadDetailView(
@@ -445,4 +446,5 @@ struct DownloadDetailView: View {
         )
     }
 }
+#endif
 #endif

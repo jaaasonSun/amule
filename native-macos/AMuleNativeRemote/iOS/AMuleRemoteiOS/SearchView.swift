@@ -122,6 +122,7 @@ private struct SearchResultRow: View {
     }
 }
 
+#if DEBUG
 #Preview("Disconnected") {
     NavigationStack {
         SearchView(model: IOSAppModel.previewDisconnected())
@@ -146,4 +147,5 @@ private struct SearchResultRow: View {
     }
 }
 
+#endif
 #endif

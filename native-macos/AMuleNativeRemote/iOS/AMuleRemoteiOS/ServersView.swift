@@ -321,6 +321,7 @@ extension ServerFormMode {
     }
 }
 
+#if DEBUG
 #Preview("Disconnected Empty") {
     NavigationStack {
         ServersView(model: IOSAppModel.previewDisconnected())
@@ -338,4 +339,5 @@ extension ServerFormMode {
         ServersView(model: IOSAppModel.previewWithServers())
     }
 }
+#endif
 #endif

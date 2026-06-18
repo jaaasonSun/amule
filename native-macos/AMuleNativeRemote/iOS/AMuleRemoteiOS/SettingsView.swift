@@ -302,6 +302,7 @@ private struct AboutView: View {
     }
 }
 
+#if DEBUG
 #Preview("Disconnected") {
     NavigationStack {
         SettingsView(model: IOSAppModel.previewDisconnected())
@@ -313,4 +314,5 @@ private struct AboutView: View {
         SettingsView(model: IOSAppModel.previewWithSettings())
     }
 }
+#endif
 #endif

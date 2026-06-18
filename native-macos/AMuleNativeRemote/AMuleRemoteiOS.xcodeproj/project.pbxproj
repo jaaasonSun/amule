@@ -35,7 +35,6 @@
 		A10000010000000000000007 /* ServersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000007 /* ServersView.swift */; };
 		A10000010000000000000008 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000008 /* SettingsView.swift */; };
 		A10000010000000000000009 /* IOSAppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000009 /* IOSAppModel.swift */; };
-		A10000010000000000000022 /* PreviewHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000022 /* PreviewHelpers.swift */; };
 		A10000010000000000000011 /* Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000011 /* Localization.swift */; };
 		A10000010000000000000014 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000014 /* Localizable.strings */; };
 		A10000010000000000000015 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000015 /* Assets.xcassets */; };
@@ -45,6 +44,7 @@
 		A10000010000000000000019 /* IOSDownloadService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000019 /* IOSDownloadService.swift */; };
 		A10000010000000000000020 /* IOSSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000020 /* IOSSearchService.swift */; };
 		A10000010000000000000021 /* IOSServerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000021 /* IOSServerService.swift */; };
+		A10000010000000000000022 /* PreviewHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000022 /* PreviewHelpers.swift */; };
 		AA18EEDAED071C5E03B10C9F /* IOSLifecycleServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 256BD9EC228C07B4BD2566CF /* IOSLifecycleServiceTests.swift */; };
 		AEA085278557B9208C9284FC /* IOSLayoutPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9085DE34EF3539666BCD2AF /* IOSLayoutPolicy.swift */; };
 		B0F82904F4AE4A36A6D664AE /* AMuleECProtocol in Frameworks */ = {isa = PBXBuildFile; productRef = BCF1D11D91764D3DA688C5F5 /* AMuleECProtocol */; };
@@ -92,7 +92,6 @@
 		A10000000000000000000007 /* ServersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServersView.swift; sourceTree = "<group>"; };
 		A10000000000000000000008 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A10000000000000000000009 /* IOSAppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSAppModel.swift; sourceTree = "<group>"; };
-		A10000000000000000000022 /* PreviewHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewHelpers.swift; sourceTree = "<group>"; };
 		A10000000000000000000010 /* AMuleRemoteiOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AMuleRemoteiOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000011 /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
 		A10000000000000000000012 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
@@ -104,6 +103,7 @@
 		A10000000000000000000019 /* IOSDownloadService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSDownloadService.swift; sourceTree = "<group>"; };
 		A10000000000000000000020 /* IOSSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSSearchService.swift; sourceTree = "<group>"; };
 		A10000000000000000000021 /* IOSServerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSServerService.swift; sourceTree = "<group>"; };
+		A10000000000000000000022 /* PreviewHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewHelpers.swift; sourceTree = "<group>"; };
 		A9E298CEF716A5FD8CE54F9C /* DownloadItemFixtures.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DownloadItemFixtures.swift; sourceTree = "<group>"; };
 		C9085DE34EF3539666BCD2AF /* IOSLayoutPolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = IOSLayoutPolicy.swift; sourceTree = "<group>"; };
 		D76F42F285004DF396E20E13 /* IOSIncomingLinksTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = IOSIncomingLinksTests.swift; sourceTree = "<group>"; };
@@ -429,7 +429,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.1.3;
+				MARKETING_VERSION = 0.1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = org.amule.ios.AMuleRemoteiOSTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -571,13 +571,13 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.1.3;
+				MARKETING_VERSION = 0.1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = org.amule.remote.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SWIFT_ENABLE_EXPLICIT_MODULES = NO;
 				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_ENABLE_EXPLICIT_MODULES = NO;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -600,7 +600,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.1.3;
+				MARKETING_VERSION = 0.1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = org.amule.remote.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -625,7 +625,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.1.3;
+				MARKETING_VERSION = 0.1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = org.amule.ios.AMuleRemoteiOSTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;

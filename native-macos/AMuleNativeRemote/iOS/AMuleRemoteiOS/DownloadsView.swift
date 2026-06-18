@@ -307,6 +307,7 @@ struct DownloadsView: View {
 
 }
 
+#if DEBUG
 #Preview("Disconnected") {
     NavigationStack {
         DownloadsView(model: IOSAppModel.previewDisconnected())
@@ -337,4 +338,5 @@ struct DownloadsView: View {
     }
 }
 
+#endif
 #endif
