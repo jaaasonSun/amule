@@ -9,8 +9,8 @@ let package = Package(
     ],
     products: [
         .library(name: "AMuleECProtocol", targets: ["AMuleECProtocol"]),
-        .library(name: "AMuleECClient", targets: ["AMuleECClient"]),
-        .library(name: "AMuleECBridgeAdapter", targets: ["AMuleECBridgeAdapter"]),
+        .library(name: "AMuleECClient", targets: ["AMuleECClient", "AMuleECProtocol"]),
+        .library(name: "AMuleECBridgeAdapter", targets: ["AMuleECBridgeAdapter", "AMuleECClient", "AMuleECProtocol"]),
     ],
     targets: [
         .target(

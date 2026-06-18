@@ -30,7 +30,7 @@ struct IOSServerService {
 
     func connectServer(_ server: ServerItem?, model: IOSAppModel) {
         guard model.isBridgeOpSupported("server-connect") else {
-            model.lastError = L("Connecting to daemon servers is not supported by this bridge.")
+            model.lastError = L("Connecting to daemon servers is not supported by this server.")
             return
         }
         let config = model.config
@@ -51,7 +51,7 @@ struct IOSServerService {
 
     func connectUserServer(_ server: UserServer, model: IOSAppModel) {
         guard model.isBridgeOpSupported("server-connect") else {
-            model.lastError = L("Connecting to local bookmarks is not supported by this bridge.")
+            model.lastError = L("Connecting to local bookmarks is not supported by this server.")
             return
         }
         let config = model.config
@@ -72,7 +72,7 @@ struct IOSServerService {
 
     func disconnectServer(model: IOSAppModel) {
         guard model.isBridgeOpSupported("server-disconnect") else {
-            model.lastError = L("Disconnecting from daemon servers is not supported by this bridge.")
+            model.lastError = L("Disconnecting from daemon servers is not supported by this server.")
             return
         }
         let config = model.config
@@ -105,7 +105,7 @@ struct IOSServerService {
 
     func addRemoteServer(address: String, name: String?, model: IOSAppModel) {
         guard model.isBridgeOpSupported("server-add") else {
-            model.lastError = L("Adding daemon servers is not supported by this bridge.")
+            model.lastError = L("Adding daemon servers is not supported by this server.")
             return
         }
         let config = model.config
@@ -137,7 +137,7 @@ struct IOSServerService {
 
     func removeRemoteServer(_ server: ServerItem, model: IOSAppModel) {
         guard model.isBridgeOpSupported("server-remove") else {
-            model.lastError = L("Removing daemon servers is not supported by this bridge.")
+            model.lastError = L("Removing daemon servers is not supported by this server.")
             return
         }
         let config = model.config
@@ -160,7 +160,7 @@ struct IOSServerService {
         let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         guard model.isBridgeOpSupported("server-update-from-url") else {
-            model.lastError = L("Updating daemon servers from URL is not supported by this bridge.")
+            model.lastError = L("Updating daemon servers from URL is not supported by this server.")
             return
         }
         let config = model.config

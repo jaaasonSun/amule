@@ -19,6 +19,7 @@ let package = Package(
         .target(
             name: "SharedModels",
             dependencies: [
+                .product(name: "AMuleECProtocol", package: "SwiftEC"),
                 .product(name: "AMuleECClient", package: "SwiftEC"),
                 .product(name: "AMuleECBridgeAdapter", package: "SwiftEC")
             ],

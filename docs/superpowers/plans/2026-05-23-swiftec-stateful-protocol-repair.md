@@ -6,7 +6,7 @@
 
 **Architecture:** Add a per-session EC model state layer that merges full snapshots and incremental update packets before data reaches macOS/iOS UI. Keep low-level packet parsing pure, then add stateful merge types for source-name IDs, part-file deltas, and client/source deltas.
 
-**Tech Stack:** Swift 6, SwiftPM XCTest, `native-macos/AMuleNativeRemote/SwiftEC`, iOS shared package tests, Xcode iOS device build.
+**Tech Stack:** Swift 6, SwiftPM XCTest, `native-macos/AMuleNativeRemote/SwiftEC`, iOS app Xcode tests, Xcode iOS device build.
 
 ---
 
@@ -307,16 +307,16 @@ swift test
 
 Expected: all SwiftEC tests pass.
 
-- [ ] **Step 2: Run iOS shared tests**
+- [ ] **Step 2: Run iOS app tests**
 
 Run:
 
 ```bash
-cd /Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote/iOS
-swift test
+cd /Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote
+xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" test SWIFT_ENABLE_EXPLICIT_MODULES=NO
 ```
 
-Expected: all iOS shared tests pass.
+Expected: all iOS app tests pass.
 
 - [ ] **Step 3: Build and install on iPad**
 

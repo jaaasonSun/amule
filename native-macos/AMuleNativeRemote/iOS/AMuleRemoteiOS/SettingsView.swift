@@ -31,8 +31,6 @@ struct SettingsView: View {
 
             FilenameCleanupSettingsSection()
 
-            CapabilitiesSection(model: model)
-
             Section {
                 NavigationLink {
                     AboutView(model: model)
@@ -278,51 +276,6 @@ private struct TransferLimitsSection: View {
     }
 }
 
-private struct CapabilitiesSection: View {
-    @ObservedObject var model: IOSAppModel
-
-    private var opsSorted: [String] {
-        model.bridgeOps.sorted()
-    }
-
-    var body: some View {
-        Section {
-            if model.isSessionConnected {
-                LabeledContent("Bridge Version") {
-                    Text(model.bridgeVersion.isEmpty ? "—" : model.bridgeVersion)
-                }
-                LabeledContent("Client") {
-                    Text(model.bridgeClientName.isEmpty ? "—" : model.bridgeClientName)
-                }
-                LabeledContent("Default Host") {
-                    Text(model.bridgeDefaultHost.isEmpty ? "—" : model.bridgeDefaultHost)
-                }
-                LabeledContent("Default Port") {
-                    Text(model.bridgeDefaultPort > 0 ? String(model.bridgeDefaultPort) : "—")
-                }
-                LabeledContent("Operations") {
-                    Text(LF("%lld supported", model.bridgeOps.count))
-                }
-
-                if !opsSorted.isEmpty {
-                    DisclosureGroup("View All Operations") {
-                        ForEach(opsSorted, id: \.self) { op in
-                            Text(op)
-                                .font(.caption)
-                                .monospaced()
-                        }
-                    }
-                }
-            } else {
-                Text("Connect to view capabilities")
-                    .foregroundStyle(.secondary)
-            }
-        } header: {
-            Text("Capabilities")
-        }
-    }
-}
-
 private struct AboutView: View {
     @ObservedObject var model: IOSAppModel
 
@@ -331,10 +284,8 @@ private struct AboutView: View {
             Section {
                 LabeledContent(L("App"), value: "aMule Remote")
                 LabeledContent(L("Platform"), value: "iOS/iPadOS")
-                LabeledContent(L("Bridge")) {
-                    Text(model.isSessionConnected && !model.bridgeVersion.isEmpty
-                        ? model.bridgeVersion
-                        : L("Not connected"))
+                LabeledContent(L("Connection")) {
+                    Text(model.isSessionConnected ? L("Connected") : L("Not connected"))
                 }
             } header: {
                 Text(L("Information"))

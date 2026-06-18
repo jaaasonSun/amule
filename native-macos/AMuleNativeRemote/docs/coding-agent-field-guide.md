@@ -108,7 +108,7 @@ Use the smallest relevant set, then expand before claiming completion:
 cd native-macos/AMuleNativeRemote/SwiftEC && swift test
 cd native-macos/AMuleNativeRemote/Packages/Shared && swift test
 cd native-macos/AMuleNativeRemote && swift test
-cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" -derivedDataPath /tmp/amule-ios-sim-test test
+cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" test SWIFT_ENABLE_EXPLICIT_MODULES=NO
 ```
 
 For macOS Release build check:

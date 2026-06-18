@@ -52,7 +52,7 @@ Expected: existing artifacts are ignored after cleanup or no longer appear as no
 **Files:**
 - Create: `.github/workflows/native-apple.yml`
 
-- [x] Add a macOS workflow that runs SwiftEC, SharedUI, iOS shared tests, native macOS tests, and a packaging smoke build.
+- [x] Add a macOS workflow that runs SwiftEC, SharedUI, iOS app tests, native macOS tests, and a packaging smoke build.
 - [x] Route SwiftPM CI commands through a shared build path with index-store disabled to avoid multi-GB duplicated `.build` trees in the repository.
 
 ```yaml
@@ -73,8 +73,8 @@ jobs:
         run: native-macos/AMuleNativeRemote/scripts/swiftpm.sh test --package-path native-macos/AMuleNativeRemote/SwiftEC
       - name: SharedUI tests
         run: native-macos/AMuleNativeRemote/scripts/swiftpm.sh test --package-path native-macos/AMuleNativeRemote/SharedUI
-      - name: iOS shared package tests
-        run: native-macos/AMuleNativeRemote/scripts/swiftpm.sh test --package-path native-macos/AMuleNativeRemote/iOS
+      - name: iOS app tests
+        run: cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" test SWIFT_ENABLE_EXPLICIT_MODULES=NO
       - name: Native macOS tests
         run: native-macos/AMuleNativeRemote/scripts/swiftpm.sh test --package-path native-macos/AMuleNativeRemote
       - name: Native macOS strict build

@@ -151,6 +151,8 @@ struct DownloadsView: View {
     @ToolbarContentBuilder
     private var phoneToolbarItems: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
+            filterMenu
+            sortMenu
             addLinksButton
 
             Button {
