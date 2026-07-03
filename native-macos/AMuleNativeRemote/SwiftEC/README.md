@@ -18,9 +18,9 @@ SwiftEC provides a native Swift implementation of the EC protocol used to commun
 
 ## Requirements
 
-- macOS 26+ or iOS 26+
+- macOS 27+ or iOS 27+
 - Swift 6.2+
-- Xcode 26.0+
+- Xcode 27.0+
 
 ## Installation
 
@@ -280,13 +280,13 @@ No third-party dependencies are used.
 
 ### macOS
 
-- Minimum deployment: macOS 26
+- Minimum deployment: macOS 27
 - Optimal for native macOS aMule remote applications
 - Can replace process-based bridge adapters
 
 ### iOS
 
-- Minimum deployment: iOS 26
+- Minimum deployment: iOS 27
 - Designed for iOS remote control applications
 - No external binary dependencies
 

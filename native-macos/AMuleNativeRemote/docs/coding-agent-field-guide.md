@@ -17,7 +17,7 @@ The original C++ aMule code remains under `src/`. The native apps should use sha
 Package root: `native-macos/AMuleNativeRemote`.
 
 Important files:
-- `Package.swift`: executable package, currently macOS v26 in manifest.
+- `Package.swift`: executable package, currently macOS v27 in manifest.
 - `Sources/AMuleNativeRemote/AppModel.swift`: main `@MainActor` model. It owns connection state, downloads, search, servers, preferences, HUD state, and bridge calls. It is large and should be split carefully.
 - `Sources/AMuleNativeRemote/ContentView.swift`: primary downloads window/sidebar and macOS toolbar/footer behavior.
 - `Sources/AMuleNativeRemote/SecondaryWindows.swift`: search, details, servers, diagnostics, uploads/shared/categories/friends/stats/preferences windows. This file is very large.
@@ -108,7 +108,8 @@ Use the smallest relevant set, then expand before claiming completion:
 cd native-macos/AMuleNativeRemote/SwiftEC && swift test
 cd native-macos/AMuleNativeRemote/Packages/Shared && swift test
 cd native-macos/AMuleNativeRemote && swift test
-cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" test SWIFT_ENABLE_EXPLICIT_MODULES=NO
+cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0" test SWIFT_ENABLE_EXPLICIT_MODULES=NO
+cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPad Pro 11-inch (M5),OS=27.0" test SWIFT_ENABLE_EXPLICIT_MODULES=NO
 ```
 
 For macOS Release build check:
@@ -122,8 +123,12 @@ For iOS app builds:
 
 ```bash
 cd native-macos/AMuleNativeRemote
+xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "generic/platform=iOS" -derivedDataPath /tmp/amule-ios-build CODE_SIGNING_ALLOWED=NO build
 xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS,id=00008150-001C48DE3C20401C" -derivedDataPath /tmp/amule-iphone-build build
+xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS,id=00008132-001639440245001C" -derivedDataPath /tmp/amule-ipad-build build
 ```
+
+Physical iPhone/iPad builds require the device to be unlocked and Xcode to have a matching development account/provisioning profile for `org.amule.remote.ios`.
 
 For macOS packaging smoke:
 

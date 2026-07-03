@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "AMuleNativeRemote",
     platforms: [
-        .macOS(.v26)
+        .macOS("27.0")
     ],
     products: [
         .executable(name: "AMuleNativeRemote", targets: ["AMuleNativeRemote"])

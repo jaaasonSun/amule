@@ -257,7 +257,16 @@ public enum FileNameEncodingRepair {
         }
 
         guard originalScore >= candidateScore + 2 else { return false }
+        if isHighConfidenceCJKRepair(candidate: candidate, candidateScore: candidateScore, originalScore: originalScore) {
+            return candidate.count * 3 + 4 >= original.count
+        }
         return candidate.count * 2 + 4 >= original.count
+    }
+
+    private static func isHighConfidenceCJKRepair(candidate: String, candidateScore: Int, originalScore: Int) -> Bool {
+        originalScore >= 24 &&
+            candidateScore <= 2 &&
+            containsCJKScalar(candidate)
     }
 
     private static func score(_ text: String) -> Int {
@@ -293,6 +302,17 @@ public enum FileNameEncodingRepair {
         }
 
         return result
+    }
+
+    private static func containsCJKScalar(_ text: String) -> Bool {
+        text.unicodeScalars.contains { scalar in
+            switch scalar.value {
+            case 0x3040...0x30ff, 0x3400...0x4dbf, 0x4e00...0x9fff, 0xf900...0xfaff:
+                return true
+            default:
+                return false
+            }
+        }
     }
 
     private static func isCommonMojibakeLead(_ value: UInt32) -> Bool {

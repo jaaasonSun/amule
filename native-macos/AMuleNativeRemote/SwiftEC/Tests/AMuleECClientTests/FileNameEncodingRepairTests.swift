@@ -33,6 +33,15 @@ final class FileNameEncodingRepairTests: XCTestCase {
         ])
     }
 
+    func testRepairsLongCJKMojibakeDespiteLargeLengthReduction() {
+        XCTAssertEqual(
+            FileNameEncodingRepair.repairedSuggestion(
+                for: "FC2 PPV 4897221 ã´ãªãããã§éæVSå¾¹éã¬ã¹ãªã³ã°ãã«ãã©å¯¾æ±ºï¼éæãçå ãä½æ ¼å·®éäº¤å°¾é ä¸æ±ºæ¦ï¼ç¹å¸æ åããï¼.mp4"
+            ),
+            "FC2 PPV 4897221 ゴリマッチョ雄星VS徹郎レスリングデカマラ対決！雄星が生堀り体格差雄交尾頂上決戦！特典映像あり！.mp4"
+        )
+    }
+
     func testRepairsPercentEncodedFileNames() {
         assertRepairs([
             .init(input: "%E4%B8%AD%E6%96%87.avi", expected: "中文.avi"),
@@ -174,6 +183,13 @@ final class FileNameEncodingRepairTests: XCTestCase {
                 suggestion: nil,
                 expectedSuspect: true,
                 expectedSuggestion: "Season 1/Français.srt"
+            ),
+            .init(
+                name: "FC2 PPV 4897221 ã´ãªãããã§éæVSå¾¹éã¬ã¹ãªã³ã°ãã«ãã©å¯¾æ±ºï¼éæãçå ãä½æ ¼å·®éäº¤å°¾é ä¸æ±ºæ¦ï¼ç¹å¸æ åããï¼.mp4",
+                suspect: false,
+                suggestion: nil,
+                expectedSuspect: true,
+                expectedSuggestion: "FC2 PPV 4897221 ゴリマッチョ雄星VS徹郎レスリングデカマラ対決！雄星が生堀り体格差雄交尾頂上決戦！特典映像あり！.mp4"
             ),
             .init(
                 name: "   ",

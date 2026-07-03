@@ -25,26 +25,18 @@ struct GlassEffectBackground: NSViewRepresentable {
             visual.state = .active
             visual.isEmphasized = false
         } else {
-            applyGlassPropertiesIfAvailable(effectView)
+            installEffectView(in: nsView)
         }
     }
 
     private func installEffectView(in container: NSView) {
         container.subviews.forEach { $0.removeFromSuperview() }
 
-        let effectView: NSView
-        if let glassClass = NSClassFromString("NSGlassEffectView") as? NSView.Type {
-            let glass = glassClass.init(frame: .zero)
-            applyGlassPropertiesIfAvailable(glass)
-            effectView = glass
-        } else {
-            let visual = NSVisualEffectView(frame: .zero)
-            visual.material = material
-            visual.blendingMode = blendingMode
-            visual.state = .active
-            visual.isEmphasized = false
-            effectView = visual
-        }
+        let effectView = NSVisualEffectView(frame: .zero)
+        effectView.material = material
+        effectView.blendingMode = blendingMode
+        effectView.state = .active
+        effectView.isEmphasized = false
 
         effectView.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(effectView)
@@ -54,19 +46,6 @@ struct GlassEffectBackground: NSViewRepresentable {
             effectView.topAnchor.constraint(equalTo: container.topAnchor),
             effectView.bottomAnchor.constraint(equalTo: container.bottomAnchor)
         ])
-    }
-
-    private func applyGlassPropertiesIfAvailable(_ view: NSView) {
-        let object = view as NSObject
-        let setState = NSSelectorFromString("setState:")
-        let setInteractive = NSSelectorFromString("setInteractive:")
-
-        if object.responds(to: setState) {
-            object.setValue(1, forKey: "state")
-        }
-        if object.responds(to: setInteractive) {
-            object.setValue(true, forKey: "interactive")
-        }
     }
 }
 

@@ -10,12 +10,10 @@
 		03DFCA21250811A68FFB11AE /* IOSModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 225A54F240B8D5767A8ABC3E /* IOSModels.swift */; };
 		05706ACB63B7539714E7230E /* IOSLocalNetworkErrorPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001ADB040B51CC03017AD078 /* IOSLocalNetworkErrorPresentationTests.swift */; };
 		0B63388D6361440DB7C0732E /* AMuleECBridgeAdapter in Frameworks */ = {isa = PBXBuildFile; productRef = 312DFF370884B11678C128F9 /* AMuleECBridgeAdapter */; };
-		0C67B0D0C0F0410E94F3417B /* SharedServices in Frameworks */ = {isa = PBXBuildFile; productRef = 144EF3D525753BEB5FB3B43B /* SharedServices */; };
 		1C2A1722D55B48F5A9F0C1E2 /* SharedModels in Frameworks */ = {isa = PBXBuildFile; productRef = 277029595E377A87EF675CA6 /* SharedModels */; };
 		32EEA8E251F4EC7BE97750BE /* RenameVerification.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDC03E6C0E38E77D7B7041EB /* RenameVerification.swift */; };
 		3458C201236D6844D8DBD1C5 /* IOSUXValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6822890687BA845DA14C5F71 /* IOSUXValidationTests.swift */; };
 		4C622463158C93F2C4A6E9E8 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 447F6715E9320FD144A9AA09 /* Foundation.framework */; };
-		50F742F8F8BB41DC93D6D02B /* AMuleECProtocol in Frameworks */ = {isa = PBXBuildFile; productRef = 5724B0EA17A64F7C9EF28919 /* AMuleECProtocol */; };
 		5D812EBF51B167AB5738AE2C /* IOSLifecycleService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 199F463A0C2BD37F93DB31DD /* IOSLifecycleService.swift */; };
 		5F779A5F8C34EADAA2B2560F /* IOSPlatformServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12D2DD777C792E8D9D4C3124 /* IOSPlatformServices.swift */; };
 		608895722949437224CA1124 /* IOSIncomingLinksTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D76F42F285004DF396E20E13 /* IOSIncomingLinksTests.swift */; };
@@ -25,8 +23,6 @@
 		7E6479F9361130FF80BD97BC /* IOSLayoutPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06465E9F4F86BA1B1309CCED /* IOSLayoutPolicyTests.swift */; };
 		8B1AFABEEC083CD1B8AAED00 /* IOSLocalizationResourceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A04EB6D33C213CE46C6051F8 /* IOSLocalizationResourceTests.swift */; };
 		8B286FEA3A12C68DE39C4E26 /* RenameVerificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63F629427EEC6F25F352E898 /* RenameVerificationTests.swift */; };
-		90A0D18B931E4733BCF1DFA5 /* AMuleECBridgeAdapter in Frameworks */ = {isa = PBXBuildFile; productRef = 6C135E57020142479D3EB005 /* AMuleECBridgeAdapter */; };
-		9F0B5CDA95D241BBAF13BC67 /* SharedViews in Frameworks */ = {isa = PBXBuildFile; productRef = CFCF56EDEE7B36F0631AB019 /* SharedViews */; };
 		A10000010000000000000001 /* AMuleRemoteiOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000001 /* AMuleRemoteiOSApp.swift */; };
 		A10000010000000000000003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000003 /* ContentView.swift */; };
 		A10000010000000000000004 /* DownloadsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000004 /* DownloadsView.swift */; };
@@ -49,10 +45,8 @@
 		AEA085278557B9208C9284FC /* IOSLayoutPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9085DE34EF3539666BCD2AF /* IOSLayoutPolicy.swift */; };
 		B0F82904F4AE4A36A6D664AE /* AMuleECProtocol in Frameworks */ = {isa = PBXBuildFile; productRef = BCF1D11D91764D3DA688C5F5 /* AMuleECProtocol */; };
 		B4693ECED7EE458595C24730 /* SharedServices in Frameworks */ = {isa = PBXBuildFile; productRef = D5BDE71D9D4A307A816F2749 /* SharedServices */; };
-		C08A2D2C5A1C4CBAA38DF593 /* AMuleECClient in Frameworks */ = {isa = PBXBuildFile; productRef = A4E6A3C8B7C2D265F55BA402 /* AMuleECClient */; };
 		C0A69D59201D93C6F719325F /* DownloadListPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE68D9C3C48792B3971C8034 /* DownloadListPresentation.swift */; };
 		C2382A1D29F022BF90ED86F7 /* DownloadNameSuggestionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E7059945DC4EC2494106744 /* DownloadNameSuggestionTests.swift */; };
-		D40582D2DDBB4B0982BBFD8B /* SharedModels in Frameworks */ = {isa = PBXBuildFile; productRef = D1EBC8AA6FF1CFB8ACE2FCC4 /* SharedModels */; };
 		D8A05A6DD8A4DE55848808F2 /* DownloadItemFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9E298CEF716A5FD8CE54F9C /* DownloadItemFixtures.swift */; };
 		EA026BF3AE7B91B8A3A18638 /* PlatformServiceProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A6B0C50688313D37E02D77C /* PlatformServiceProtocols.swift */; };
 		F4F50145B9F1D819E5ADC19A /* FilenameSuggestionPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DA4EC8CC6DF919E45637076 /* FilenameSuggestionPresentationTests.swift */; };
@@ -129,12 +123,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C08A2D2C5A1C4CBAA38DF593 /* AMuleECClient in Frameworks */,
-				90A0D18B931E4733BCF1DFA5 /* AMuleECBridgeAdapter in Frameworks */,
-				50F742F8F8BB41DC93D6D02B /* AMuleECProtocol in Frameworks */,
-				D40582D2DDBB4B0982BBFD8B /* SharedModels in Frameworks */,
-				9F0B5CDA95D241BBAF13BC67 /* SharedViews in Frameworks */,
-				0C67B0D0C0F0410E94F3417B /* SharedServices in Frameworks */,
 				4C622463158C93F2C4A6E9E8 /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -423,7 +411,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -487,7 +475,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -496,8 +484,7 @@
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_ENABLE_EXPLICIT_MODULES = NO;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_STRICT_CONCURRENCY = minimal;
-				SWIFT_SUPPRESS_WARNINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -543,7 +530,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
@@ -566,7 +553,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = iOS/AMuleRemoteiOS/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -595,7 +582,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = iOS/AMuleRemoteiOS/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -619,7 +606,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

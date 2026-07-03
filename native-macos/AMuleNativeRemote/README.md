@@ -33,7 +33,7 @@ Useful build env vars:
 - `AMULE_APP_VERSION` (default `0.1.0`)
 - `AMULE_BUILD_NUMBER` (default: same as version)
 - `AMULE_BUNDLE_ID` (default `org.amule.native.remote`)
-- `AMULE_MIN_MACOS` (default `26.0`, derived from Xcode project `MACOSX_DEPLOYMENT_TARGET`)
+- `AMULE_MIN_MACOS` (default `27.0`, derived from Xcode project `MACOSX_DEPLOYMENT_TARGET`)
 - `AMULE_LSUIELEMENT` (`true` / `false`, default `false`)
 - `AMULE_ICON_PATH` (custom `.icns` file or Tahoe `.icon` bundle path)
 - `AMULE_ICON_NAME` (icon set name when using a `.icon` bundle)
