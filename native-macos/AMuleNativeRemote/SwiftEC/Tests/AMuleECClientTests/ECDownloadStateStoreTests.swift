@@ -140,18 +140,14 @@ final class ECDownloadStateStoreTests: XCTestCase {
         XCTAssertEqual(store.lifecycle(forECID: 43), .tombstoned)
     }
 
-    func testOutOfOrderIncrementalUpdateDoesNotResurrectTombstonedRows() throws {
+    func testIncrementalUpdateOmissionRemovesRowsLikeOriginalRemoteGUI() throws {
         var store = ECDownloadStateStore()
         store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(ECDownloadPacketFixtures.snapshotPacket(downloads: [
             try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "active.iso"),
         ])))
-        store.replaceDownloadSnapshot([])
 
-        store.applyIncrementalUpdate(ECDownloadPacketFixtures.incrementalPacket(downloads: [
-            try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "active.iso", sourceNameEntries: [
-                ECDownloadPacketFixtures.sourceNameEntry(id: 7, name: "stale.iso", count: 4),
-            ]),
-        ]))
+        let emptyUpdate = ECDownloadPacketFixtures.incrementalPacket(downloads: [])
+        store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(emptyUpdate), sourcePacket: emptyUpdate)
 
         XCTAssertEqual(store.downloads, [])
         XCTAssertEqual(store.lifecycle(forECID: 42), .tombstoned)
@@ -268,7 +264,7 @@ final class ECDownloadStateStoreTests: XCTestCase {
         XCTAssertEqual(store.downloads.first?.statusCode, 3)
     }
 
-    func testKnownFileSnapshotReconcilesCompletingPartFileToComplete() throws {
+    func testPartFileCompleteStatusReconcilesCompletingPartFileToComplete() throws {
         var store = ECDownloadStateStore()
         let completingPacket = ECDownloadPacketFixtures.snapshotPacket(downloads: [
             try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "finishing.iso", size: 100, done: 100, statusCode: 8),
@@ -276,10 +272,10 @@ final class ECDownloadStateStoreTests: XCTestCase {
         store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(completingPacket), sourcePacket: completingPacket)
         XCTAssertEqual(store.downloads.first?.status, "Completing")
 
-        let knownFilePacket = ECDownloadPacketFixtures.incrementalPacket(downloads: [
-            try ECDownloadPacketFixtures.knownFile(ecid: 42, hash: Self.hash, name: "/Downloads/finished.iso", size: 100),
+        let completedPacket = ECDownloadPacketFixtures.incrementalPacket(downloads: [
+            try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "finished.iso", size: 100, done: 100, statusCode: 9),
         ])
-        store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(knownFilePacket), sourcePacket: knownFilePacket)
+        store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(completedPacket), sourcePacket: completedPacket)
 
         let download = try XCTUnwrap(store.downloads.first)
         XCTAssertEqual(download.ecid, 42)
@@ -289,6 +285,31 @@ final class ECDownloadStateStoreTests: XCTestCase {
         XCTAssertTrue(download.isCompleted)
         XCTAssertEqual(download.done, 100)
         XCTAssertEqual(download.progress, 100)
+    }
+
+    func testKnownFileSnapshotDoesNotPromoteUnknownSharedFileToDownload() throws {
+        var store = ECDownloadStateStore()
+        let knownFilePacket = ECDownloadPacketFixtures.incrementalPacket(downloads: [
+            try ECDownloadPacketFixtures.knownFile(ecid: 52, hash: Self.otherHash, name: "/Shared/shared.iso", size: 100),
+        ])
+
+        store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(knownFilePacket), sourcePacket: knownFilePacket)
+
+        XCTAssertEqual(store.downloads, [])
+        XCTAssertEqual(store.lifecycle(forECID: 52), nil)
+    }
+
+    func testIncrementalUpdateOmissionRemovesPreviouslyCompletedDownload() throws {
+        var store = ECDownloadStateStore()
+        store.replaceDownloadSnapshot([Self.download(ecid: 43, hash: Self.hash, name: "done.iso", completed: true)])
+
+        let knownFilePacket = ECDownloadPacketFixtures.incrementalPacket(downloads: [
+            try ECDownloadPacketFixtures.knownFile(ecid: 99, hash: Self.otherHash, name: "/Shared/done.iso", size: 100),
+        ])
+        store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(knownFilePacket), sourcePacket: knownFilePacket)
+
+        XCTAssertEqual(store.downloads, [])
+        XCTAssertEqual(store.lifecycle(forECID: 43), .tombstoned)
     }
 
     func testSharedOnlyAndMalformedLifecycleStatesAreRecorded() throws {

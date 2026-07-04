@@ -162,12 +162,15 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
         }
     }
 
-    func testAdapterBuildsInitialDownloadBaselineWithFullQueueBeforeIncrementalUpdates() async throws {
+    func testAdapterBuildsInitialDownloadBaselineThenMergesIncrementalUpdate() async throws {
         let mock = AdapterMockTransport(replies: [
             Self.salt,
             Self.authOK,
             ECPacket(opcode: 0x1F, tags: [
                 try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
+            ]),
+            ECPacket(opcode: 0x22, tags: [
+                try ECDownloadPacketFixtures.sparsePartFile(ecid: 42, hash: Self.hash, name: "current.iso"),
             ]),
             ECPacket(opcode: 0x22, tags: [
                 try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "current.iso", sourceNameEntries: [
@@ -186,7 +189,7 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
             ECDownload.AlternativeName(name: "better.iso", count: 3),
         ])
         let sentOpcodes = await mock.sentOpcodes()
-        XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x0D, 0x52])
+        XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x0D, 0x52, 0x52])
     }
 
     func testAdapterReturnsStableDownloadSnapshotWhenUpdateSucceeds() async throws {
@@ -195,6 +198,9 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
             Self.authOK,
             ECPacket(opcode: 0x1F, tags: [
                 try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
+            ]),
+            ECPacket(opcode: 0x22, tags: [
+                try ECDownloadPacketFixtures.sparsePartFile(ecid: 42, hash: Self.hash, name: "current.iso"),
             ]),
         ])
         let session = ECSession(configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false), transportFactory: { mock })
@@ -206,7 +212,7 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
         XCTAssertEqual(downloads.first?.name, "current.iso")
         XCTAssertEqual(downloads.first?.alternativeNames, [])
         let sentOpcodes = await mock.sentOpcodes()
-        XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x0D])
+        XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x0D, 0x52])
     }
 
     func testAdapterResyncsFullDownloadQueueWhenIncrementalUpdateContainsUnknownSparsePartFile() async throws {
@@ -216,6 +222,7 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
             ECPacket(opcode: 0x1F, tags: [
                 try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
             ]),
+            ECPacket(opcode: 0x22, tags: []),
             ECPacket(opcode: 0x22, tags: [
                 ECTag.integer(name: 0x0300, value: 77, children: [
                     ECTag.integer(name: 0x0303, value: 100),
@@ -235,10 +242,34 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
         XCTAssertEqual(downloads.map(\.name), ["current.iso", "new.iso"])
         XCTAssertFalse(downloads.contains { $0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
         let sentOpcodes = await mock.sentOpcodes()
-        XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x0D, 0x52, 0x0D])
+        XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x0D, 0x52, 0x52, 0x0D])
     }
 
-    func testAdapterReconcilesCompletingDownloadFromKnownFileUpdate() async throws {
+    func testAdapterMergesCompletedDownloadFromInitialIncrementalPartFile() async throws {
+        let mock = AdapterMockTransport(replies: [
+            Self.salt,
+            Self.authOK,
+            ECPacket(opcode: 0x1F, tags: [
+                try ECDownloadPacketFixtures.partFile(ecid: 10, hash: Self.hash, name: "active.iso"),
+            ]),
+            ECPacket(opcode: 0x22, tags: [
+                try ECDownloadPacketFixtures.sparsePartFile(ecid: 10, hash: Self.hash, name: "active.iso"),
+                try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.otherHash, name: "done.iso", size: 100, done: 100, statusCode: 9),
+            ]),
+        ])
+        let session = ECSession(configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false), transportFactory: { mock })
+        let adapter = SwiftECBridgeAdapter(session: session)
+
+        let (downloads, _) = try await adapter.downloads(config: AMuleConnectionConfig(password: "secret"))
+
+        XCTAssertEqual(downloads.map(\.name), ["active.iso", "done.iso"])
+        XCTAssertEqual(downloads.last?.statusCode, 9)
+        XCTAssertTrue(downloads.last?.isCompleted == true)
+        let sentOpcodes = await mock.sentOpcodes()
+        XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x0D, 0x52])
+    }
+
+    func testAdapterReconcilesCompletingDownloadFromPartFileCompleteUpdate() async throws {
         let mock = AdapterMockTransport(replies: [
             Self.salt,
             Self.authOK,
@@ -246,7 +277,10 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
                 try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "finishing.iso", size: 100, done: 100, statusCode: 8),
             ]),
             ECPacket(opcode: 0x22, tags: [
-                try ECDownloadPacketFixtures.knownFile(ecid: 42, hash: Self.hash, name: "/Downloads/finished.iso", size: 100),
+                try ECDownloadPacketFixtures.sparsePartFile(ecid: 42, hash: Self.hash, name: "finishing.iso"),
+            ]),
+            ECPacket(opcode: 0x22, tags: [
+                try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "finished.iso", size: 100, done: 100, statusCode: 9),
             ]),
         ])
         let session = ECSession(configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false), transportFactory: { mock })
@@ -260,6 +294,28 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
         XCTAssertEqual(download.statusCode, 9)
         XCTAssertEqual(download.status, "Complete")
         XCTAssertTrue(download.isCompleted)
+        let sentOpcodes = await mock.sentOpcodes()
+        XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x0D, 0x52, 0x52])
+    }
+
+    func testAdapterDoesNotSurfaceStandaloneKnownFileAsDownload() async throws {
+        let mock = AdapterMockTransport(replies: [
+            Self.salt,
+            Self.authOK,
+            ECPacket(opcode: 0x1F, tags: [
+                try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
+            ]),
+            ECPacket(opcode: 0x22, tags: [
+                try ECDownloadPacketFixtures.sparsePartFile(ecid: 42, hash: Self.hash, name: "current.iso"),
+                try ECDownloadPacketFixtures.knownFile(ecid: 77, hash: Self.otherHash, name: "/Shared/shared.iso", size: 100),
+            ]),
+        ])
+        let session = ECSession(configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false), transportFactory: { mock })
+        let adapter = SwiftECBridgeAdapter(session: session)
+
+        let (downloads, _) = try await adapter.downloads(config: AMuleConnectionConfig(password: "secret"))
+
+        XCTAssertEqual(downloads.map(\.name), ["current.iso"])
         let sentOpcodes = await mock.sentOpcodes()
         XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x0D, 0x52])
     }
@@ -362,6 +418,9 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
             ECPacket(opcode: 0x1F, tags: [
                 try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
             ]),
+            ECPacket(opcode: 0x22, tags: [
+                try ECDownloadPacketFixtures.sparsePartFile(ecid: 42, hash: Self.hash, name: "current.iso"),
+            ]),
         ])
         let session = ECSession(configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false), transportFactory: { mock })
         let capabilities = ECCapabilities(ops: [ECSupportedOps.downloads])
@@ -372,7 +431,7 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
         XCTAssertEqual(downloads.count, 1)
         XCTAssertEqual(downloads.first?.name, "current.iso")
         let sentOpcodes = await mock.sentOpcodes()
-        XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x0D])
+        XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x0D, 0x52])
     }
 
     func testAdapterSourcesEnvelopeMatchesFixture() async throws {

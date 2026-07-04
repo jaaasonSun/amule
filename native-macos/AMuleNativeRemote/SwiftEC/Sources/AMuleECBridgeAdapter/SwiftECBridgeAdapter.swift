@@ -54,7 +54,17 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
             guard await modelState.hasDownloadBaseline else {
                 let packet = try await session.send(try ECOperations.downloads(gate: capabilityGate))
                 let downloads = try ECResponseParser.parseDownloads(packet)
-                let result = await modelState.replaceDownloads(downloads, sourcePacket: packet)
+                _ = await modelState.replaceDownloads(downloads, sourcePacket: packet)
+                let updatePacket = try await session.send(try ECOperations.downloadsUpdate(gate: capabilityGate))
+                let result: [ECDownload]
+                if await modelState.downloadUpdateNeedsFullResync(updatePacket) {
+                    let fullPacket = try await session.send(try ECOperations.downloads(gate: capabilityGate))
+                    let fullDownloads = try ECResponseParser.parseDownloads(fullPacket)
+                    result = await modelState.replaceDownloads(fullDownloads, sourcePacket: fullPacket)
+                } else {
+                    let updateDownloads = try ECResponseParser.parseDownloads(updatePacket)
+                    result = await modelState.replaceDownloads(updateDownloads, sourcePacket: updatePacket)
+                }
                 let raw = ECJSONEnvelope.jsonString(try ECJSONEnvelope.downloads(result))
                 return (result, raw)
             }

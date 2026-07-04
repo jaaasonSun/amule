@@ -45,12 +45,13 @@ public struct ECDownloadStateStore: Sendable {
         let previousOrder = orderedECIDs
         let incoming = uniqueDownloads(from: snapshot)
         let liveECIDs = Set(incoming.map(\.ecid))
+        let isIncrementalUpdate = sourcePacket?.opcode == 0x22
 
         var hasCompleteDownloadState: Set<Int> = []
         if let sourcePacket {
             for tag in sourcePacket.tags where tag.name == TagName.partFile || tag.name == TagName.knownFile {
                 let ecid = tag.intValue
-                if tag.name == TagName.knownFile || tag.child(named: TagName.partFileStatus) != nil {
+                if tag.name == TagName.partFile, tag.child(named: TagName.partFileStatus) != nil {
                     hasCompleteDownloadState.insert(ecid)
                 }
             }
@@ -66,7 +67,7 @@ public struct ECDownloadStateStore: Sendable {
 
         var nextDownloadsByECID = downloadsByECID
         var nextLifecycleByECID = lifecycleByECID
-        var nextOrder = incoming.map(\.ecid)
+        var nextOrder = isIncrementalUpdate ? previousOrder : incoming.map(\.ecid)
 
         for download in incoming {
             let ecid = download.ecid
@@ -80,10 +81,12 @@ public struct ECDownloadStateStore: Sendable {
                 let withAltNames = merged.replacingAlternativeNames(alternativeNames(for: merged))
                 nextDownloadsByECID[ecid] = withAltNames
                 nextLifecycleByECID[ecid] = lifecycle(for: withAltNames)
+                nextOrder.append(ecid)
             } else {
                 let merged = download.replacingAlternativeNames(alternativeNames(for: download))
                 nextDownloadsByECID[ecid] = merged
                 nextLifecycleByECID[ecid] = lifecycle(for: merged)
+                nextOrder.append(ecid)
             }
         }
 
@@ -93,9 +96,15 @@ public struct ECDownloadStateStore: Sendable {
                 nextDownloadsByECID.removeValue(forKey: ecid)
                 continue
             }
-            if shouldRetainWhenOmitted(previous) {
-                nextDownloadsByECID[ecid] = previous
+            if isIncrementalUpdate {
+                nextDownloadsByECID.removeValue(forKey: ecid)
+                sourceNamesByECID.removeValue(forKey: ecid)
                 nextLifecycleByECID[ecid] = .tombstoned
+                continue
+            }
+            if shouldRetainWhenOmitted(previous) {
+                nextLifecycleByECID[ecid] = .tombstoned
+                nextDownloadsByECID[ecid] = previous
                 nextOrder.append(ecid)
             } else {
                 nextDownloadsByECID.removeValue(forKey: ecid)
@@ -166,7 +175,7 @@ public struct ECDownloadStateStore: Sendable {
     }
 
     private mutating func recordMalformedOmissions(from packet: ECPacket, parsedECIDs: Set<Int>) {
-        for tag in packet.tags where tag.name == TagName.partFile || tag.name == TagName.knownFile {
+        for tag in packet.tags where tag.name == TagName.partFile {
             let ecid = tag.intValue
             guard !parsedECIDs.contains(ecid), downloadsByECID[ecid] == nil else { continue }
             lifecycleByECID[ecid] = .malformedOmission

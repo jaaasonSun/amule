@@ -9,6 +9,7 @@ BUILD_NUMBER="${AMULE_BUILD_NUMBER:-$APP_VERSION}"
 BUILD_COMMIT="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo dev)"
 XCODE_DERIVED_DATA_PATH="${AMULE_XCODE_DERIVED_DATA:-${TMPDIR:-/tmp}/amule-xcodebuild}"
 APP_DIR="$ROOT_DIR/dist/${APP_NAME}.app"
+CODESIGN_IDENTITY="${AMULE_CODESIGN_IDENTITY:--}"
 
 mkdir -p "$ROOT_DIR/dist"
 
@@ -25,5 +26,7 @@ BUILT_APP="$XCODE_PRODUCTS_DIR/${APP_NAME}.app"
 
 rm -rf "$APP_DIR"
 cp -R "$BUILT_APP" "$APP_DIR"
+codesign --force --deep --sign "$CODESIGN_IDENTITY" "$APP_DIR"
+codesign --verify --deep --strict "$APP_DIR"
 
 echo "Built: $APP_DIR"

@@ -5,7 +5,7 @@ import Fixtures
 @testable import AMuleECClient
 
 final class ECResponseParserTests: XCTestCase {
-    func testKnownFileInDownloadsUpdateParsesAsCompletedDownload() throws {
+    func testStandaloneKnownFileInDownloadsUpdateIsNotADownload() throws {
         let packet = ECDownloadPacketFixtures.incrementalPacket(downloads: [
             try ECDownloadPacketFixtures.knownFile(
                 ecid: 42,
@@ -17,19 +17,7 @@ final class ECResponseParserTests: XCTestCase {
 
         let downloads = try ECResponseParser.parseDownloads(packet)
 
-        XCTAssertEqual(downloads.count, 1)
-        let download = try XCTUnwrap(downloads.first)
-        XCTAssertEqual(download.ecid, 42)
-        XCTAssertEqual(download.hash, "00112233445566778899aabbccddeeff")
-        XCTAssertEqual(download.name, "finished.iso")
-        XCTAssertEqual(download.size, 100)
-        XCTAssertEqual(download.done, 100)
-        XCTAssertEqual(download.transferred, 100)
-        XCTAssertEqual(download.progress, 100)
-        XCTAssertEqual(download.statusCode, 9)
-        XCTAssertEqual(download.status, "Complete")
-        XCTAssertTrue(download.isCompleted)
-        XCTAssertTrue(download.shared)
+        XCTAssertEqual(downloads, [])
     }
 
     func testSecondRefreshCompletedRefreshFixturePreservesSparseRowsInCurrentBaseline() throws {
