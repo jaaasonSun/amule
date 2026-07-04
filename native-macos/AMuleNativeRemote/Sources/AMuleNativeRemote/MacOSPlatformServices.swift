@@ -86,25 +86,6 @@ final class MacOSDeepLinkHandler: NSObject, NSApplicationDelegate, DeepLinkHandl
     }
 }
 
-struct MacOSCredentialStorage: CredentialStorage, @unchecked Sendable {
-    private let defaults: UserDefaults
-
-    init(defaults: UserDefaults = .standard) {
-        self.defaults = defaults
-    }
-
-    func readCredential(forKey key: String) -> String? {
-        defaults.string(forKey: key)
-    }
-
-    func writeCredential(_ credential: String, forKey key: String) {
-        defaults.set(credential, forKey: key)
-    }
-
-    func deleteCredential(forKey key: String) {
-        defaults.removeObject(forKey: key)
-    }
-}
 #endif
 
 struct MacOSFileExportImport: FileExportImport {
@@ -159,4 +140,8 @@ final class MacOSLocalNetworkErrorPresentation: LocalNetworkErrorPresentation {
 
 func platformDefaultPasteboardShare() -> PasteboardShare {
     MacOSPasteboardShare()
+}
+
+func platformDefaultCredentialStorage() -> CredentialStorage {
+    KeychainCredentialStorage(service: Bundle.main.bundleIdentifier ?? "org.amule.remote.credentials")
 }

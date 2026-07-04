@@ -22,7 +22,11 @@ func LF3(_ key: String, _ args: CVarArg...) -> String {
 final class AppModel: ObservableObject {
     @AppStorage("amule.host") var host: String = "127.0.0.1"
     @AppStorage("amule.port") var port: Int = 4712
-    @AppStorage("amule.password") var password: String = ""
+    @Published var password: String {
+        didSet {
+            persistPassword()
+        }
+    }
     @AppStorage("amule.prefs.connection.maxDownload") var savedConnectionMaxDownload: Int = 0
     @AppStorage("amule.prefs.connection.maxUpload") var savedConnectionMaxUpload: Int = 0
 
@@ -87,6 +91,8 @@ final class AppModel: ObservableObject {
     let pasteboardShare: PasteboardShare
     let bridge: BridgeProtocol
     let serverManagementService: ServerManagementService
+    private let credentialStorage: CredentialStorage
+    private let passwordStorageKey = "amule.password"
 
     var buildCommit: String {
         if let value = Bundle.main.object(forInfoDictionaryKey: "AMuleBuildCommit") as? String,
@@ -102,11 +108,27 @@ final class AppModel: ObservableObject {
 
     init(
         pasteboardShare: PasteboardShare = platformDefaultPasteboardShare(),
-        bridge: BridgeProtocol = platformDefaultBridgeAdapter()
+        bridge: BridgeProtocol = platformDefaultBridgeAdapter(),
+        credentialStorage: CredentialStorage = platformDefaultCredentialStorage(),
+        defaults: UserDefaults = .standard
     ) {
         self.pasteboardShare = pasteboardShare
         self.bridge = bridge
         self.serverManagementService = ServerManagementService(bridge: bridge)
+        self.credentialStorage = credentialStorage
+        let legacyPassword = defaults.string(forKey: passwordStorageKey)
+        let keychainPassword = credentialStorage.readCredential(forKey: passwordStorageKey)
+        self.password = keychainPassword ?? legacyPassword ?? ""
+        if keychainPassword == nil, let legacyPassword {
+            if legacyPassword.isEmpty {
+                credentialStorage.deleteCredential(forKey: passwordStorageKey)
+            } else {
+                credentialStorage.writeCredential(legacyPassword, forKey: passwordStorageKey)
+            }
+        }
+        if defaults.object(forKey: passwordStorageKey) != nil {
+            defaults.removeObject(forKey: passwordStorageKey)
+        }
         connectionMaxDownloadKBps = savedConnectionMaxDownload
         connectionMaxUploadKBps = savedConnectionMaxUpload
         connectionMaxDownloadInput = String(savedConnectionMaxDownload)
@@ -119,5 +141,13 @@ final class AppModel: ObservableObject {
 
     func isBridgeOpSupported(_ op: String) -> Bool {
         BridgeCapabilityGate.isSupported(op, by: bridgeOps)
+    }
+
+    private func persistPassword() {
+        if password.isEmpty {
+            credentialStorage.deleteCredential(forKey: passwordStorageKey)
+        } else {
+            credentialStorage.writeCredential(password, forKey: passwordStorageKey)
+        }
     }
 }

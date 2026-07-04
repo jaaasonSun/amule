@@ -113,4 +113,40 @@ final class PlatformServiceAdapterTests: XCTestCase {
             "magnet:?xt=urn:ed2k:BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB&dn=beta"
         ])
     }
+
+    @MainActor
+    func testAppModelMigratesLegacyDefaultsPasswordToCredentialStorage() {
+        let defaults = UserDefaults(suiteName: "AppModelKeychainMigrationTests.\(UUID().uuidString)")!
+        defaults.set("legacy-secret", forKey: "amule.password")
+        let credentials = PlatformServiceStubs.Credentials()
+
+        let model = AppModel(
+            pasteboardShare: PlatformServiceStubs.Pasteboard(),
+            bridge: FakeBridgeAdapter(),
+            credentialStorage: credentials,
+            defaults: defaults
+        )
+
+        XCTAssertEqual(model.password, "legacy-secret")
+        XCTAssertEqual(credentials.readCredential(forKey: "amule.password"), "legacy-secret")
+        XCTAssertNil(defaults.string(forKey: "amule.password"))
+    }
+
+    @MainActor
+    func testAppModelPasswordChangesPersistThroughCredentialStorage() {
+        let defaults = UserDefaults(suiteName: "AppModelKeychainPersistenceTests.\(UUID().uuidString)")!
+        let credentials = PlatformServiceStubs.Credentials()
+        let model = AppModel(
+            pasteboardShare: PlatformServiceStubs.Pasteboard(),
+            bridge: FakeBridgeAdapter(),
+            credentialStorage: credentials,
+            defaults: defaults
+        )
+
+        model.password = "updated-secret"
+        XCTAssertEqual(credentials.readCredential(forKey: "amule.password"), "updated-secret")
+
+        model.password = ""
+        XCTAssertNil(credentials.readCredential(forKey: "amule.password"))
+    }
 }

@@ -1,71 +1,11 @@
 import Foundation
 import AMuleECBridgeAdapter
-import Security
 import SharedModels
 import SharedServices
 import SharedViews
 
 public func platformDefaultBridgeAdapter() -> AMuleECBridgeAdapter.BridgeProtocol {
     SwiftECBridgeAdapter()
-}
-
-public struct IOSKeychainCredentialStorage: CredentialStorage, @unchecked Sendable {
-    let service: String
-
-    init(service: String = IOSKeychainCredentialStorage.defaultServiceName) {
-        self.service = service
-    }
-
-    public func readCredential(forKey key: String) -> String? {
-        var item: CFTypeRef?
-        let status = SecItemCopyMatching(readQuery(forKey: key) as CFDictionary, &item)
-        switch status {
-        case errSecSuccess:
-            guard let data = item as? Data else { return nil }
-            return String(data: data, encoding: .utf8)
-        case errSecItemNotFound:
-            return nil
-        default:
-            return nil
-        }
-    }
-
-    public func writeCredential(_ credential: String, forKey key: String) {
-        guard let data = credential.data(using: .utf8) else { return }
-        let status = SecItemAdd(writeQuery(forKey: key, data: data) as CFDictionary, nil)
-        if status == errSecDuplicateItem {
-            let update: [CFString: Any] = [kSecValueData: data]
-            SecItemUpdate(baseQuery(forKey: key) as CFDictionary, update as CFDictionary)
-        }
-    }
-
-    public func deleteCredential(forKey key: String) {
-        SecItemDelete(baseQuery(forKey: key) as CFDictionary)
-    }
-
-    private func readQuery(forKey key: String) -> [CFString: Any] {
-        var query = baseQuery(forKey: key)
-        query[kSecReturnData] = true
-        query[kSecMatchLimit] = kSecMatchLimitOne
-        return query
-    }
-
-    private func writeQuery(forKey key: String, data: Data) -> [CFString: Any] {
-        var query = baseQuery(forKey: key)
-        query[kSecAttrAccessible] = kSecAttrAccessibleWhenUnlocked
-        query[kSecValueData] = data
-        return query
-    }
-
-    private func baseQuery(forKey key: String) -> [CFString: Any] {
-        [
-            kSecClass: kSecClassGenericPassword,
-            kSecAttrService: service,
-            kSecAttrAccount: key
-        ]
-    }
-
-    private static let defaultServiceName = Bundle.main.bundleIdentifier ?? "org.amule.remote.ios.credentials"
 }
 
 @MainActor

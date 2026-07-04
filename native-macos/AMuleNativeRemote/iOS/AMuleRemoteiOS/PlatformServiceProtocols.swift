@@ -1,4 +1,5 @@
 import Foundation
+import Security
 import SharedViews
 import SharedModels
 import SharedServices
@@ -31,7 +32,10 @@ public func platformDefaultDeepLinkHandler() -> DeepLinkHandling {
 
 public func platformDefaultCredentialStorage() -> CredentialStorage {
     #if canImport(Security)
-    IOSKeychainCredentialStorage()
+    KeychainCredentialStorage(
+        service: Bundle.main.bundleIdentifier ?? "org.amule.remote.ios.credentials",
+        accessibility: kSecAttrAccessibleWhenUnlocked
+    )
     #else
     PlatformServiceStubs.Credentials()
     #endif

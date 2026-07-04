@@ -27,6 +27,8 @@ enum AppTab: String, CaseIterable, Identifiable {
         case .settings: return "gearshape"
         }
     }
+
+    var customizationID: String { rawValue }
 }
 
 struct ContentView: View {
@@ -34,19 +36,14 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @ObservedObject var model: IOSAppModel
     @State private var selectedTab: AppTab = .downloads
+    @AppStorage("amule.ios.tabCustomization") private var tabCustomization = TabViewCustomization()
     @State private var isConnectionDialogPresented = false
     @State private var connectionHostDraft = ""
     @State private var connectionPortDraft = ""
     @State private var connectionPasswordDraft = ""
 
     var body: some View {
-        Group {
-            if rootLayout == .sidebarDetail {
-                ipadLayout
-            } else {
-                compactLayout
-            }
-        }
+        adaptiveTabLayout
         .overlay {
             if let feedback = model.downloadFeedback {
                 AddLinksHUD(message: feedback)
@@ -128,7 +125,7 @@ struct ContentView: View {
         )
     }
 
-    private var compactLayout: some View {
+    private var adaptiveTabLayout: some View {
         TabView(selection: $selectedTab) {
             Tab(L("Downloads"), systemImage: AppTab.downloads.systemImage, value: .downloads) {
                 NavigationStack {
@@ -136,7 +133,9 @@ struct ContentView: View {
                         .navigationTitle(Text("Downloads"))
                 }
             }
-            Tab(L("Search"), systemImage: AppTab.search.systemImage, value: .search) {
+            .customizationID(AppTab.downloads.customizationID)
+
+            Tab(L("Search"), systemImage: AppTab.search.systemImage, value: .search, role: .search) {
                 NavigationStack {
                     SearchView(model: model)
                         .navigationTitle(Text("Search"))
@@ -147,6 +146,8 @@ struct ContentView: View {
                         }
                 }
             }
+            .customizationID(AppTab.search.customizationID)
+
             Tab(L("Servers"), systemImage: AppTab.servers.systemImage, value: .servers) {
                 NavigationStack {
                     ServersView(model: model)
@@ -158,6 +159,8 @@ struct ContentView: View {
                         }
                 }
             }
+            .customizationID(AppTab.servers.customizationID)
+
             Tab(L("Settings"), systemImage: AppTab.settings.systemImage, value: .settings) {
                 NavigationStack {
                     SettingsView(model: model)
@@ -169,47 +172,10 @@ struct ContentView: View {
                         }
                 }
             }
+            .customizationID(AppTab.settings.customizationID)
         }
-    }
-
-    private var ipadLayout: some View {
-        NavigationSplitView {
-            List(AppTab.allCases) { tab in
-                Button {
-                    selectedTab = tab
-                } label: {
-                    Label(tab.label, systemImage: tab.systemImage)
-                }
-                .buttonStyle(.plain)
-            }
-            .navigationTitle("aMule Remote")
-        } detail: {
-            NavigationStack {
-                detailView(for: selectedTab)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func detailView(for tab: AppTab) -> some View {
-        switch tab {
-        case .downloads:
-            DownloadsView(
-                model: model,
-                presentation: downloadsPresentation,
-                onShowConnection: showConnectionDialog
-            )
-                .navigationTitle(Text("Downloads"))
-        case .search:
-            SearchView(model: model)
-                .navigationTitle(Text("Search"))
-        case .servers:
-            ServersView(model: model)
-                .navigationTitle(Text("Servers"))
-        case .settings:
-            SettingsView(model: model)
-                .navigationTitle(Text("Settings"))
-        }
+        .tabViewStyle(.sidebarAdaptable)
+        .tabViewCustomization($tabCustomization)
     }
 
     private var connectionDialogMessage: String {
@@ -257,10 +223,6 @@ struct ContentView: View {
             return .orange
         }
         return .secondary
-    }
-
-    private var rootLayout: IOSRootLayout {
-        IOSLayoutPolicy.rootLayout(device: deviceClass, horizontalSize: sizeClass)
     }
 
     private var downloadsPresentation: DownloadsViewPresentation {
