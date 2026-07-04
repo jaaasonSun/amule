@@ -99,21 +99,6 @@ struct ServersWindowView: View {
     var body: some View {
         baseServersContent
             .frame(minWidth: 1040, minHeight: 620)
-            .background(
-                GlassEffectBackground(material: .underWindowBackground)
-                    .ignoresSafeArea()
-            )
-            .background(
-                WindowAppearanceConfigurator(
-                    windowTitle: "eD2k",
-                    hideTitle: false,
-                    transparentTitlebar: true,
-                    fullSizeContentView: true,
-                    toolbarStyle: .automatic,
-                    makeWindowTransparent: true,
-                    ensureToolbarWhenTransparentTitlebar: false
-                )
-            )
     }
 
     private var baseServersContent: some View {

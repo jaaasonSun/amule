@@ -238,6 +238,32 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
         XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x0D, 0x52, 0x0D])
     }
 
+    func testAdapterReconcilesCompletingDownloadFromKnownFileUpdate() async throws {
+        let mock = AdapterMockTransport(replies: [
+            Self.salt,
+            Self.authOK,
+            ECPacket(opcode: 0x1F, tags: [
+                try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "finishing.iso", size: 100, done: 100, statusCode: 8),
+            ]),
+            ECPacket(opcode: 0x22, tags: [
+                try ECDownloadPacketFixtures.knownFile(ecid: 42, hash: Self.hash, name: "/Downloads/finished.iso", size: 100),
+            ]),
+        ])
+        let session = ECSession(configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false), transportFactory: { mock })
+        let adapter = SwiftECBridgeAdapter(session: session)
+
+        _ = try await adapter.downloads(config: AMuleConnectionConfig(password: "secret"))
+        let (downloads, _) = try await adapter.downloads(config: AMuleConnectionConfig(password: "secret"))
+
+        let download = try XCTUnwrap(downloads.first)
+        XCTAssertEqual(download.name, "finished.iso")
+        XCTAssertEqual(download.statusCode, 9)
+        XCTAssertEqual(download.status, "Complete")
+        XCTAssertTrue(download.isCompleted)
+        let sentOpcodes = await mock.sentOpcodes()
+        XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x0D, 0x52])
+    }
+
     func testAdapterPreservesSourcesAcrossPartialClientDeltas() async throws {
         let mock = AdapterMockTransport(replies: [
             Self.salt,

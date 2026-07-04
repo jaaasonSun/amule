@@ -75,18 +75,6 @@ struct CategoriesWindowView: View {
             }
         }
         .frame(minWidth: 700, minHeight: 460)
-        .background(GlassEffectBackground(material: .underWindowBackground).ignoresSafeArea())
-        .background(
-            WindowAppearanceConfigurator(
-                windowTitle: "Categories",
-                hideTitle: false,
-                transparentTitlebar: true,
-                fullSizeContentView: true,
-                toolbarStyle: .automatic,
-                makeWindowTransparent: true,
-                ensureToolbarWhenTransparentTitlebar: false
-            )
-        )
         .task { model.refreshCategories() }
     }
 }

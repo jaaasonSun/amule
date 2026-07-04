@@ -45,22 +45,15 @@ struct AddLinksWindowView: View {
         }
         .padding(14)
         .frame(minWidth: 520, idealWidth: 560, maxWidth: 700, minHeight: 280, idealHeight: 320)
-        .background(GlassEffectBackground(material: .underWindowBackground))
         .background(
             WindowAppearanceConfigurator(
-                hideTitle: true,
-                transparentTitlebar: true,
-                fullSizeContentView: true,
+                windowTitle: "Add Links",
                 toolbarStyle: .automatic,
-                makeWindowTransparent: true,
-                ensureToolbarWhenTransparentTitlebar: false,
                 windowLevel: .floating,
                 windowCollectionBehavior: [.fullScreenAuxiliary, .moveToActiveSpace],
-                isMovableByWindowBackground: true,
                 panelHidesOnDeactivate: false,
                 useUtilityStyleMask: true,
-                isResizable: false,
-                hidesStandardWindowButtons: true
+                isResizable: false
             )
         )
     }

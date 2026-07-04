@@ -72,18 +72,6 @@ struct FriendsWindowView: View {
             }
         }
         .frame(minWidth: 760, minHeight: 500)
-        .background(GlassEffectBackground(material: .underWindowBackground).ignoresSafeArea())
-        .background(
-            WindowAppearanceConfigurator(
-                windowTitle: "Friends",
-                hideTitle: false,
-                transparentTitlebar: true,
-                fullSizeContentView: true,
-                toolbarStyle: .automatic,
-                makeWindowTransparent: true,
-                ensureToolbarWhenTransparentTitlebar: false
-            )
-        )
         .task { model.refreshFriends() }
     }
 }

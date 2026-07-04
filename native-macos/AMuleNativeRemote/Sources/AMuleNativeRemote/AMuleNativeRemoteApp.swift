@@ -19,7 +19,7 @@ struct AMuleNativeRemoteApp: App {
             SearchWindowView()
                 .environmentObject(model)
         }
-        .windowStyle(.hiddenTitleBar)
+        .windowStyle(.automatic)
 
         WindowGroup("eD2k", id: "servers-window") {
             ServersWindowView()
@@ -27,11 +27,11 @@ struct AMuleNativeRemoteApp: App {
         }
         .windowStyle(.automatic)
 
-        Window("", id: "download-details-window") {
+        Window("Details", id: "download-details-window") {
             DownloadDetailsWindowView()
                 .environmentObject(model)
         }
-        .windowStyle(.hiddenTitleBar)
+        .windowStyle(.automatic)
         .windowResizability(.contentSize)
         .defaultSize(width: 820, height: 620)
 

@@ -46,12 +46,12 @@ public struct ECDownloadStateStore: Sendable {
         let incoming = uniqueDownloads(from: snapshot)
         let liveECIDs = Set(incoming.map(\.ecid))
 
-        var hasPartFileStatus: Set<Int> = []
+        var hasCompleteDownloadState: Set<Int> = []
         if let sourcePacket {
             for tag in sourcePacket.tags where tag.name == TagName.partFile || tag.name == TagName.knownFile {
                 let ecid = tag.intValue
-                if tag.child(named: 0x0308) != nil {
-                    hasPartFileStatus.insert(ecid)
+                if tag.name == TagName.knownFile || tag.child(named: TagName.partFileStatus) != nil {
+                    hasCompleteDownloadState.insert(ecid)
                 }
             }
             for tag in sourcePacket.tags where tag.name == TagName.partFile {
@@ -70,7 +70,7 @@ public struct ECDownloadStateStore: Sendable {
 
         for download in incoming {
             let ecid = download.ecid
-            if sourcePacket != nil, !hasPartFileStatus.contains(ecid), let existing = downloadsByECID[ecid] {
+            if sourcePacket != nil, !hasCompleteDownloadState.contains(ecid), let existing = downloadsByECID[ecid] {
                 let merged: ECDownload
                 if !download.name.isEmpty, download.name != existing.name {
                     merged = existing.replacingName(download.name)
@@ -252,10 +252,12 @@ public struct ECDownloadStateStore: Sendable {
         static let partFile: UInt16 = 0x0300
         static let partFileName: UInt16 = 0x0301
         static let partFileSizeFull: UInt16 = 0x0303
+        static let partFileStatus: UInt16 = 0x0308
         static let partFileSourceNames: UInt16 = 0x0315
         static let partFileSourceNameCounts: UInt16 = 0x031C
         static let partFileHash: UInt16 = 0x031E
         static let knownFile: UInt16 = 0x0400
+        static let knownFileFilename: UInt16 = 0x0408
     }
 }
 
@@ -331,9 +333,20 @@ private extension ECTag {
     }
 
     var hasCompleteFileIdentity: Bool {
-        guard let name = child(named: ECDownloadStateStore.TagName.partFileName)?.stringValue,
+        let name: String?
+        let hash: String?
+        switch self.name {
+        case ECDownloadStateStore.TagName.knownFile:
+            name = child(named: ECDownloadStateStore.TagName.knownFileFilename)?.stringValue
+                ?? child(named: ECDownloadStateStore.TagName.partFileName)?.stringValue
+            hash = child(named: ECDownloadStateStore.TagName.partFileHash)?.hashStringValue ?? hashStringValue
+        default:
+            name = child(named: ECDownloadStateStore.TagName.partFileName)?.stringValue
+            hash = child(named: ECDownloadStateStore.TagName.partFileHash)?.hashStringValue
+        }
+        guard let name,
               !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              child(named: ECDownloadStateStore.TagName.partFileHash)?.hashStringValue?.isEmpty == false,
+              hash?.isEmpty == false,
               child(named: ECDownloadStateStore.TagName.partFileSizeFull) != nil else {
             return false
         }

@@ -61,18 +61,6 @@ struct UploadsWindowView: View {
             }
         }
         .frame(minWidth: 760, minHeight: 500)
-        .background(GlassEffectBackground(material: .underWindowBackground).ignoresSafeArea())
-        .background(
-            WindowAppearanceConfigurator(
-                windowTitle: "Uploads",
-                hideTitle: false,
-                transparentTitlebar: true,
-                fullSizeContentView: true,
-                toolbarStyle: .automatic,
-                makeWindowTransparent: true,
-                ensureToolbarWhenTransparentTitlebar: false
-            )
-        )
         .task { model.refreshUploads() }
     }
 }

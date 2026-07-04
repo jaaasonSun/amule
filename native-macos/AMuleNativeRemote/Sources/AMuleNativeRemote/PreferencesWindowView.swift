@@ -138,18 +138,6 @@ struct PreferencesWindowView: View {
             .padding(.vertical, 10)
         }
         .frame(minWidth: 640, minHeight: 420)
-        .background(GlassEffectBackground(material: .underWindowBackground).ignoresSafeArea())
-        .background(
-            WindowAppearanceConfigurator(
-                windowTitle: "Preferences",
-                hideTitle: false,
-                transparentTitlebar: true,
-                fullSizeContentView: true,
-                toolbarStyle: .automatic,
-                makeWindowTransparent: true,
-                ensureToolbarWhenTransparentTitlebar: false
-            )
-        )
         .task {
             if model.isBridgeOpSupported("prefs-connection-get") {
                 model.refreshConnectionPrefs()

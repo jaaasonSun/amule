@@ -167,7 +167,7 @@ struct ConnectionSheet: View {
         }
         .padding(16)
         .frame(minWidth: 300, idealWidth: 320, maxWidth: 360, minHeight: 188)
-        .background(GlassEffectBackground(material: .hudWindow))
+        .background(.regularMaterial)
     }
 }
 
@@ -247,7 +247,7 @@ struct KadSheet: View {
         }
         .padding(16)
         .frame(minWidth: 300, idealWidth: 320, maxWidth: 360)
-        .background(GlassEffectBackground(material: .hudWindow))
+        .background(.regularMaterial)
     }
 
     private var statusDotColor: Color {

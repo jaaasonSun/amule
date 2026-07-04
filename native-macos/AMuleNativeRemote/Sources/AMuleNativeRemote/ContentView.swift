@@ -193,23 +193,6 @@ struct ContentView: View {
     private var styledBody: some View {
         baseBody
             .frame(minWidth: 760, minHeight: 420)
-            .background(
-                GlassEffectBackground(material: .underWindowBackground)
-                    .ignoresSafeArea()
-            )
-            .background(
-                WindowAppearanceConfigurator(
-                    hideTitle: false,
-                    transparentTitlebar: true,
-                    fullSizeContentView: true,
-                    toolbarStyle: .automatic,
-                    showsToolbarBaselineSeparator: false,
-                    allowsToolbarCustomization: false,
-                    autosavesToolbarConfiguration: false,
-                    makeWindowTransparent: true,
-                    ensureToolbarWhenTransparentTitlebar: false
-                )
-            )
     }
 
     private var lifecycleBody: some View {

@@ -476,6 +476,9 @@ public enum ECResponseParser {
     }
 
     private static func parseDownloadTag(_ tag: ECTag) -> ECDownload? {
+        if tag.name == TagName.knownFile {
+            return parseKnownFileDownloadTag(tag)
+        }
         guard tag.name == TagName.partFile else { return nil }
         let name = tag.child(named: TagName.partFileName)?.stringValue ?? ""
         let size = tag.child(named: TagName.partFileSizeFull)?.uintValue ?? 0
@@ -510,6 +513,41 @@ public enum ECResponseParser {
             shared: hasStatus ? ((tag.child(named: TagName.partFileShared)?.intValue ?? 0) != 0) : false,
             alternativeNames: parseAlternativeNames(in: tag, currentName: name),
             progressColors: hasStatus ? buildProgressSegments(from: tag, fileSize: size) : []
+        )
+    }
+
+    private static func parseKnownFileDownloadTag(_ tag: ECTag) -> ECDownload {
+        let path = tag.child(named: TagName.knownFileFilename)?.stringValue ?? ""
+        let fileName = URL(fileURLWithPath: path).lastPathComponent
+        let name = fileName.isEmpty ? (tag.child(named: TagName.partFileName)?.stringValue ?? path) : fileName
+        let size = tag.child(named: TagName.partFileSizeFull)?.uintValue ?? 0
+        let hash = tag.child(named: TagName.partFileHash)?.hashStringValue ?? tag.hashStringValue
+        return ECDownload(
+            ecid: tag.intValue,
+            hash: hash,
+            name: name,
+            size: size,
+            done: size,
+            transferred: size,
+            progress: size > 0 ? 100 : 0,
+            sourcesCurrent: 0,
+            sourcesTotal: 0,
+            sourcesTransferring: 0,
+            sourcesA4AF: 0,
+            statusCode: 9,
+            isCompleted: true,
+            status: partFileStatusText(9, sourcesTransferring: 0),
+            speed: 0,
+            priority: tag.child(named: TagName.knownFilePriority)?.intValue ?? 0,
+            category: 0,
+            partMet: "",
+            lastSeenComplete: 0,
+            lastReceived: 0,
+            activeSeconds: 0,
+            availableParts: 0,
+            shared: true,
+            alternativeNames: [],
+            progressColors: []
         )
     }
 

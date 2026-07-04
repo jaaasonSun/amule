@@ -76,20 +76,6 @@ struct SearchWindowView: View {
         } else {
             baseSearchContent
                 .frame(minWidth: 920, minHeight: 320)
-                .background(
-                    GlassEffectBackground(material: .underWindowBackground)
-                        .ignoresSafeArea()
-                )
-                .background(
-                    WindowAppearanceConfigurator(
-                        hideTitle: true,
-                        transparentTitlebar: true,
-                        fullSizeContentView: true,
-                        toolbarStyle: .automatic,
-                        makeWindowTransparent: true,
-                        ensureToolbarWhenTransparentTitlebar: false
-                    )
-                )
         }
     }
 

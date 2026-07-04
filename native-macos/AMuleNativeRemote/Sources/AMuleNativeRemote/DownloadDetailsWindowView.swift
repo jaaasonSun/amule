@@ -285,22 +285,6 @@ struct DownloadDetailsWindowView: View {
         .frame(width: 820, alignment: .topLeading)
         .frame(minHeight: 180, alignment: .topLeading)
         .fixedSize(horizontal: false, vertical: true)
-        .background(
-            GlassEffectBackground(material: .underWindowBackground)
-                .ignoresSafeArea()
-        )
-        .background(
-            WindowAppearanceConfigurator(
-                hideTitle: true,
-                transparentTitlebar: true,
-                fullSizeContentView: true,
-                toolbarStyle: .automatic,
-                showsToolbarBaselineSeparator: false,
-                makeWindowTransparent: true,
-                ensureToolbarWhenTransparentTitlebar: false,
-                forceNoToolbar: true
-            )
-        )
         .onAppear {
             syncSelectionState()
         }

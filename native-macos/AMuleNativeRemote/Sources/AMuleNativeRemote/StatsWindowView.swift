@@ -85,18 +85,6 @@ struct StatsWindowView: View {
             }
         }
         .frame(minWidth: 780, minHeight: 520)
-        .background(GlassEffectBackground(material: .underWindowBackground).ignoresSafeArea())
-        .background(
-            WindowAppearanceConfigurator(
-                windowTitle: "Statistics",
-                hideTitle: false,
-                transparentTitlebar: true,
-                fullSizeContentView: true,
-                toolbarStyle: .automatic,
-                makeWindowTransparent: true,
-                ensureToolbarWhenTransparentTitlebar: false
-            )
-        )
         .task {
             model.refreshStatsTree()
             model.refreshStatsGraphs()

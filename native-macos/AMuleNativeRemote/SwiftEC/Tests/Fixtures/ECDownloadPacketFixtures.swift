@@ -52,7 +52,7 @@ public enum ECDownloadPacketFixtures {
     public static func knownFile(ecid: Int, hash: String, name: String, size: UInt64 = 100) throws -> ECTag {
         let hashData = try hashData(from: hash)
         return ECTag.integer(name: 0x0400, value: UInt64(ecid), children: [
-            ECTag(name: 0x0301, type: .string, value: .string(name)),
+            ECTag(name: 0x0408, type: .string, value: .string(name)),
             ECTag.integer(name: 0x0303, value: size),
             ECTag(name: 0x031E, type: .hash16, value: .hash16(hashData)),
         ])

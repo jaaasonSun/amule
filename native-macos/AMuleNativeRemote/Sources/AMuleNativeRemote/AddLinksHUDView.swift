@@ -44,6 +44,6 @@ struct AddLinksSheetView: View {
         }
         .padding(16)
         .frame(minWidth: 560, idealWidth: 620, maxWidth: 760, minHeight: 260, idealHeight: 300)
-        .background(GlassEffectBackground(material: .hudWindow))
+        .background(.regularMaterial)
     }
 }

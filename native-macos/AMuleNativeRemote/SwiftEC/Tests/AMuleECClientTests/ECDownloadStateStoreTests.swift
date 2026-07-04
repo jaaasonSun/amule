@@ -268,6 +268,29 @@ final class ECDownloadStateStoreTests: XCTestCase {
         XCTAssertEqual(store.downloads.first?.statusCode, 3)
     }
 
+    func testKnownFileSnapshotReconcilesCompletingPartFileToComplete() throws {
+        var store = ECDownloadStateStore()
+        let completingPacket = ECDownloadPacketFixtures.snapshotPacket(downloads: [
+            try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "finishing.iso", size: 100, done: 100, statusCode: 8),
+        ])
+        store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(completingPacket), sourcePacket: completingPacket)
+        XCTAssertEqual(store.downloads.first?.status, "Completing")
+
+        let knownFilePacket = ECDownloadPacketFixtures.incrementalPacket(downloads: [
+            try ECDownloadPacketFixtures.knownFile(ecid: 42, hash: Self.hash, name: "/Downloads/finished.iso", size: 100),
+        ])
+        store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(knownFilePacket), sourcePacket: knownFilePacket)
+
+        let download = try XCTUnwrap(store.downloads.first)
+        XCTAssertEqual(download.ecid, 42)
+        XCTAssertEqual(download.name, "finished.iso")
+        XCTAssertEqual(download.statusCode, 9)
+        XCTAssertEqual(download.status, "Complete")
+        XCTAssertTrue(download.isCompleted)
+        XCTAssertEqual(download.done, 100)
+        XCTAssertEqual(download.progress, 100)
+    }
+
     func testSharedOnlyAndMalformedLifecycleStatesAreRecorded() throws {
         var store = ECDownloadStateStore()
         let packet = ECDownloadPacketFixtures.snapshotPacket(downloads: [

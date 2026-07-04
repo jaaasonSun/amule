@@ -1,65 +1,12 @@
 import SwiftUI
 import AppKit
-import SharedModels
-import SharedServices
-
-struct GlassEffectBackground: NSViewRepresentable {
-    var material: NSVisualEffectView.Material = .underWindowBackground
-    var blendingMode: NSVisualEffectView.BlendingMode = .behindWindow
-
-    func makeNSView(context: Context) -> NSView {
-        let container = NSView(frame: .zero)
-        container.wantsLayer = false
-        installEffectView(in: container)
-        return container
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        guard let effectView = nsView.subviews.first else {
-            installEffectView(in: nsView)
-            return
-        }
-        if let visual = effectView as? NSVisualEffectView {
-            visual.material = material
-            visual.blendingMode = blendingMode
-            visual.state = .active
-            visual.isEmphasized = false
-        } else {
-            installEffectView(in: nsView)
-        }
-    }
-
-    private func installEffectView(in container: NSView) {
-        container.subviews.forEach { $0.removeFromSuperview() }
-
-        let effectView = NSVisualEffectView(frame: .zero)
-        effectView.material = material
-        effectView.blendingMode = blendingMode
-        effectView.state = .active
-        effectView.isEmphasized = false
-
-        effectView.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(effectView)
-        NSLayoutConstraint.activate([
-            effectView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            effectView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            effectView.topAnchor.constraint(equalTo: container.topAnchor),
-            effectView.bottomAnchor.constraint(equalTo: container.bottomAnchor)
-        ])
-    }
-}
 
 struct WindowAppearanceConfigurator: NSViewRepresentable {
     var windowTitle: String? = nil
-    var hideTitle: Bool = false
-    var transparentTitlebar: Bool = false
-    var fullSizeContentView: Bool = false
     var toolbarStyle: NSWindow.ToolbarStyle? = nil
     var showsToolbarBaselineSeparator: Bool? = nil
     var allowsToolbarCustomization: Bool = false
     var autosavesToolbarConfiguration: Bool = false
-    var makeWindowTransparent: Bool = true
-    var ensureToolbarWhenTransparentTitlebar: Bool = false
     var windowLevel: NSWindow.Level? = nil
     var windowCollectionBehavior: NSWindow.CollectionBehavior? = nil
     var isMovableByWindowBackground: Bool? = nil
@@ -69,8 +16,6 @@ struct WindowAppearanceConfigurator: NSViewRepresentable {
     var hidesStandardWindowButtons: Bool = false
     var showCloseButtonOnly: Bool = false
     var forceNoToolbar: Bool = false
-    var toolbarTopGradientHeight: CGFloat? = nil
-    var toolbarTopGradientOpacity: CGFloat = 0.0
 
     final class HostView: NSView {
         var applyConfiguration: ((NSWindow) -> Void)?
@@ -109,18 +54,12 @@ struct WindowAppearanceConfigurator: NSViewRepresentable {
             window.title = windowTitle
         }
 
-        if hideTitle {
-            window.title = ""
-            window.titleVisibility = .hidden
-        } else {
-            window.titleVisibility = .visible
-        }
-
-        if makeWindowTransparent {
-            window.isOpaque = false
-            window.backgroundColor = .clear
-            window.hasShadow = true
-        }
+        window.titleVisibility = .visible
+        window.titlebarAppearsTransparent = false
+        window.titlebarSeparatorStyle = .automatic
+        window.styleMask.remove(.fullSizeContentView)
+        window.isOpaque = true
+        window.backgroundColor = .windowBackgroundColor
 
         if forceNoToolbar {
             window.toolbar = nil
@@ -143,22 +82,11 @@ struct WindowAppearanceConfigurator: NSViewRepresentable {
             window.toolbar?.autosavesConfiguration = true
         }
 
-        if transparentTitlebar && ensureToolbarWhenTransparentTitlebar && window.toolbar == nil {
-            let toolbar = NSToolbar(identifier: "GlassToolbar")
-            toolbar.displayMode = .iconOnly
-            toolbar.allowsUserCustomization = false
-            window.toolbar = toolbar
-        } else if transparentTitlebar && !ensureToolbarWhenTransparentTitlebar,
-                  let toolbar = window.toolbar,
-                  toolbar.identifier == NSToolbar.Identifier("GlassToolbar") {
+        if let toolbar = window.toolbar,
+           toolbar.identifier == NSToolbar.Identifier("GlassToolbar") {
             window.toolbar = nil
         }
 
-        if fullSizeContentView {
-            window.styleMask.insert(.fullSizeContentView)
-        } else {
-            window.styleMask.remove(.fullSizeContentView)
-        }
         if useUtilityStyleMask {
             window.styleMask.insert(.utilityWindow)
         } else {
@@ -169,15 +97,6 @@ struct WindowAppearanceConfigurator: NSViewRepresentable {
                 window.styleMask.insert(.resizable)
             } else {
                 window.styleMask.remove(.resizable)
-            }
-        }
-        window.titlebarAppearsTransparent = transparentTitlebar
-
-        if transparentTitlebar {
-            window.titlebarSeparatorStyle = .none
-            if let themeFrame = window.contentView?.superview {
-                themeFrame.wantsLayer = true
-                themeFrame.layer?.backgroundColor = NSColor.clear.cgColor
             }
         }
 
@@ -207,74 +126,6 @@ struct WindowAppearanceConfigurator: NSViewRepresentable {
             window.standardWindowButton(.miniaturizeButton)?.isHidden = false
             window.standardWindowButton(.zoomButton)?.isHidden = false
         }
-
-        updateToolbarTopGradient(in: window)
-    }
-
-    private func updateToolbarTopGradient(in window: NSWindow) {
-        guard let themeFrame = window.contentView?.superview else { return }
-        let gradientIdentifier = NSUserInterfaceItemIdentifier("AMule.ToolbarTopGradient")
-        themeFrame.subviews
-            .first(where: { $0.identifier == gradientIdentifier })?
-            .removeFromSuperview()
-    }
-}
-
-private final class ToolbarTopGradientView: NSView {
-    private let gradientLayer = CAGradientLayer()
-    private var gradientOpacity: CGFloat = 0.35
-
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        commonInit()
-    }
-
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        commonInit()
-    }
-
-    private func commonInit() {
-        wantsLayer = true
-        layer?.masksToBounds = true
-        layer?.addSublayer(gradientLayer)
-        gradientLayer.startPoint = CGPoint(x: 0.5, y: 1.0)
-        gradientLayer.endPoint = CGPoint(x: 0.5, y: 0.0)
-        updateOpacity(0.35)
-    }
-
-    override func layout() {
-        super.layout()
-        gradientLayer.frame = bounds
-    }
-
-    override func viewDidChangeEffectiveAppearance() {
-        super.viewDidChangeEffectiveAppearance()
-        refreshGradientColors()
-    }
-
-    override func hitTest(_ point: NSPoint) -> NSView? {
-        nil
-    }
-
-    func updateOpacity(_ opacity: CGFloat) {
-        gradientOpacity = max(0, min(opacity, 1))
-        refreshGradientColors()
-    }
-
-    private func refreshGradientColors() {
-        var resolved = NSColor.windowBackgroundColor
-        if #available(macOS 10.14, *) {
-            effectiveAppearance.performAsCurrentDrawingAppearance {
-                resolved = NSColor.windowBackgroundColor
-            }
-        }
-        gradientLayer.colors = [
-            resolved.withAlphaComponent(gradientOpacity).cgColor,
-            resolved.withAlphaComponent(gradientOpacity * 0.5).cgColor,
-            resolved.withAlphaComponent(0).cgColor
-        ]
-        gradientLayer.locations = [0.0, 0.45, 1.0]
     }
 }
 

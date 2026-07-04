@@ -96,17 +96,6 @@ struct DiagnosticsWindowView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .frame(minWidth: 920, minHeight: 520)
-        .background(GlassEffectBackground(material: .underWindowBackground))
-        .background(
-            WindowAppearanceConfigurator(
-                hideTitle: false,
-                transparentTitlebar: true,
-                fullSizeContentView: true,
-                toolbarStyle: .unified,
-                makeWindowTransparent: true,
-                ensureToolbarWhenTransparentTitlebar: true
-            )
-        )
         .onAppear {
             if !availableTabs.contains(diagnosticsTab), let first = availableTabs.first {
                 diagnosticsTab = first
