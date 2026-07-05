@@ -61,6 +61,28 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertNil(prefsSet.tags.first { $0.name == 0x0004 })
     }
 
+    func testSearchBuilderIncludesAmuleGuiExtendedCriteria() throws {
+        let request = ECSearchRequest(
+            scope: "global",
+            query: "ubuntu",
+            fileType: "Video",
+            extension: "mkv",
+            minSize: 1_000,
+            maxSize: 2_000,
+            availability: 3
+        )
+
+        let packet = try ECOperations.search(request: request)
+        let root = try XCTUnwrap(packet.tags.first)
+
+        XCTAssertEqual(root.child(named: 0x0702)?.stringValue, "ubuntu")
+        XCTAssertEqual(root.child(named: 0x0705)?.stringValue, "Video")
+        XCTAssertEqual(root.child(named: 0x0706)?.stringValue, "mkv")
+        XCTAssertEqual(root.child(named: 0x0703)?.intValue, 1_000)
+        XCTAssertEqual(root.child(named: 0x0704)?.intValue, 2_000)
+        XCTAssertEqual(root.child(named: 0x0707)?.intValue, 3)
+    }
+
     func testRenamePacketMatchesNativeBridgeWireFormat() throws {
         let packet = try ECOperations.rename(hash: "00112233445566778899aabbccddeeff", name: "renamed.iso")
         let body = try packet.encodeBody()
@@ -960,6 +982,10 @@ private func jsonObject(_ data: Data) throws -> [String: Any] {
 }
 
 private extension ECTag {
+    func child(named name: UInt16) -> ECTag? {
+        children.first { $0.name == name }
+    }
+
     var intValue: Int {
         if case .uint(let value) = value { return Int(value) }
         return 0

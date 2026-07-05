@@ -124,6 +124,34 @@ public struct ECSearchResult: Codable, Equatable, Sendable {
     }
 }
 
+public struct ECSearchRequest: Equatable, Sendable {
+    public let scope: String
+    public let query: String
+    public let fileType: String
+    public let `extension`: String
+    public let minSize: UInt64
+    public let maxSize: UInt64
+    public let availability: UInt64
+
+    public init(
+        scope: String,
+        query: String,
+        fileType: String = "",
+        extension: String = "",
+        minSize: UInt64 = 0,
+        maxSize: UInt64 = 0,
+        availability: UInt64 = 0
+    ) {
+        self.scope = scope
+        self.query = query
+        self.fileType = fileType
+        self.extension = `extension`
+        self.minSize = minSize
+        self.maxSize = maxSize
+        self.availability = availability
+    }
+}
+
 public struct ECConnectionPrefs: Codable, Equatable, Sendable {
     public let maxDownload: Int
     public let maxUpload: Int

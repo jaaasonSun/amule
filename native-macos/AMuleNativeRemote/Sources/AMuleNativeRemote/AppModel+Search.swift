@@ -1,4 +1,5 @@
 import Foundation
+import AMuleECClient
 import SharedModels
 import SharedServices
 
@@ -9,12 +10,24 @@ extension AppModel {
 
         guard !isSearchInProgress else { return }
 
+        let request: ECSearchRequest
+        do {
+            request = try searchOptions.ecRequest(scope: searchScope, query: query)
+        } catch SearchOptionsError.invalidNumber(let value) {
+            lastError = LF3("Invalid search number: %@", value)
+            appendLog("! search failed\n\(lastError)")
+            return
+        } catch {
+            lastError = error.localizedDescription
+            appendLog("! search failed\n\(error.localizedDescription)")
+            return
+        }
+
         lastError = ""
         searchProgress = 0
         searchResults = []
         isSearchInProgress = true
 
-        let scope = searchScope
         let currentConfig = config
 
         searchTask?.cancel()
@@ -26,8 +39,7 @@ extension AppModel {
 
             do {
                 let (progress, payload, raw) = try await self.bridge.search(
-                    scope: scope,
-                    query: query,
+                    request: request,
                     polls: 12,
                     pollIntervalMs: 900,
                     config: currentConfig
@@ -38,7 +50,7 @@ extension AppModel {
                     self.searchProgress = max(0, min(100, progress))
                     self.searchResults = parsed
                     self.lastSearchRawOutput = raw
-                    self.appendLog("$ search \(scope) \(query)\n\(raw)")
+                    self.appendLog("$ search \(request.scope) \(request.query)\n\(raw)")
                 }
             } catch {
                 await MainActor.run {

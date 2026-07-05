@@ -189,6 +189,7 @@ final class RecordingFakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
     var renameCalls: [(hash: String, name: String)] = []
     var clearCompletedCalls: [[Int]] = []
     var sourceCalls: [String] = []
+    var lastSearchRequest: ECSearchRequest?
     var sourcesResult: Result<([BridgeDownloadSourcePayload], String), Error> = .success(([], #"{"ok":true,"sources":[]}"#))
     private var queuedDownloadsResults: [([BridgeDownloadPayload], String)]
 
@@ -216,7 +217,13 @@ final class RecordingFakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
         guard !queuedDownloadsResults.isEmpty else { return ([], try BridgeEnvelopeFixtures.downloadEnvelope(downloads: [])) }
         return queuedDownloadsResults.removeFirst()
     }
-    func search(scope: String, query: String, polls: Int, pollIntervalMs: Int, config: AMuleConnectionConfig) async throws -> (progress: Int, results: [BridgeSearchPayload], raw: String) { searchResult }
+    func search(request: ECSearchRequest, polls: Int, pollIntervalMs: Int, config: AMuleConnectionConfig) async throws -> (progress: Int, results: [BridgeSearchPayload], raw: String) {
+        lastSearchRequest = request
+        return searchResult
+    }
+    func search(scope: String, query: String, polls: Int, pollIntervalMs: Int, config: AMuleConnectionConfig) async throws -> (progress: Int, results: [BridgeSearchPayload], raw: String) {
+        try await search(request: ECSearchRequest(scope: scope, query: query), polls: polls, pollIntervalMs: pollIntervalMs, config: config)
+    }
     func searchStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func download(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func addLink(link: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }

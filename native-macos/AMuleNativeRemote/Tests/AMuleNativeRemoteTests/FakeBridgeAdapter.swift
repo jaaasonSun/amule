@@ -16,6 +16,7 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
     var messageRaw: String = #"{"ok":true,"message":"ok"}"#
     var renameResult: RenameAcknowledgement = .success(message: "ok", raw: #"{"ok":true,"message":"ok"}"#)
     var invokedOperations: [String] = []
+    var lastSearchRequest: ECSearchRequest?
     var lastDownloadCategoryID: Int?
     var lastA4AFMode: ECOperations.A4AFSwapMode?
 
@@ -80,7 +81,13 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
         invokedOperations.append("downloads")
         return downloadsResult
     }
-    func search(scope: String, query: String, polls: Int, pollIntervalMs: Int, config: AMuleConnectionConfig) async throws -> (progress: Int, results: [BridgeSearchPayload], raw: String) { searchResult }
+    func search(request: ECSearchRequest, polls: Int, pollIntervalMs: Int, config: AMuleConnectionConfig) async throws -> (progress: Int, results: [BridgeSearchPayload], raw: String) {
+        lastSearchRequest = request
+        return searchResult
+    }
+    func search(scope: String, query: String, polls: Int, pollIntervalMs: Int, config: AMuleConnectionConfig) async throws -> (progress: Int, results: [BridgeSearchPayload], raw: String) {
+        try await search(request: ECSearchRequest(scope: scope, query: query), polls: polls, pollIntervalMs: pollIntervalMs, config: config)
+    }
     func searchStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func download(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func addLink(link: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }

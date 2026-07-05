@@ -86,8 +86,17 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
     }
 
     public func search(scope: String, query: String, polls: Int, pollIntervalMs: Int, config: AMuleConnectionConfig) async throws -> (progress: Int, results: [BridgeSearchPayload], raw: String) {
+        try await search(
+            request: ECSearchRequest(scope: scope, query: query),
+            polls: polls,
+            pollIntervalMs: pollIntervalMs,
+            config: config
+        )
+    }
+
+    public func search(request: ECSearchRequest, polls: Int, pollIntervalMs: Int, config: AMuleConnectionConfig) async throws -> (progress: Int, results: [BridgeSearchPayload], raw: String) {
         try await withAuthenticatedSession(for: config) { session in
-            let startResponse = try await session.send(try ECOperations.search(scope: scope, query: query, gate: capabilityGate))
+            let startResponse = try await session.send(try ECOperations.search(request: request, gate: capabilityGate))
             _ = try ECResponseParser.parseMutationResponse(
                 startResponse,
                 successMessage: "Search started",
@@ -548,6 +557,7 @@ public protocol BridgeProtocol: Sendable {
     func capabilities(config: AMuleConnectionConfig) async throws -> (schemaVersion: Int?, capabilities: BridgeCapabilitiesPayload, raw: String)
     func status(config: AMuleConnectionConfig) async throws -> (BridgeStatusPayload, String)
     func downloads(config: AMuleConnectionConfig) async throws -> ([BridgeDownloadPayload], String)
+    func search(request: ECSearchRequest, polls: Int, pollIntervalMs: Int, config: AMuleConnectionConfig) async throws -> (progress: Int, results: [BridgeSearchPayload], raw: String)
     func search(scope: String, query: String, polls: Int, pollIntervalMs: Int, config: AMuleConnectionConfig) async throws -> (progress: Int, results: [BridgeSearchPayload], raw: String)
     func searchStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func download(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
@@ -597,6 +607,17 @@ public protocol BridgeProtocol: Sendable {
     func sharedFileCommentRating(hash: String, comment: String, rating: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func statsTree(capping: Int?, config: AMuleConnectionConfig) async throws -> (BridgeStatsTreeNodePayload, String)
     func statsGraphs(width: Int, scale: Int, last: Double?, config: AMuleConnectionConfig) async throws -> (BridgeStatsGraphsPayload, String)
+}
+
+public extension BridgeProtocol {
+    func search(scope: String, query: String, polls: Int, pollIntervalMs: Int, config: AMuleConnectionConfig) async throws -> (progress: Int, results: [BridgeSearchPayload], raw: String) {
+        try await search(
+            request: ECSearchRequest(scope: scope, query: query),
+            polls: polls,
+            pollIntervalMs: pollIntervalMs,
+            config: config
+        )
+    }
 }
 
 public struct AMuleConnectionConfig: Sendable {

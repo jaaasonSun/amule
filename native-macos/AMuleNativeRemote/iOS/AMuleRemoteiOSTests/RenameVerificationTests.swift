@@ -75,7 +75,10 @@ private final class IOSRecordingRenameBridge: BridgeProtocol, @unchecked Sendabl
         guard !queuedDownloadsResults.isEmpty else { return ([], "{}") }
         return (queuedDownloadsResults.removeFirst(), "{}")
     }
-    func search(scope: String, query: String, polls: Int, pollIntervalMs: Int, config: AMuleConnectionConfig) async throws -> (progress: Int, results: [BridgeSearchPayload], raw: String) { (0, [], "{}") }
+    func search(request: ECSearchRequest, polls: Int, pollIntervalMs: Int, config: AMuleConnectionConfig) async throws -> (progress: Int, results: [BridgeSearchPayload], raw: String) { (0, [], "{}") }
+    func search(scope: String, query: String, polls: Int, pollIntervalMs: Int, config: AMuleConnectionConfig) async throws -> (progress: Int, results: [BridgeSearchPayload], raw: String) {
+        try await search(request: ECSearchRequest(scope: scope, query: query), polls: polls, pollIntervalMs: pollIntervalMs, config: config)
+    }
     func searchStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
     func download(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
     func addLink(link: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }

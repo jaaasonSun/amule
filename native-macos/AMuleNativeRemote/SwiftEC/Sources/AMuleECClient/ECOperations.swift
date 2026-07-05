@@ -134,7 +134,11 @@ public enum ECOperations {
         public static let serverPort: UInt16 = 0x050D
         public static let searchType: UInt16 = 0x0701
         public static let searchName: UInt16 = 0x0702
+        public static let searchMinSize: UInt16 = 0x0703
+        public static let searchMaxSize: UInt16 = 0x0704
         public static let searchFileType: UInt16 = 0x0705
+        public static let searchExtension: UInt16 = 0x0706
+        public static let searchAvailability: UInt16 = 0x0707
         public static let selectPrefs: UInt16 = 0x1000
         public static let prefsConnections: UInt16 = 0x1300
         public static let connMaxDownload: UInt16 = 0x1303
@@ -259,12 +263,29 @@ public enum ECOperations {
     }
 
     public static func search(scope: String, query: String, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try search(request: ECSearchRequest(scope: scope, query: query), gate: gate)
+    }
+
+    public static func search(request: ECSearchRequest, gate: ECCapabilityGate? = nil) throws -> ECPacket {
         try gate?.require(.search)
+        var children = [
+            ECTag(name: TagName.searchName, type: .string, value: .string(request.query)),
+            ECTag(name: TagName.searchFileType, type: .string, value: .string(request.fileType)),
+        ]
+        if !request.extension.isEmpty {
+            children.append(ECTag(name: TagName.searchExtension, type: .string, value: .string(request.extension)))
+        }
+        if request.availability > 0 {
+            children.append(ECTag.integer(name: TagName.searchAvailability, value: request.availability))
+        }
+        if request.minSize > 0 {
+            children.append(ECTag.integer(name: TagName.searchMinSize, value: request.minSize))
+        }
+        if request.maxSize > 0 {
+            children.append(ECTag.integer(name: TagName.searchMaxSize, value: request.maxSize))
+        }
         return ECPacket(opcode: OpCode.searchStart, tags: [
-            ECTag.integer(name: TagName.searchType, value: SearchScope(scope).rawValue, children: [
-                ECTag(name: TagName.searchName, type: .string, value: .string(query)),
-                ECTag(name: TagName.searchFileType, type: .string, value: .string("")),
-            ]),
+            ECTag.integer(name: TagName.searchType, value: SearchScope(request.scope).rawValue, children: children),
         ])
     }
 

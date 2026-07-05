@@ -34,6 +34,7 @@ final class AppModel: ObservableObject {
     @Published var isSessionConnected = false
     @Published var searchQuery: String = ""
     @Published var searchScope: String = "global"
+    @Published var searchOptions = SearchOptions()
     @Published var searchResults: [SearchResult] = []
     @Published var searchProgress: Int = 0
     @Published var isSearchInProgress = false
