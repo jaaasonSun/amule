@@ -19,6 +19,11 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
     var lastSearchRequest: ECSearchRequest?
     var lastDownloadCategoryID: Int?
     var lastA4AFMode: ECOperations.A4AFSwapMode?
+    var lastSharedFilePriorityHash: String?
+    var lastSharedFilePriority: Int?
+    var lastSharedFileCommentHash: String?
+    var lastSharedFileComment: String?
+    var lastSharedFileRating: Int?
 
     var capabilityOps: Set<String> {
         get { Set(capabilitiesResult.capabilities.ops) }
@@ -127,7 +132,10 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
     func kadBootstrap(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func kadUpdateFromURL(url: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func uploads(config: AMuleConnectionConfig) async throws -> ([BridgeUploadPayload], String) { ([], #"{"ok":true,"uploads":[]}"#) }
-    func sharedFiles(config: AMuleConnectionConfig) async throws -> ([BridgeSharedFilePayload], String) { ([], #"{"ok":true,"shared_files":[]}"#) }
+    func sharedFiles(config: AMuleConnectionConfig) async throws -> ([BridgeSharedFilePayload], String) {
+        invokedOperations.append("shared-files")
+        return ([], #"{"ok":true,"shared_files":[]}"#)
+    }
     func sharedFilesReload(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func coreLog(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String) { (BridgeCoreLogPayload(kind: "log", lines: []), #"{"ok":true,"log":{"kind":"log","lines":[]}}"#) }
     func debugLog(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String) { (BridgeCoreLogPayload(kind: "debug", lines: []), #"{"ok":true,"log":{"kind":"debug","lines":[]}}"#) }
@@ -148,8 +156,19 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
     func friendSlot(friendID: Int, enabled: Bool, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func clearCompleted(ecids: [Int], config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func priority(hash: String, value: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
-    func sharedFilePriority(hash: String, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
-    func sharedFileCommentRating(hash: String, comment: String, rating: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func sharedFilePriority(hash: String, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        invokedOperations.append("shared-file-priority")
+        lastSharedFilePriorityHash = hash
+        lastSharedFilePriority = priority
+        return ("ok", messageRaw)
+    }
+    func sharedFileCommentRating(hash: String, comment: String, rating: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        invokedOperations.append("shared-file-comment-rating")
+        lastSharedFileCommentHash = hash
+        lastSharedFileComment = comment
+        lastSharedFileRating = rating
+        return ("ok", messageRaw)
+    }
     func statsTree(capping: Int?, config: AMuleConnectionConfig) async throws -> (BridgeStatsTreeNodePayload, String) {
         (BridgeStatsTreeNodePayload(id: 0, label: "", value: 0, children: []), #"{"ok":true,"stats":{"tree":{"id":0,"label":"","value":0,"children":[]}}}"#)
     }
