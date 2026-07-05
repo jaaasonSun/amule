@@ -33,13 +33,13 @@ public struct ECCapabilityGate: Equatable, Sendable {
     }
 }
 
-public enum A4AFSwapMode: Sendable, Equatable {
-    case toThis
-    case toThisAuto
-    case toAnyOther
-}
-
 public enum ECOperations {
+    public enum A4AFSwapMode: Sendable, Equatable {
+        case toThis
+        case toThisAuto
+        case toAnyOther
+    }
+
     public enum OpCode {
         public static let noop: UInt8 = 0x01
         public static let failed: UInt8 = 0x05
@@ -512,10 +512,10 @@ public enum ECOperations {
         ])
     }
 
-    public static func categoryUpdate(categoryID: Int, name: String, path: String, comment: String, color: Int, priority: Int, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+    public static func categoryUpdate(id: Int, name: String, path: String, comment: String, color: Int, priority: Int, gate: ECCapabilityGate? = nil) throws -> ECPacket {
         try gate?.require(.categoryUpdate)
         return ECPacket(opcode: OpCode.updateCategory, tags: [
-            categoryTag(id: categoryID, name: name, path: path, comment: comment, color: color, priority: priority)
+            categoryTag(id: id, name: name, path: path, comment: comment, color: color, priority: priority)
         ])
     }
 

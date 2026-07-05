@@ -170,7 +170,8 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertEqual(stop.tags.map(\.name), [ECOperations.TagName.partFile])
         XCTAssertEqual(stop.tags.first?.hashStringValue, hash)
 
-        let swapThis = try ECOperations.swapA4AF(hash: hash, mode: .toThis)
+        let toThis: ECOperations.A4AFSwapMode = .toThis
+        let swapThis = try ECOperations.swapA4AF(hash: hash, mode: toThis)
         XCTAssertEqual(swapThis.opcode, 0x16)
         XCTAssertEqual(swapThis.tags.first?.hashStringValue, hash)
 
@@ -191,7 +192,7 @@ final class ECOperationsTests: XCTestCase {
     }
 
     func testAmuleGuiParityCategoryUpdateBuilderUsesExpectedOpcodeAndTags() throws {
-        let categoryUpdate = try ECOperations.categoryUpdate(categoryID: 7, name: "Linux ISO", path: "/downloads/linux", comment: "Updated", color: 0x112233, priority: 3)
+        let categoryUpdate = try ECOperations.categoryUpdate(id: 7, name: "Linux ISO", path: "/downloads/linux", comment: "Updated", color: 0x112233, priority: 3)
 
         XCTAssertEqual(categoryUpdate.opcode, ECOperations.OpCode.updateCategory)
         XCTAssertEqual(categoryUpdate.tags.first?.name, ECOperations.TagName.category)
@@ -256,7 +257,7 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertThrowsError(try ECOperations.downloadSetCategory(hash: hash, categoryID: 1, gate: emptyGate)) { error in
             XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("download-set-category"))
         }
-        XCTAssertThrowsError(try ECOperations.categoryUpdate(categoryID: 1, name: "", path: "", comment: "", color: 0, priority: 0, gate: emptyGate)) { error in
+        XCTAssertThrowsError(try ECOperations.categoryUpdate(id: 1, name: "", path: "", comment: "", color: 0, priority: 0, gate: emptyGate)) { error in
             XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("category-update"))
         }
         XCTAssertThrowsError(try ECOperations.sharedFilePriority(hash: hash, priority: 1, gate: emptyGate)) { error in
