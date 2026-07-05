@@ -120,6 +120,7 @@ extension AppModel {
             let (_, raw) = try await self.bridge.clearServerInfo(config: self.config)
             await MainActor.run {
                 self.serverInfoLines = []
+                self.lastServerInfoRawOutput = ""
                 self.appendLog("$ clear-server-info\n\(raw)")
             }
         }

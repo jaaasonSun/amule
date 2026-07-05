@@ -70,7 +70,8 @@ final class ServersParityTests: XCTestCase {
 
         try await waitUntil {
             bridge.invokedOperations.contains("clear-server-info") &&
-                model.serverInfoLines.isEmpty
+                model.serverInfoLines.isEmpty &&
+                model.lastServerInfoRawOutput.isEmpty
         }
     }
 
