@@ -1,5 +1,6 @@
 import XCTest
 @testable import AMuleNativeRemote
+import AMuleECBridgeAdapter
 import AMuleECClient
 import SharedModels
 
@@ -58,14 +59,35 @@ final class DownloadParityActionTests: XCTestCase {
         }
     }
 
-    func testDownloadsLifecyclePreloadsCategoriesAfterCapabilities() throws {
-        let source = try readPackageFile("Sources/AMuleNativeRemote/ContentView.swift")
-        let capabilitiesRange = try XCTUnwrap(source.range(of: "await model.refreshBridgeCapabilities(logOutput: false, suppressErrors: true)"))
-        let categoriesSupportRange = try XCTUnwrap(source.range(of: "if model.isBridgeOpSupported(\"categories\")"))
-        let categoriesRefreshRange = try XCTUnwrap(source.range(of: "try? await model.refreshCategoriesNow(logOutput: false, suppressErrors: true)"))
+    func testConnectNowPreloadsCategoriesAfterCapabilities() async throws {
+        let bridge = FakeBridgeAdapter()
+        bridge.capabilityOps = Set(["categories", "downloads", "servers", "status"])
+        bridge.categoriesResult = ([.fixture(id: 3, title: "Video")], #"{"ok":true,"categories":[{"id":3,"title":"Video"}]}"#)
+        let model = AppModel(bridge: bridge)
 
-        XCTAssertLessThan(capabilitiesRange.lowerBound, categoriesSupportRange.lowerBound)
-        XCTAssertLessThan(categoriesSupportRange.lowerBound, categoriesRefreshRange.lowerBound)
+        try await model.connectNow()
+
+        let operations = bridge.invokedOperations
+        XCTAssertEqual(operations.filter { $0 == "capabilities" }, ["capabilities"])
+        let capabilitiesIndex = try XCTUnwrap(operations.firstIndex(of: "capabilities"))
+        let categoriesIndex = try XCTUnwrap(operations.firstIndex(of: "categories"))
+        XCTAssertLessThan(capabilitiesIndex, categoriesIndex)
+        XCTAssertEqual(model.categories.map(\.title), ["Video"])
+        XCTAssertEqual(model.lastError, "")
+    }
+
+    func testCategoryPreloadSkipsUnsupportedCapability() async throws {
+        let bridge = FakeBridgeAdapter()
+        bridge.capabilityOps = Set(["downloads", "servers", "status"])
+        bridge.categoriesResult = ([.fixture(id: 3, title: "Video")], #"{"ok":true,"categories":[{"id":3,"title":"Video"}]}"#)
+        let model = AppModel(bridge: bridge)
+
+        await model.refreshBridgeCapabilitiesAndPreloadCategories(logOutput: false, suppressErrors: true)
+
+        XCTAssertTrue(bridge.invokedOperations.contains("capabilities"))
+        XCTAssertFalse(bridge.invokedOperations.contains("categories"))
+        XCTAssertEqual(model.categories, [])
+        XCTAssertEqual(model.lastError, "")
     }
 
     private func waitForAction(
@@ -83,19 +105,6 @@ final class DownloadParityActionTests: XCTestCase {
         XCTFail("Timed out waiting for \(description)")
     }
 
-    private func readPackageFile(_ relativePath: String) throws -> String {
-        var url = URL(fileURLWithPath: #filePath)
-        while url.lastPathComponent != "AMuleNativeRemote" {
-            let parent = url.deletingLastPathComponent()
-            if parent.path == url.path {
-                XCTFail("Could not locate AMuleNativeRemote package root from \(#filePath)")
-                return ""
-            }
-            url = parent
-        }
-
-        return try String(contentsOf: url.appendingPathComponent(relativePath), encoding: .utf8)
-    }
 }
 
 private extension DownloadItem {
@@ -128,6 +137,19 @@ private extension DownloadItem {
             shared: false,
             alternativeNames: [],
             progressColors: []
+        )
+    }
+}
+
+private extension BridgeCategoryPayload {
+    static func fixture(id: Int, title: String) -> BridgeCategoryPayload {
+        BridgeCategoryPayload(
+            id: id,
+            title: title,
+            path: "",
+            comment: "",
+            color: 0,
+            priority: 0
         )
     }
 }

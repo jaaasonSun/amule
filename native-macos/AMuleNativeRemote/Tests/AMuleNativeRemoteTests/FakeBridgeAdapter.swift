@@ -11,6 +11,7 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
     var capabilitiesResult: (schemaVersion: Int?, capabilities: BridgeCapabilitiesPayload, raw: String)
     var statusResult: (BridgeStatusPayload, String)
     var downloadsResult: ([BridgeDownloadPayload], String) = ([], #"{"ok":true,"downloads":[]}"#)
+    var categoriesResult: ([BridgeCategoryPayload], String) = ([], #"{"ok":true,"categories":[]}"#)
     var searchResult: (progress: Int, results: [BridgeSearchPayload], raw: String) = (0, [], #"{"ok":true,"progress":0,"results":[]}"#)
     var messageRaw: String = #"{"ok":true,"message":"ok"}"#
     var renameResult: RenameAcknowledgement = .success(message: "ok", raw: #"{"ok":true,"message":"ok"}"#)
@@ -67,7 +68,10 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
 
     func connect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func disconnect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
-    func capabilities(config: AMuleConnectionConfig) async throws -> (schemaVersion: Int?, capabilities: BridgeCapabilitiesPayload, raw: String) { capabilitiesResult }
+    func capabilities(config: AMuleConnectionConfig) async throws -> (schemaVersion: Int?, capabilities: BridgeCapabilitiesPayload, raw: String) {
+        invokedOperations.append("capabilities")
+        return capabilitiesResult
+    }
     func status(config: AMuleConnectionConfig) async throws -> (BridgeStatusPayload, String) {
         invokedOperations.append("status")
         return statusResult
@@ -123,7 +127,10 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
     func serverInfo(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String) { (BridgeCoreLogPayload(kind: "server-info", lines: ["server log"]), messageRaw) }
     func clearServerInfo(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func resetLog(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
-    func categories(config: AMuleConnectionConfig) async throws -> ([BridgeCategoryPayload], String) { ([], #"{"ok":true,"categories":[]}"#) }
+    func categories(config: AMuleConnectionConfig) async throws -> ([BridgeCategoryPayload], String) {
+        invokedOperations.append("categories")
+        return categoriesResult
+    }
     func categoryCreate(name: String, path: String, comment: String, color: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func categoryUpdate(id: Int, name: String, path: String, comment: String, color: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func categoryDelete(categoryID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }

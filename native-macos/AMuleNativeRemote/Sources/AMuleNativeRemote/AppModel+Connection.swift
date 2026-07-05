@@ -23,6 +23,16 @@ extension AppModel {
         }
     }
 
+    func refreshBridgeCapabilitiesAndPreloadCategories(logOutput: Bool = false, suppressErrors: Bool = true) async {
+        await refreshBridgeCapabilities(logOutput: logOutput, suppressErrors: suppressErrors)
+        await refreshCategoriesIfSupported(logOutput: false, suppressErrors: true)
+    }
+
+    func refreshCategoriesIfSupported(logOutput: Bool = false, suppressErrors: Bool = true) async {
+        guard isBridgeOpSupported("categories") else { return }
+        try? await refreshCategoriesNow(logOutput: logOutput, suppressErrors: suppressErrors)
+    }
+
     func connectAll() {
         run(label: "connect") {
             try await self.connectNow()
@@ -160,7 +170,7 @@ extension AppModel {
             self.appendLog("$ connect\n\(raw)")
             self.isSessionConnected = true
         }
-        await self.refreshBridgeCapabilities(logOutput: false, suppressErrors: true)
+        await self.refreshBridgeCapabilitiesAndPreloadCategories(logOutput: false, suppressErrors: true)
         await self.refreshStatus(logOutput: false)
         try await self.refreshDownloadsNow()
         try await self.refreshServersNow(logOutput: false, suppressErrors: true)

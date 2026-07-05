@@ -216,10 +216,7 @@ struct ContentView: View {
                 model.setDownloadAutoRefreshEnabled(false)
             }
             .task {
-                await model.refreshBridgeCapabilities(logOutput: false, suppressErrors: true)
-                if model.isBridgeOpSupported("categories") {
-                    try? await model.refreshCategoriesNow(logOutput: false, suppressErrors: true)
-                }
+                await model.refreshBridgeCapabilitiesAndPreloadCategories(logOutput: false, suppressErrors: true)
                 model.startAutoRefresh()
                 await model.refreshStatus(logOutput: false, suppressErrors: true)
                 model.refreshDownloads()
