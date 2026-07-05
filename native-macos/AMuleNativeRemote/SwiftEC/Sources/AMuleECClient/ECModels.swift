@@ -15,6 +15,10 @@ public enum ECOperationName: String, CaseIterable, Codable, Sendable {
     case disconnect
     case pause
     case resume
+    case downloadStop = "download-stop"
+    case downloadA4AFThis = "download-a4af-this"
+    case downloadA4AFAuto = "download-a4af-auto"
+    case downloadA4AFOthers = "download-a4af-others"
     case rename
     case cancel
     case priority
@@ -40,6 +44,13 @@ public enum ECOperationName: String, CaseIterable, Codable, Sendable {
     case categoryUpdate = "category-update"
     case categoryDelete = "category-delete"
     case downloadSetCategory = "download-set-category"
+    case sharedFilePriority = "shared-file-priority"
+    case sharedFileCommentRating = "shared-file-comment-rating"
+    case serverSetStatic = "server-set-static"
+    case serverSetPriority = "server-set-priority"
+    case serverInfo = "server-info"
+    case clearServerInfo = "clear-server-info"
+    case resetLog = "reset-log"
     case ipfilterReload = "ipfilter-reload"
     case ipfilterUpdate = "ipfilter-update"
     case friends

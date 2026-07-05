@@ -19,6 +19,10 @@ final class ECSupportedOpsTests: XCTestCase {
             "disconnect",
             "pause",
             "resume",
+            "download-stop",
+            "download-a4af-this",
+            "download-a4af-auto",
+            "download-a4af-others",
             "cancel",
             "priority",
             "clear-completed",
@@ -41,7 +45,16 @@ final class ECSupportedOpsTests: XCTestCase {
             "debug-log",
             "categories",
             "category-create",
+            "category-update",
             "category-delete",
+            "download-set-category",
+            "shared-file-priority",
+            "shared-file-comment-rating",
+            "server-set-static",
+            "server-set-priority",
+            "server-info",
+            "clear-server-info",
+            "reset-log",
             "ipfilter-reload",
             "ipfilter-update",
             "friends",
@@ -70,6 +83,10 @@ final class ECSupportedOpsTests: XCTestCase {
             "disconnect",
             "pause",
             "resume",
+            "download-stop",
+            "download-a4af-this",
+            "download-a4af-auto",
+            "download-a4af-others",
             "cancel",
             "priority",
             "clear-completed",
@@ -92,7 +109,16 @@ final class ECSupportedOpsTests: XCTestCase {
             "debug-log",
             "categories",
             "category-create",
+            "category-update",
             "category-delete",
+            "download-set-category",
+            "shared-file-priority",
+            "shared-file-comment-rating",
+            "server-set-static",
+            "server-set-priority",
+            "server-info",
+            "clear-server-info",
+            "reset-log",
             "ipfilter-reload",
             "ipfilter-update",
             "friends",
@@ -108,10 +134,7 @@ final class ECSupportedOpsTests: XCTestCase {
     }
 
     func testUnsupportedDisabledOperationsAreNotAdvertised() {
-        XCTAssertEqual(ECSupportedOps.unsupportedDisabledOperations, [
-            "category-update",
-            "download-set-category",
-        ])
+        XCTAssertEqual(ECSupportedOps.unsupportedDisabledOperations, [])
 
         for operation in ECSupportedOps.unsupportedDisabledOperations {
             XCTAssertFalse(ECSupportedOps.allOperations.contains(operation), operation)

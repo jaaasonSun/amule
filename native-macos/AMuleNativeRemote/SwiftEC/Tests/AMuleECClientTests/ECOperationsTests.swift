@@ -162,6 +162,126 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertEqual(categoryDelete.tags.first?.intValue, 7)
     }
 
+    func testAmuleGuiParityDownloadMutationBuildersUseExpectedOpcodesAndTags() throws {
+        let hash = "00112233445566778899aabbccddeeff"
+
+        let stop = try ECOperations.stop(hash: hash)
+        XCTAssertEqual(stop.opcode, 0x1B)
+        XCTAssertEqual(stop.tags.map(\.name), [ECOperations.TagName.partFile])
+        XCTAssertEqual(stop.tags.first?.hashStringValue, hash)
+
+        let swapThis = try ECOperations.swapA4AF(hash: hash, mode: .toThis)
+        XCTAssertEqual(swapThis.opcode, 0x16)
+        XCTAssertEqual(swapThis.tags.first?.hashStringValue, hash)
+
+        let swapAuto = try ECOperations.swapA4AF(hash: hash, mode: .toThisAuto)
+        XCTAssertEqual(swapAuto.opcode, 0x17)
+        XCTAssertEqual(swapAuto.tags.first?.hashStringValue, hash)
+
+        let swapOthers = try ECOperations.swapA4AF(hash: hash, mode: .toAnyOther)
+        XCTAssertEqual(swapOthers.opcode, 0x18)
+        XCTAssertEqual(swapOthers.tags.first?.hashStringValue, hash)
+
+        let setCategory = try ECOperations.downloadSetCategory(hash: hash, categoryID: 7)
+        XCTAssertEqual(setCategory.opcode, 0x1E)
+        XCTAssertEqual(setCategory.tags.first?.name, 0x0300)
+        XCTAssertEqual(setCategory.tags.first?.hashStringValue, hash)
+        XCTAssertEqual(setCategory.tags.first?.children.first?.name, 0x030F)
+        XCTAssertEqual(setCategory.tags.first?.children.first?.intValue, 7)
+    }
+
+    func testAmuleGuiParityCategoryUpdateBuilderUsesExpectedOpcodeAndTags() throws {
+        let categoryUpdate = try ECOperations.categoryUpdate(categoryID: 7, name: "Linux ISO", path: "/downloads/linux", comment: "Updated", color: 0x112233, priority: 3)
+
+        XCTAssertEqual(categoryUpdate.opcode, ECOperations.OpCode.updateCategory)
+        XCTAssertEqual(categoryUpdate.tags.first?.name, ECOperations.TagName.category)
+        XCTAssertEqual(categoryUpdate.tags.first?.intValue, 7)
+        XCTAssertEqual(categoryUpdate.tags.first?.children.map(\.name), [
+            ECOperations.TagName.categoryTitle,
+            ECOperations.TagName.categoryPath,
+            ECOperations.TagName.categoryComment,
+            ECOperations.TagName.categoryColor,
+            ECOperations.TagName.categoryPriority,
+        ])
+    }
+
+    func testAmuleGuiParitySharedFileMutationBuildersUseExpectedOpcodesAndTags() throws {
+        let hash = "00112233445566778899aabbccddeeff"
+
+        let priority = try ECOperations.sharedFilePriority(hash: hash, priority: 4)
+        XCTAssertEqual(priority.opcode, 0x11)
+        XCTAssertEqual(priority.tags.first?.name, ECOperations.TagName.partFile)
+        XCTAssertEqual(priority.tags.first?.hashStringValue, hash)
+        XCTAssertEqual(priority.tags.first?.children.first?.name, ECOperations.TagName.partFilePriority)
+        XCTAssertEqual(priority.tags.first?.children.first?.intValue, 4)
+
+        let commentRating = try ECOperations.sharedFileCommentRating(hash: hash, comment: "Looks good", rating: 5)
+        XCTAssertEqual(commentRating.opcode, 0x55)
+        XCTAssertEqual(commentRating.tags.map(\.name), [
+            ECOperations.TagName.knownFile,
+            ECOperations.TagName.knownFileComment,
+            ECOperations.TagName.knownFileRating,
+        ])
+        XCTAssertEqual(commentRating.tags.first?.hashStringValue, hash)
+        XCTAssertEqual(commentRating.tags[1].stringValue, "Looks good")
+        XCTAssertEqual(commentRating.tags[2].intValue, 5)
+    }
+
+    func testAmuleGuiParityServerAndLogBuildersUseExpectedOpcodesAndTags() throws {
+        let setStatic = try ECOperations.serverSetStatic(ecid: 42, isStatic: true)
+        XCTAssertEqual(setStatic.opcode, 0x56)
+        XCTAssertEqual(setStatic.tags.map(\.name), [ECOperations.TagName.server, ECOperations.TagName.serverStatic])
+        XCTAssertEqual(setStatic.tags.map(\.intValue), [42, 1])
+
+        let setPriority = try ECOperations.serverSetPriority(ecid: 42, priority: 2)
+        XCTAssertEqual(setPriority.opcode, 0x56)
+        XCTAssertEqual(setPriority.tags.map(\.name), [ECOperations.TagName.server, ECOperations.TagName.serverPriority])
+        XCTAssertEqual(setPriority.tags.map(\.intValue), [42, 2])
+
+        XCTAssertEqual(try ECOperations.serverInfo().opcode, 0x37)
+        XCTAssertEqual(try ECOperations.clearServerInfo().opcode, 0x3D)
+        XCTAssertEqual(try ECOperations.resetLog().opcode, 0x3B)
+    }
+
+    func testAmuleGuiParityMutationBuildersUseCapabilityGate() throws {
+        let hash = "00112233445566778899aabbccddeeff"
+        let emptyGate = ECCapabilityGate([])
+
+        XCTAssertThrowsError(try ECOperations.stop(hash: hash, gate: emptyGate)) { error in
+            XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("download-stop"))
+        }
+        XCTAssertThrowsError(try ECOperations.swapA4AF(hash: hash, mode: .toThis, gate: emptyGate)) { error in
+            XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("download-a4af-this"))
+        }
+        XCTAssertThrowsError(try ECOperations.downloadSetCategory(hash: hash, categoryID: 1, gate: emptyGate)) { error in
+            XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("download-set-category"))
+        }
+        XCTAssertThrowsError(try ECOperations.categoryUpdate(categoryID: 1, name: "", path: "", comment: "", color: 0, priority: 0, gate: emptyGate)) { error in
+            XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("category-update"))
+        }
+        XCTAssertThrowsError(try ECOperations.sharedFilePriority(hash: hash, priority: 1, gate: emptyGate)) { error in
+            XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("shared-file-priority"))
+        }
+        XCTAssertThrowsError(try ECOperations.sharedFileCommentRating(hash: hash, comment: "", rating: 0, gate: emptyGate)) { error in
+            XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("shared-file-comment-rating"))
+        }
+        XCTAssertThrowsError(try ECOperations.serverSetStatic(ecid: 1, isStatic: true, gate: emptyGate)) { error in
+            XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("server-set-static"))
+        }
+        XCTAssertThrowsError(try ECOperations.serverSetPriority(ecid: 1, priority: 1, gate: emptyGate)) { error in
+            XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("server-set-priority"))
+        }
+        XCTAssertThrowsError(try ECOperations.serverInfo(gate: emptyGate)) { error in
+            XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("server-info"))
+        }
+        XCTAssertThrowsError(try ECOperations.clearServerInfo(gate: emptyGate)) { error in
+            XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("clear-server-info"))
+        }
+        XCTAssertThrowsError(try ECOperations.resetLog(gate: emptyGate)) { error in
+            XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("reset-log"))
+        }
+    }
+
     func testCapabilityGateRejectsUnsupportedReadOnlyOperation() throws {
         let gate = ECCapabilityGate([ECSupportedOps.status])
         XCTAssertNoThrow(try gate.require(.status))
@@ -179,25 +299,12 @@ final class ECOperationsTests: XCTestCase {
         }
     }
 
-    func testDisabledOperationNamesRemainUnadvertisedAndRejected() throws {
-        let disabledOperations = [
-            ECOperationName.categoryUpdate.rawValue,
-            ECOperationName.downloadSetCategory.rawValue,
-        ]
-
-        XCTAssertEqual(ECSupportedOps.unsupportedDisabledOperations, disabledOperations)
-        for operation in disabledOperations {
-            XCTAssertFalse(ECSupportedOps.allOperations.contains(operation), operation)
-            XCTAssertFalse(ECOperations.capabilities().ops.contains(operation), operation)
-        }
+    func testNoUnsupportedDisabledOperationNamesRemainUnadvertised() throws {
+        XCTAssertEqual(ECSupportedOps.unsupportedDisabledOperations, [])
 
         let gate = ECCapabilityGate(capabilities: ECOperations.capabilities())
-        XCTAssertThrowsError(try gate.require(.categoryUpdate)) { error in
-            XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("category-update"))
-        }
-        XCTAssertThrowsError(try gate.require(.downloadSetCategory)) { error in
-            XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("download-set-category"))
-        }
+        XCTAssertNoThrow(try gate.require(.categoryUpdate))
+        XCTAssertNoThrow(try gate.require(.downloadSetCategory))
     }
 
     func testStatusParserAndEnvelopeMatchBridgeShape() throws {

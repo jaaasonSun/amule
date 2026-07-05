@@ -28,6 +28,10 @@ public struct ECSupportedOps {
     public static let pause = "pause"
     /// Resumes one or more transfers.
     public static let resume = "resume"
+    public static let downloadStop = "download-stop"
+    public static let downloadA4AFThis = "download-a4af-this"
+    public static let downloadA4AFAuto = "download-a4af-auto"
+    public static let downloadA4AFOthers = "download-a4af-others"
     /// Cancels one or more transfers.
     public static let cancel = "cancel"
     /// Updates transfer priority.
@@ -65,7 +69,16 @@ public struct ECSupportedOps {
     public static let debugLog = "debug-log"
     public static let categories = "categories"
     public static let categoryCreate = "category-create"
+    public static let categoryUpdate = "category-update"
     public static let categoryDelete = "category-delete"
+    public static let downloadSetCategory = "download-set-category"
+    public static let sharedFilePriority = "shared-file-priority"
+    public static let sharedFileCommentRating = "shared-file-comment-rating"
+    public static let serverSetStatic = "server-set-static"
+    public static let serverSetPriority = "server-set-priority"
+    public static let serverInfo = "server-info"
+    public static let clearServerInfo = "clear-server-info"
+    public static let resetLog = "reset-log"
     public static let ipfilterReload = "ipfilter-reload"
     public static let ipfilterUpdate = "ipfilter-update"
     public static let friends = "friends"
@@ -78,8 +91,6 @@ public struct ECSupportedOps {
     /// advertisement until they have a complete builder, adapter endpoint, and
     /// app bridge contract.
     public static let unsupportedDisabledOperations: [String] = [
-        "category-update",
-        "download-set-category",
     ]
 
     /// All supported V1 operations in canonical order.
@@ -97,6 +108,10 @@ public struct ECSupportedOps {
         disconnect,
         pause,
         resume,
+        downloadStop,
+        downloadA4AFThis,
+        downloadA4AFAuto,
+        downloadA4AFOthers,
         cancel,
         priority,
         clearCompleted,
@@ -119,7 +134,16 @@ public struct ECSupportedOps {
         debugLog,
         categories,
         categoryCreate,
+        categoryUpdate,
         categoryDelete,
+        downloadSetCategory,
+        sharedFilePriority,
+        sharedFileCommentRating,
+        serverSetStatic,
+        serverSetPriority,
+        serverInfo,
+        clearServerInfo,
+        resetLog,
         ipfilterReload,
         ipfilterUpdate,
         friends,

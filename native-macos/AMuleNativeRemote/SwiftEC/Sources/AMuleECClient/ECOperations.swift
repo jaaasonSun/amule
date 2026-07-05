@@ -33,6 +33,12 @@ public struct ECCapabilityGate: Equatable, Sendable {
     }
 }
 
+public enum A4AFSwapMode: Sendable, Equatable {
+    case toThis
+    case toThisAuto
+    case toAnyOther
+}
+
 public enum ECOperations {
     public enum OpCode {
         public static let noop: UInt8 = 0x01
@@ -42,8 +48,13 @@ public enum ECOperations {
         public static let statRequest: UInt8 = 0x0A
         public static let stats: UInt8 = 0x0C
         public static let addLink: UInt8 = 0x09
+        public static let sharedSetPriority: UInt8 = 0x11
+        public static let partFileSwapA4AFThis: UInt8 = 0x16
+        public static let partFileSwapA4AFThisAuto: UInt8 = 0x17
+        public static let partFileSwapA4AFOthers: UInt8 = 0x18
         public static let partFilePause: UInt8 = 0x19
         public static let partFileResume: UInt8 = 0x1A
+        public static let partFileStop: UInt8 = 0x1B
         public static let searchStart: UInt8 = 0x26
         public static let searchStop: UInt8 = 0x27
         public static let searchResults: UInt8 = 0x28
@@ -85,7 +96,12 @@ public enum ECOperations {
         public static let log: UInt8 = 0x38
         public static let getDebugLog: UInt8 = 0x36
         public static let debugLog: UInt8 = 0x39
+        public static let getServerInfo: UInt8 = 0x37
+        public static let resetLog: UInt8 = 0x3B
+        public static let clearServerInfo: UInt8 = 0x3D
         public static let clearCompleted: UInt8 = 0x53
+        public static let sharedFileSetComment: UInt8 = 0x55
+        public static let serverSetStaticPriority: UInt8 = 0x56
         public static let friend: UInt8 = 0x57
         public static let connect: UInt8 = 0x4A
         public static let disconnect: UInt8 = 0x4B
@@ -111,6 +127,8 @@ public enum ECOperations {
         public static let server: UInt16 = 0x0500
         public static let serverName: UInt16 = 0x0501
         public static let serverAddress: UInt16 = 0x0503
+        public static let serverPriority: UInt16 = 0x0508
+        public static let serverStatic: UInt16 = 0x050A
         public static let serverIP: UInt16 = 0x050C
         public static let serverPort: UInt16 = 0x050D
         public static let searchType: UInt16 = 0x0701
@@ -284,6 +302,27 @@ public enum ECOperations {
         try partFileAction(opcode: OpCode.partFileResume, operation: .resume, hash: hash, gate: gate)
     }
 
+    public static func stop(hash: String, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try partFileAction(opcode: OpCode.partFileStop, operation: .downloadStop, hash: hash, gate: gate)
+    }
+
+    public static func swapA4AF(hash: String, mode: A4AFSwapMode, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        let opcode: UInt8
+        let operation: ECOperationName
+        switch mode {
+        case .toThis:
+            opcode = OpCode.partFileSwapA4AFThis
+            operation = .downloadA4AFThis
+        case .toThisAuto:
+            opcode = OpCode.partFileSwapA4AFThisAuto
+            operation = .downloadA4AFAuto
+        case .toAnyOther:
+            opcode = OpCode.partFileSwapA4AFOthers
+            operation = .downloadA4AFOthers
+        }
+        return try partFileAction(opcode: opcode, operation: operation, hash: hash, gate: gate)
+    }
+
     public static func cancel(hash: String, gate: ECCapabilityGate? = nil) throws -> ECPacket {
         try partFileAction(opcode: OpCode.partFileDelete, operation: .cancel, hash: hash, gate: gate)
     }
@@ -302,6 +341,33 @@ public enum ECOperations {
             ECTag(name: TagName.partFile, type: .hash16, value: .hash16(try hashData(hash)), children: [
                 ECTag.integer(name: TagName.partFilePriority, value: UInt64(max(0, value))),
             ]),
+        ])
+    }
+
+    public static func downloadSetCategory(hash: String, categoryID: Int, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.downloadSetCategory)
+        return ECPacket(opcode: OpCode.partFileSetCat, tags: [
+            ECTag(name: TagName.partFile, type: .hash16, value: .hash16(try hashData(hash)), children: [
+                ECTag.integer(name: TagName.partFileCategory, value: UInt64(max(0, categoryID))),
+            ]),
+        ])
+    }
+
+    public static func sharedFilePriority(hash: String, priority: Int, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.sharedFilePriority)
+        return ECPacket(opcode: OpCode.sharedSetPriority, tags: [
+            ECTag(name: TagName.partFile, type: .hash16, value: .hash16(try hashData(hash)), children: [
+                ECTag.integer(name: TagName.partFilePriority, value: UInt64(max(0, priority))),
+            ]),
+        ])
+    }
+
+    public static func sharedFileCommentRating(hash: String, comment: String, rating: Int, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.sharedFileCommentRating)
+        return ECPacket(opcode: OpCode.sharedFileSetComment, tags: [
+            ECTag(name: TagName.knownFile, type: .hash16, value: .hash16(try hashData(hash))),
+            ECTag(name: TagName.knownFileComment, type: .string, value: .string(comment)),
+            ECTag.integer(name: TagName.knownFileRating, value: UInt64(max(0, rating))),
         ])
     }
 
@@ -357,6 +423,32 @@ public enum ECOperations {
         return ECPacket(opcode: OpCode.serverUpdateFromURL, tags: [
             ECTag(name: TagName.serversUpdateURL, type: .string, value: .string(url))
         ])
+    }
+
+    public static func serverSetStatic(ecid: Int, isStatic: Bool, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.serverSetStatic)
+        return ECPacket(opcode: OpCode.serverSetStaticPriority, tags: [
+            ECTag.integer(name: TagName.server, value: UInt64(max(0, ecid))),
+            ECTag.integer(name: TagName.serverStatic, value: isStatic ? 1 : 0),
+        ])
+    }
+
+    public static func serverSetPriority(ecid: Int, priority: Int, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.serverSetPriority)
+        return ECPacket(opcode: OpCode.serverSetStaticPriority, tags: [
+            ECTag.integer(name: TagName.server, value: UInt64(max(0, ecid))),
+            ECTag.integer(name: TagName.serverPriority, value: UInt64(max(0, priority))),
+        ])
+    }
+
+    public static func serverInfo(gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.serverInfo)
+        return ECPacket(opcode: OpCode.getServerInfo)
+    }
+
+    public static func clearServerInfo(gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.clearServerInfo)
+        return ECPacket(opcode: OpCode.clearServerInfo)
     }
 
     public static func kadStart(gate: ECCapabilityGate? = nil) throws -> ECPacket {
@@ -420,6 +512,13 @@ public enum ECOperations {
         ])
     }
 
+    public static func categoryUpdate(categoryID: Int, name: String, path: String, comment: String, color: Int, priority: Int, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.categoryUpdate)
+        return ECPacket(opcode: OpCode.updateCategory, tags: [
+            categoryTag(id: categoryID, name: name, path: path, comment: comment, color: color, priority: priority)
+        ])
+    }
+
     public static func categoryDelete(categoryID: Int, gate: ECCapabilityGate? = nil) throws -> ECPacket {
         try gate?.require(.categoryDelete)
         return ECPacket(opcode: OpCode.deleteCategory, tags: [
@@ -436,6 +535,11 @@ public enum ECOperations {
         try gate?.require(.ipfilterUpdate)
         let tags = url.flatMap { $0.isEmpty ? nil : ECTag(name: TagName.string, type: .string, value: .string($0)) }
         return ECPacket(opcode: OpCode.ipfilterUpdate, tags: tags.map { [$0] } ?? [])
+    }
+
+    public static func resetLog(gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.resetLog)
+        return ECPacket(opcode: OpCode.resetLog)
     }
 
     public static func friendRemove(friendID: Int, gate: ECCapabilityGate? = nil) throws -> ECPacket {
