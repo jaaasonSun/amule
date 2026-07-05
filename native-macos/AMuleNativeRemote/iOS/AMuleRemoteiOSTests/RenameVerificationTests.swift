@@ -58,6 +58,7 @@ private final class IOSRecordingRenameBridge: BridgeProtocol, @unchecked Sendabl
     static let hash = "00112233445566778899aabbccddeeff"
 
     var renameCalls: [(hash: String, name: String)] = []
+    private let messageRaw = #"{"ok":true}"#
     private var queuedDownloadsResults: [[BridgeDownloadPayload]]
 
     init(downloadsResults: [[BridgeDownloadPayload]]) {
@@ -84,10 +85,15 @@ private final class IOSRecordingRenameBridge: BridgeProtocol, @unchecked Sendabl
     }
     func pause(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
     func resume(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
+    func stop(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func swapA4AF(hash: String, mode: ECOperations.A4AFSwapMode, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func downloadSetCategory(hash: String, categoryID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func serverConnect(ip: String?, port: Int?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
     func serverDisconnect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
     func serverAdd(address: String, name: String?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
     func serverRemove(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
+    func serverSetStatic(ecid: Int, isStatic: Bool, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func serverSetPriority(ecid: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func prefsConnectionGet(config: AMuleConnectionConfig) async throws -> (BridgeConnectionPrefsPayload, String) { (ECConnectionPrefs(maxDownload: 0, maxUpload: 0), "{}") }
     func prefsConnectionSet(maxDownload: Int, maxUpload: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
     func cancel(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
@@ -103,8 +109,12 @@ private final class IOSRecordingRenameBridge: BridgeProtocol, @unchecked Sendabl
     func sharedFilesReload(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
     func coreLog(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String) { (ECCoreLog(kind: "log", lines: []), "{}") }
     func debugLog(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String) { (ECCoreLog(kind: "debug", lines: []), "{}") }
+    func serverInfo(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String) { (BridgeCoreLogPayload(kind: "server-info", lines: ["server log"]), messageRaw) }
+    func clearServerInfo(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func resetLog(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func categories(config: AMuleConnectionConfig) async throws -> ([BridgeCategoryPayload], String) { ([], "{}") }
     func categoryCreate(name: String, path: String, comment: String, color: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
+    func categoryUpdate(id: Int, name: String, path: String, comment: String, color: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func categoryDelete(categoryID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
     func ipfilterReload(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
     func ipfilterUpdate(url: String?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
@@ -113,6 +123,8 @@ private final class IOSRecordingRenameBridge: BridgeProtocol, @unchecked Sendabl
     func friendSlot(friendID: Int, enabled: Bool, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
     func clearCompleted(ecids: [Int], config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
     func priority(hash: String, value: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
+    func sharedFilePriority(hash: String, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func sharedFileCommentRating(hash: String, comment: String, rating: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func statsTree(capping: Int?, config: AMuleConnectionConfig) async throws -> (BridgeStatsTreeNodePayload, String) { (ECStatsTreeNode(id: 0, label: "", value: 0, children: []), "{}") }
     func statsGraphs(width: Int, scale: Int, last: Double?, config: AMuleConnectionConfig) async throws -> (BridgeStatsGraphsPayload, String) { (ECStatsGraphs(last: 0, samples: []), "{}") }
 }
