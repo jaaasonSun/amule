@@ -76,6 +76,55 @@ extension AppModel {
         }
     }
 
+    func setServerStatic(ecid: Int, isStatic: Bool) {
+        guard isBridgeOpSupported("server-set-static") else { return }
+        run(label: "server-set-static") {
+            let (_, raw) = try await self.bridge.serverSetStatic(ecid: ecid, isStatic: isStatic, config: self.config)
+            await MainActor.run {
+                self.appendLog("$ server-set-static \(ecid) \(isStatic ? 1 : 0)\n\(raw)")
+            }
+            if self.isBridgeOpSupported("servers") {
+                try? await self.refreshServersNow(logOutput: false, suppressErrors: true)
+            }
+        }
+    }
+
+    func setServerPriority(ecid: Int, priority: Int) {
+        guard isBridgeOpSupported("server-set-priority") else { return }
+        run(label: "server-set-priority") {
+            let (_, raw) = try await self.bridge.serverSetPriority(ecid: ecid, priority: priority, config: self.config)
+            await MainActor.run {
+                self.appendLog("$ server-set-priority \(ecid) \(priority)\n\(raw)")
+            }
+            if self.isBridgeOpSupported("servers") {
+                try? await self.refreshServersNow(logOutput: false, suppressErrors: true)
+            }
+        }
+    }
+
+    func refreshServerInfo() {
+        guard isBridgeOpSupported("server-info") else { return }
+        run(label: "server-info") {
+            let (payload, raw) = try await self.bridge.serverInfo(config: self.config)
+            await MainActor.run {
+                self.serverInfoLines = payload.lines
+                self.lastServerInfoRawOutput = raw
+                self.appendLog("$ server-info\n\(raw)")
+            }
+        }
+    }
+
+    func clearServerInfo() {
+        guard isBridgeOpSupported("clear-server-info") else { return }
+        run(label: "clear-server-info") {
+            let (_, raw) = try await self.bridge.clearServerInfo(config: self.config)
+            await MainActor.run {
+                self.serverInfoLines = []
+                self.appendLog("$ clear-server-info\n\(raw)")
+            }
+        }
+    }
+
     func updateServerListFromURL(_ rawURL: String) {
         let trimmed = rawURL.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {

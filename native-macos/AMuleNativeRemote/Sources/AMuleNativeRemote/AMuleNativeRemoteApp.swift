@@ -45,6 +45,12 @@ struct AMuleNativeRemoteApp: App {
         }
         .windowStyle(.automatic)
 
+        WindowGroup("Server Logs", id: "server-logs-window") {
+            ServerLogsWindowView()
+                .environmentObject(model)
+        }
+        .windowStyle(.automatic)
+
         WindowGroup("Uploads", id: "uploads-window") {
             UploadsWindowView()
                 .environmentObject(model)
@@ -123,6 +129,11 @@ private struct AppMenuCommands: Commands {
                 openWindow(id: "diagnostics-window")
             }
             .keyboardShortcut("d", modifiers: [.command, .shift])
+
+            Button("Server Logs") {
+                openWindow(id: "server-logs-window")
+            }
+            .disabled(!model.isBridgeOpSupported("server-info"))
 
             Button("Uploads") {
                 openWindow(id: "uploads-window")

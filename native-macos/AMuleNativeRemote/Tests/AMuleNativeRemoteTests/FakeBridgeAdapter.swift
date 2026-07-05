@@ -24,6 +24,14 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
     var lastSharedFileCommentHash: String?
     var lastSharedFileComment: String?
     var lastSharedFileRating: Int?
+    var lastServerStaticECID: Int?
+    var lastServerStatic: Bool?
+    var lastServerPriorityECID: Int?
+    var lastServerPriority: Int?
+    var serverInfoResult: (BridgeCoreLogPayload, String) = (
+        BridgeCoreLogPayload(kind: "server-info", lines: ["server log"]),
+        #"{"ok":true,"log":{"kind":"server-info","lines":["server log"]}}"#
+    )
 
     var capabilityOps: Set<String> {
         get { Set(capabilitiesResult.capabilities.ops) }
@@ -114,13 +122,26 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
         return ("ok", messageRaw)
     }
     func cancel(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
-    func servers(config: AMuleConnectionConfig) async throws -> ([BridgeServerPayload], String) { ([], #"{"ok":true,"servers":[]}"#) }
+    func servers(config: AMuleConnectionConfig) async throws -> ([BridgeServerPayload], String) {
+        invokedOperations.append("servers")
+        return ([], #"{"ok":true,"servers":[]}"#)
+    }
     func serverConnect(ip: String?, port: Int?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func serverDisconnect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func serverAdd(address: String, name: String?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func serverRemove(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
-    func serverSetStatic(ecid: Int, isStatic: Bool, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
-    func serverSetPriority(ecid: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func serverSetStatic(ecid: Int, isStatic: Bool, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        invokedOperations.append("server-set-static")
+        lastServerStaticECID = ecid
+        lastServerStatic = isStatic
+        return ("ok", messageRaw)
+    }
+    func serverSetPriority(ecid: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        invokedOperations.append("server-set-priority")
+        lastServerPriorityECID = ecid
+        lastServerPriority = priority
+        return ("ok", messageRaw)
+    }
     func serverUpdateFromURL(url: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func sources(hash: String, config: AMuleConnectionConfig) async throws -> ([BridgeDownloadSourcePayload], String) { ([], #"{"ok":true,"sources":[]}"#) }
     func prefsConnectionGet(config: AMuleConnectionConfig) async throws -> (BridgeConnectionPrefsPayload, String) {
@@ -139,8 +160,14 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
     func sharedFilesReload(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func coreLog(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String) { (BridgeCoreLogPayload(kind: "log", lines: []), #"{"ok":true,"log":{"kind":"log","lines":[]}}"#) }
     func debugLog(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String) { (BridgeCoreLogPayload(kind: "debug", lines: []), #"{"ok":true,"log":{"kind":"debug","lines":[]}}"#) }
-    func serverInfo(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String) { (BridgeCoreLogPayload(kind: "server-info", lines: ["server log"]), messageRaw) }
-    func clearServerInfo(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func serverInfo(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String) {
+        invokedOperations.append("server-info")
+        return serverInfoResult
+    }
+    func clearServerInfo(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        invokedOperations.append("clear-server-info")
+        return ("ok", messageRaw)
+    }
     func resetLog(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func categories(config: AMuleConnectionConfig) async throws -> ([BridgeCategoryPayload], String) {
         invokedOperations.append("categories")

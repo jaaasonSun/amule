@@ -52,6 +52,7 @@ final class AppModel: ObservableObject {
     @Published var lastSharedFilesRawOutput = ""
     @Published var lastCoreLogRawOutput = ""
     @Published var lastCoreDebugLogRawOutput = ""
+    @Published var lastServerInfoRawOutput = ""
     @Published var lastConnectionPrefsRawOutput = ""
     @Published var lastCategoriesRawOutput = ""
     @Published var lastFriendsRawOutput = ""
@@ -72,6 +73,7 @@ final class AppModel: ObservableObject {
     @Published var sharedFiles: [BridgeSharedFilePayload] = []
     @Published var coreLogLines: [String] = []
     @Published var coreDebugLogLines: [String] = []
+    @Published var serverInfoLines: [String] = []
     @Published var connectionMaxDownloadKBps: Int = 0
     @Published var connectionMaxUploadKBps: Int = 0
     @Published var connectionMaxDownloadInput: String = "0"

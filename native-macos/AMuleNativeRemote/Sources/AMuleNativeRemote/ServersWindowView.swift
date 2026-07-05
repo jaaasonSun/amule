@@ -294,6 +294,23 @@ private struct ServersTableView: View {
             Button("Remove") {
                 model.removeServer(item)
             }
+            Divider()
+            Button(item.isStatic ? "Remove Static Flag" : "Mark Static") {
+                model.setServerStatic(ecid: item.id, isStatic: !item.isStatic)
+            }
+            .disabled(model.isBusy || !model.isBridgeOpSupported("server-set-static"))
+            Menu("Priority") {
+                Button("Low") {
+                    model.setServerPriority(ecid: item.id, priority: 1)
+                }
+                Button("Normal") {
+                    model.setServerPriority(ecid: item.id, priority: 0)
+                }
+                Button("High") {
+                    model.setServerPriority(ecid: item.id, priority: 2)
+                }
+            }
+            .disabled(model.isBusy || !model.isBridgeOpSupported("server-set-priority"))
         }
     }
 
