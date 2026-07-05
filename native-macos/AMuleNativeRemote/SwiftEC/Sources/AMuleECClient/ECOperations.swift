@@ -97,6 +97,7 @@ public enum ECOperations {
         public static let getDebugLog: UInt8 = 0x36
         public static let debugLog: UInt8 = 0x39
         public static let getServerInfo: UInt8 = 0x37
+        public static let serverInfo: UInt8 = 0x3A
         public static let resetLog: UInt8 = 0x3B
         public static let clearServerInfo: UInt8 = 0x3D
         public static let clearCompleted: UInt8 = 0x53

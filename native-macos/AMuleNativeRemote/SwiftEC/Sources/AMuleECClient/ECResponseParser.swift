@@ -362,6 +362,12 @@ public enum ECResponseParser {
         return ECCoreLog(kind: kind, lines: packet.tags.compactMap(\.stringValue))
     }
 
+    public static func parseServerInfo(_ packet: ECPacket) throws -> ECCoreLog {
+        try requireOpcode(packet, ECOperations.OpCode.serverInfo)
+        let text = packet.tags.first { $0.name == ECOperations.TagName.string }?.stringValue ?? ""
+        return ECCoreLog(kind: "server-info", lines: text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init))
+    }
+
     public static func parseCategories(_ packet: ECPacket) throws -> [ECCategory] {
         try requireOpcode(packet, ECOperations.OpCode.setPreferences)
         guard let categories = packet.tags.first(named: TagName.prefsCategories) else { return [] }

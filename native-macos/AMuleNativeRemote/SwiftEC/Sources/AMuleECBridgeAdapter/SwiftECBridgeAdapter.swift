@@ -162,6 +162,14 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
         try await mutation(try ECOperations.resume(hash: hash, gate: capabilityGate), message: "Action completed", config: config)
     }
 
+    public func stop(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await mutation(try ECOperations.stop(hash: hash, gate: capabilityGate), message: "Stop requested", config: config)
+    }
+
+    public func swapA4AF(hash: String, mode: ECOperations.A4AFSwapMode, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await mutation(try ECOperations.swapA4AF(hash: hash, mode: mode, gate: capabilityGate), message: "A4AF swap requested", config: config)
+    }
+
     public func serverConnect(ip: String?, port: Int?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await mutation(try ECOperations.serverConnect(ip: ip, port: port, gate: capabilityGate), message: "Server connect requested", config: config)
     }
@@ -176,6 +184,14 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
 
     public func serverRemove(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await mutation(try ECOperations.serverRemove(ip: ip, port: port, gate: capabilityGate), message: "Server remove requested", config: config)
+    }
+
+    public func serverSetStatic(ecid: Int, isStatic: Bool, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await mutation(try ECOperations.serverSetStatic(ecid: ecid, isStatic: isStatic, gate: capabilityGate), message: "Server static flag updated", config: config)
+    }
+
+    public func serverSetPriority(ecid: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await mutation(try ECOperations.serverSetPriority(ecid: ecid, priority: priority, gate: capabilityGate), message: "Server priority updated", config: config)
     }
 
     public func prefsConnectionGet(config: AMuleConnectionConfig) async throws -> (BridgeConnectionPrefsPayload, String) {
@@ -286,6 +302,22 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
         }
     }
 
+    public func serverInfo(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String) {
+        try await withAuthenticatedSession(for: config) { session in
+            let log = try ECResponseParser.parseServerInfo(try await session.send(try ECOperations.serverInfo(gate: capabilityGate)))
+            let raw = ECJSONEnvelope.jsonString(try ECJSONEnvelope.log(log))
+            return (log, raw)
+        }
+    }
+
+    public func clearServerInfo(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await mutation(try ECOperations.clearServerInfo(gate: capabilityGate), message: "Server log cleared", config: config)
+    }
+
+    public func resetLog(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await mutation(try ECOperations.resetLog(gate: capabilityGate), message: "Core log cleared", config: config)
+    }
+
     public func categories(config: AMuleConnectionConfig) async throws -> ([BridgeCategoryPayload], String) {
         try await withAuthenticatedSession(for: config) { session in
             let categories = try ECResponseParser.parseCategories(try await session.send(try ECOperations.categories(gate: capabilityGate)))
@@ -298,6 +330,14 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
         try await mutation(
             try ECOperations.categoryCreate(name: name, path: path, comment: comment, color: color, priority: priority, gate: capabilityGate),
             message: "Category create requested",
+            config: config
+        )
+    }
+
+    public func categoryUpdate(id: Int, name: String, path: String, comment: String, color: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await mutation(
+            try ECOperations.categoryUpdate(id: id, name: name, path: path, comment: comment, color: color, priority: priority, gate: capabilityGate),
+            message: "Category update requested",
             config: config
         )
     }
@@ -338,6 +378,22 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
 
     public func priority(hash: String, value: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await mutation(try ECOperations.priority(hash: hash, value: Int(value) ?? 0, gate: capabilityGate), message: "Priority changed", config: config)
+    }
+
+    public func downloadSetCategory(hash: String, categoryID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await mutation(try ECOperations.downloadSetCategory(hash: hash, categoryID: categoryID, gate: capabilityGate), message: "Download category updated", config: config)
+    }
+
+    public func sharedFilePriority(hash: String, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await mutation(try ECOperations.sharedFilePriority(hash: hash, priority: priority, gate: capabilityGate), message: "Shared file priority updated", config: config)
+    }
+
+    public func sharedFileCommentRating(hash: String, comment: String, rating: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await mutation(
+            try ECOperations.sharedFileCommentRating(hash: hash, comment: comment, rating: rating, gate: capabilityGate),
+            message: "Shared file comment updated",
+            config: config
+        )
     }
 
     public func statsTree(capping: Int?, config: AMuleConnectionConfig) async throws -> (BridgeStatsTreeNodePayload, String) {
@@ -499,10 +555,15 @@ public protocol BridgeProtocol: Sendable {
     func rename(hash: String, name: String, config: AMuleConnectionConfig) async throws -> RenameAcknowledgement
     func pause(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func resume(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func stop(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func swapA4AF(hash: String, mode: ECOperations.A4AFSwapMode, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func downloadSetCategory(hash: String, categoryID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func serverConnect(ip: String?, port: Int?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func serverDisconnect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func serverAdd(address: String, name: String?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func serverRemove(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func serverSetStatic(ecid: Int, isStatic: Bool, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func serverSetPriority(ecid: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func prefsConnectionGet(config: AMuleConnectionConfig) async throws -> (BridgeConnectionPrefsPayload, String)
     func prefsConnectionSet(maxDownload: Int, maxUpload: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func cancel(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
@@ -518,8 +579,12 @@ public protocol BridgeProtocol: Sendable {
     func sharedFilesReload(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func coreLog(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String)
     func debugLog(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String)
+    func serverInfo(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String)
+    func clearServerInfo(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func resetLog(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func categories(config: AMuleConnectionConfig) async throws -> ([BridgeCategoryPayload], String)
     func categoryCreate(name: String, path: String, comment: String, color: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func categoryUpdate(id: Int, name: String, path: String, comment: String, color: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func categoryDelete(categoryID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func ipfilterReload(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func ipfilterUpdate(url: String?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
@@ -528,6 +593,8 @@ public protocol BridgeProtocol: Sendable {
     func friendSlot(friendID: Int, enabled: Bool, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func clearCompleted(ecids: [Int], config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func priority(hash: String, value: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func sharedFilePriority(hash: String, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func sharedFileCommentRating(hash: String, comment: String, rating: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func statsTree(capping: Int?, config: AMuleConnectionConfig) async throws -> (BridgeStatsTreeNodePayload, String)
     func statsGraphs(width: Int, scale: Int, last: Double?, config: AMuleConnectionConfig) async throws -> (BridgeStatsGraphsPayload, String)
 }
