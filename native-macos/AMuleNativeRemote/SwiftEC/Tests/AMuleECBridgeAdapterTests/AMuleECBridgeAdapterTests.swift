@@ -192,6 +192,36 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
         XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x0D, 0x52, 0x52])
     }
 
+    func testAdapterInitialDownloadRefreshMergesIncrementalProgressStatus() async throws {
+        let partSize: UInt64 = 9_728_000
+        let mock = AdapterMockTransport(replies: [
+            Self.salt,
+            Self.authOK,
+            ECPacket(opcode: 0x1F, tags: [
+                try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "active.iso", size: partSize * 2, done: 0, statusCode: 0),
+            ]),
+            ECPacket(opcode: 0x22, tags: [
+                ECTag.integer(name: 0x0300, value: 42, children: [
+                    ECTag.integer(name: 0x0303, value: partSize * 2),
+                    ECTag(name: 0x0313, type: .custom, value: .custom(rleEncodedUInt64s([0, partSize]))),
+                    ECTag(name: 0x0314, type: .custom, value: .custom(rleEncodedUInt64s([partSize, partSize * 2]))),
+                ]),
+            ]),
+        ])
+        let session = ECSession(configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false), transportFactory: { mock })
+        let adapter = SwiftECBridgeAdapter(session: session)
+
+        let (downloads, _) = try await adapter.downloads(config: AMuleConnectionConfig(password: "secret"))
+
+        let colors = try XCTUnwrap(downloads.first?.progressColors)
+        XCTAssertEqual(colors.count, 64)
+        guard colors.count == 64 else { return }
+        XCTAssertEqual(colors[0], Self.packedColor(r: 255, g: 0, b: 0))
+        XCTAssertEqual(colors[32], Self.packedColor(r: 255, g: 208, b: 0))
+        let sentOpcodes = await mock.sentOpcodes()
+        XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x0D, 0x52])
+    }
+
     func testAdapterReturnsStableDownloadSnapshotWhenUpdateSucceeds() async throws {
         let mock = AdapterMockTransport(replies: [
             Self.salt,
@@ -549,6 +579,43 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
 
     private static let hash = "00112233445566778899aabbccddeeff"
     private static let otherHash = "ffeeddccbbaa99887766554433221100"
+
+    private static func packedColor(r: Int, g: Int, b: Int) -> UInt32 {
+        (UInt32(b & 0xff) << 16) | (UInt32(g & 0xff) << 8) | UInt32(r & 0xff)
+    }
+
+    private func rleEncodedUInt64s(_ values: [UInt64]) -> Data {
+        var bytes = [UInt8](repeating: 0, count: values.count * 8)
+        for (index, value) in values.enumerated() {
+            var remaining = value
+            for byteIndex in 0..<8 {
+                bytes[index + byteIndex * values.count] = UInt8(remaining & 0xff)
+                remaining >>= 8
+            }
+        }
+        return rleEncodedBytes(bytes)
+    }
+
+    private func rleEncodedBytes(_ bytes: [UInt8]) -> Data {
+        var encoded: [UInt8] = []
+        var index = 0
+        while index < bytes.count {
+            let value = bytes[index]
+            var runLength = 1
+            while index + runLength < bytes.count, bytes[index + runLength] == value, runLength < 0xff {
+                runLength += 1
+            }
+            if runLength > 1 {
+                encoded.append(value)
+                encoded.append(value)
+                encoded.append(UInt8(runLength))
+            } else {
+                encoded.append(value)
+            }
+            index += runLength
+        }
+        return Data(encoded)
+    }
 
     private func assertJSONEqual(
         _ lhs: String,

@@ -150,7 +150,7 @@
 "Raw Search" = "原始搜索";
 "Raw Servers" = "原始服务器";
 "Clear Log" = "清空日志";
-"No command output yet." = "暂无命令输出。";
+"No bridge output yet." = "暂无桥接输出。";
 "No raw download queue output captured yet." = "尚未捕获原始下载队列输出。";
 "No raw source output captured yet." = "尚未捕获原始来源输出。";
 "No raw search output captured yet." = "尚未捕获原始搜索输出。";

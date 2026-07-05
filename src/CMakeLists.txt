@@ -100,60 +100,6 @@ if (BUILD_AMULECMD)
 	)
 endif (BUILD_AMULECMD)
 
-if (BUILD_AMULE_EC_BRIDGE)
-	add_library (amule-ec-bridge-core STATIC
-		AMuleECBridgeCore.cpp
-		LoggerConsole.cpp
-		NetworkFunctions.cpp
-		OtherFunctions.cpp
-		RLE.cpp
-	)
-
-	target_include_directories (amule-ec-bridge-core
-		PUBLIC ${SRC_DIR}
-		PRIVATE ${CMAKE_BINARY_DIR}
-	)
-
-	target_compile_definitions (amule-ec-bridge-core
-		PRIVATE wxUSE_GUI=0
-	)
-
-	target_link_libraries (amule-ec-bridge-core
-		PRIVATE mulecommon
-		PRIVATE mulesocket
-		PRIVATE ec
-	)
-
-	add_executable (amule-ec-bridge
-		AMuleECBridge.cpp
-	)
-
-	target_compile_definitions (amule-ec-bridge
-		PRIVATE wxUSE_GUI=0
-	)
-
-	target_include_directories (amule-ec-bridge
-		PRIVATE ${SRC_DIR}
-	)
-
-	target_link_libraries (amule-ec-bridge
-		PRIVATE amule-ec-bridge-core
-		PRIVATE mulecommon
-		PRIVATE mulesocket
-		PRIVATE ec
-	)
-
-	if (HAVE_BFD)
-		target_link_libraries (amule-ec-bridge
-			PRIVATE ${LIBBFD}
-		)
-	endif (HAVE_BFD)
-
-	install (TARGETS amule-ec-bridge
-		RUNTIME DESTINATION bin
-	)
-endif()
-
 if (BUILD_DAEMON)
 	add_executable (amuled
 		${CORE_SOURCES}

@@ -379,6 +379,98 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertEqual(download.progressColors[63], packedColor(r: 255, g: 208, b: 0))
     }
 
+    func testDownloadParserUsesOriginalGreenProgressForCompleteAndCompletingRows() throws {
+        let hash = Data((0..<16).map(UInt8.init))
+        for statusCode in [8, 9] {
+            let packet = ECPacket(opcode: 0x1F, tags: [
+                ECTag(name: 0x0300, type: .uint32, value: .uint(UInt64(statusCode)), children: [
+                    ECTag(name: 0x031E, type: .hash16, value: .hash16(hash)),
+                    ECTag(name: 0x0301, type: .string, value: .string("done.iso")),
+                    .integer(name: 0x0303, value: 1000),
+                    .integer(name: 0x0306, value: 1000),
+                    .integer(name: 0x0308, value: UInt64(statusCode)),
+                ]),
+            ])
+
+            let download = try XCTUnwrap(ECResponseParser.parseDownloads(packet).first)
+
+            XCTAssertEqual(download.progressColors.count, 64)
+            XCTAssertTrue(download.progressColors.allSatisfy { $0 == packedColor(r: 0, g: 224, b: 0) })
+            XCTAssertEqual(download.isCompleted, statusCode == 9)
+        }
+    }
+
+    func testDownloadParserDoesNotInventProgressColorsWhenStatusMapTagsAreAbsent() throws {
+        let partSize: UInt64 = 9_728_000
+        let hash = Data((0..<16).map(UInt8.init))
+        let packet = ECPacket(opcode: 0x1F, tags: [
+            ECTag(name: 0x0300, type: .uint32, value: .uint(42), children: [
+                ECTag(name: 0x031E, type: .hash16, value: .hash16(hash)),
+                ECTag(name: 0x0301, type: .string, value: .string("scalar.iso")),
+                .integer(name: 0x0303, value: partSize * 2),
+                .integer(name: 0x0306, value: partSize),
+                .integer(name: 0x0308, value: 0),
+            ]),
+        ])
+
+        let download = try XCTUnwrap(ECResponseParser.parseDownloads(packet).first)
+
+        XCTAssertEqual(download.progressColors, [])
+    }
+
+    func testDownloadParserBuildsHashingProgressColorsAndDisplayPercent() throws {
+        let partSize: UInt64 = 9_728_000
+        let fileSize = partSize * 4
+        let hash = Data((0..<16).map(UInt8.init))
+        let packet = ECPacket(opcode: 0x1F, tags: [
+            ECTag(name: 0x0300, type: .uint32, value: .uint(42), children: [
+                ECTag(name: 0x031E, type: .hash16, value: .hash16(hash)),
+                ECTag(name: 0x0301, type: .string, value: .string("hashing.iso")),
+                .integer(name: 0x0303, value: fileSize),
+                .integer(name: 0x0306, value: partSize),
+                .integer(name: 0x0308, value: 3),
+                .integer(name: 0x0320, value: 2),
+            ]),
+        ])
+
+        let download = try XCTUnwrap(ECResponseParser.parseDownloads(packet).first)
+
+        XCTAssertEqual(download.hashingProgressParts, 2)
+        XCTAssertEqual(download.progress, 25)
+        XCTAssertEqual(download.displayProgress, 50)
+        XCTAssertEqual(download.progressColors.count, 64)
+        XCTAssertEqual(Set(download.progressColors.prefix(32)), [packedColor(r: 0, g: 224, b: 0)])
+        XCTAssertEqual(Set(download.progressColors.suffix(32)), [packedColor(r: 255, g: 208, b: 0)])
+    }
+
+    func testDownloadParserDimsMissingAndRequestedProgressColorsWhenStopped() throws {
+        let partSize: UInt64 = 9_728_000
+        let fileSize = partSize * 2
+        let hash = Data((0..<16).map(UInt8.init))
+        let packet = ECPacket(opcode: 0x1F, tags: [
+            ECTag(name: 0x0300, type: .uint32, value: .uint(42), children: [
+                ECTag(name: 0x031E, type: .hash16, value: .hash16(hash)),
+                ECTag(name: 0x0301, type: .string, value: .string("stopped.iso")),
+                .integer(name: 0x0303, value: fileSize),
+                .integer(name: 0x0306, value: 0),
+                .integer(name: 0x0308, value: 0),
+                .integer(name: 0x0317, value: 1),
+                ECTag(name: 0x0313, type: .custom, value: .custom(rleEncodedUInt64s([0, partSize]))),
+                ECTag(name: 0x0314, type: .custom, value: .custom(rleEncodedUInt64s([partSize, fileSize]))),
+            ]),
+        ])
+
+        let download = try XCTUnwrap(ECResponseParser.parseDownloads(packet).first)
+
+        XCTAssertTrue(download.isStopped)
+        XCTAssertEqual(download.status, "Stopped")
+        XCTAssertEqual(download.progressColors.count, 64)
+        XCTAssertEqual(download.progressColors[0], packedColor(r: 127, g: 0, b: 0))
+        XCTAssertEqual(download.progressColors[31], packedColor(r: 127, g: 0, b: 0))
+        XCTAssertEqual(download.progressColors[32], packedColor(r: 127, g: 104, b: 0))
+        XCTAssertEqual(download.progressColors[63], packedColor(r: 127, g: 104, b: 0))
+    }
+
     func testPartFileStatusTextMatchesNativeDownloadSections() throws {
         let hash = Data((0..<16).map(UInt8.init))
         let packet = ECPacket(opcode: 0x1F, tags: [
@@ -395,6 +487,23 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertEqual(download.statusCode, 7)
         XCTAssertEqual(download.status, "Paused")
         XCTAssertFalse(download.isCompleted)
+    }
+
+    func testWaitingForHashStatusUsesOriginalHashingText() throws {
+        let hash = Data((0..<16).map(UInt8.init))
+        for statusCode in [2, 3] {
+            let packet = ECPacket(opcode: 0x1F, tags: [
+                ECTag(name: 0x0300, type: .uint32, value: .uint(UInt64(statusCode)), children: [
+                    ECTag(name: 0x031E, type: .hash16, value: .hash16(hash)),
+                    ECTag(name: 0x0301, type: .string, value: .string("hashing.iso")),
+                    .integer(name: 0x0303, value: 1000),
+                    .integer(name: 0x0308, value: UInt64(statusCode)),
+                ]),
+            ])
+
+            let download = try XCTUnwrap(ECResponseParser.parseDownloads(packet).first)
+            XCTAssertEqual(download.status, "Hashing")
+        }
     }
 
     func testPartFileStatusTextDownloadingWhenTransferring() throws {

@@ -79,6 +79,111 @@ final class SharedFilenameSuggestionTests: XCTestCase {
     }
 }
 
+final class DownloadItemProgressSemanticsTests: XCTestCase {
+    func testDisplayProgressOverridesProgressTextWithoutChangingSortProgress() {
+        let item = makeDownload(progressValue: 25, displayProgressValue: 50)
+
+        XCTAssertEqual(item.progressSortValue, 25)
+        XCTAssertEqual(item.progressDisplayValue, 50)
+        XCTAssertEqual(item.progressText, "50.0%")
+    }
+
+    func testProgressTextUsesOriginalOneDecimalRoundingAndIncompleteCap() {
+        XCTAssertEqual(makeDownload(progressValue: 12.26).progressText, "12.3%")
+        XCTAssertEqual(makeDownload(progressValue: 99.96).progressText, "99.9%")
+        XCTAssertEqual(makeDownload(progressValue: 100, completed: true).progressText, "100.0%")
+    }
+
+    func testCompletionTextShowsOnlyTotalSizeForCompletedItems() {
+        let partialBytes: UInt64 = 40
+        let totalBytes: UInt64 = 100
+
+        XCTAssertEqual(
+            makeDownload(progressValue: 40).completionText,
+            "\(AMuleFormatter.fileSize(partialBytes)) / \(AMuleFormatter.fileSize(totalBytes))"
+        )
+        XCTAssertEqual(
+            makeDownload(progressValue: 100, completed: true).completionText,
+            AMuleFormatter.fileSize(totalBytes)
+        )
+    }
+
+    func testStoppedStatusClassifiesWithPausedGroup() {
+        let item = MockClassifiable(statusCode: 0, status: "Stopped", isCompleted: false, sizeBytes: 100, doneBytes: 0, speedBytes: 0, sourceTransferring: 0)
+
+        XCTAssertTrue(DownloadClassification.isPaused(item))
+        XCTAssertFalse(DownloadClassification.isDownloading(item))
+        XCTAssertEqual(DownloadStatusSymbol.symbolName(for: item.status), "pause.circle")
+    }
+
+    func testSourcesTextMatchesOriginalDownloadListColumn() {
+        XCTAssertEqual(makeDownload(sourceCurrent: 5, sourceTotal: 8, sourceTransferring: 2, sourceA4AF: 3).sourcesText, "5/8+3 (2)")
+        XCTAssertEqual(makeDownload(sourceCurrent: 8, sourceTotal: 8, sourceTransferring: 0, sourceA4AF: 0).sourcesText, "8")
+        XCTAssertEqual(makeDownload(sourceCurrent: 0, sourceTotal: 8, sourceTransferring: 0, sourceA4AF: 2).sourcesText, "0/8+2")
+    }
+
+    private struct MockClassifiable: DownloadClassifiable {
+        let statusCode: Int
+        let status: String
+        let isCompleted: Bool
+        let sizeBytes: UInt64
+        let doneBytes: UInt64
+        let speedBytes: Int
+        let sourceTransferring: Int
+    }
+
+    private func makeDownload(
+        progressValue: Double = 0,
+        displayProgressValue: Double? = nil,
+        status: String = "Waiting",
+        isStopped: Bool = false,
+        sourceCurrent: Int = 0,
+        sourceTotal: Int = 0,
+        sourceTransferring: Int = 0,
+        sourceA4AF: Int = 0,
+        completed: Bool = false
+    ) -> DownloadItem {
+        DownloadItem(
+            ecid: 1,
+            id: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            name: "file.iso",
+            nameEncodingSuspect: false,
+            nameEncodingSuggestion: nil,
+            sizeBytes: 100,
+            doneBytes: completed ? 100 : UInt64(progressValue),
+            transferredBytes: completed ? 100 : UInt64(progressValue),
+            progressValue: progressValue,
+            sourceCurrent: sourceCurrent,
+            sourceTotal: sourceTotal,
+            sourceTransferring: sourceTransferring,
+            sourceA4AF: sourceA4AF,
+            statusCode: completed ? 9 : 0,
+            isCompleted: completed,
+            status: status,
+            speedBytes: 0,
+            priority: 0,
+            category: 0,
+            partMetName: "001.part.met",
+            lastSeenComplete: 0,
+            lastReceived: 0,
+            activeSeconds: 0,
+            availableParts: 0,
+            shared: false,
+            alternativeNames: [],
+            progressColors: [],
+            isStopped: isStopped,
+            displayProgressValue: displayProgressValue
+        )
+    }
+}
+
+final class DownloadProgressVisualStyleTests: XCTestCase {
+    func testProgressSegmentsAreSlightlyMoreOpaque() {
+        XCTAssertEqual(DownloadProgressVisualStyle.segmentOpacity, 0.88, accuracy: 0.0001)
+        XCTAssertEqual(DownloadProgressVisualStyle.rowBackgroundOpacity, 0.26, accuracy: 0.0001)
+    }
+}
+
 final class FilenameCleanupPreferencesTests: XCTestCase {
     func testEncodeAndDecodePrefixList() {
         let encoded = FilenameCleanupPreferences.encode(["ABCDED - ", "Group: "])
@@ -211,19 +316,24 @@ final class DownloadClassificationTests: XCTestCase {
         XCTAssertTrue(DownloadClassification.isCompleted(item))
     }
 
-    func testIsCompletedBySizeMatch() {
+    func testCompletingStatusIsNotCompleted() {
+        let item = MockDownload(statusCode: 8, status: "Completing", isCompleted: false, sizeBytes: 100, doneBytes: 100, speedBytes: 0, sourceTransferring: 0)
+        XCTAssertFalse(DownloadClassification.isCompleted(item))
+    }
+
+    func testSizeMatchDoesNotInferCompleted() {
         let item = MockDownload(statusCode: 0, status: "Downloading", isCompleted: false, sizeBytes: 100, doneBytes: 100, speedBytes: 0, sourceTransferring: 0)
-        XCTAssertTrue(DownloadClassification.isCompleted(item))
+        XCTAssertFalse(DownloadClassification.isCompleted(item))
     }
 
-    func testIsCompletedByStatusText() {
+    func testStatusTextDoesNotInferCompleted() {
         let item = MockDownload(statusCode: 0, status: "Completed", isCompleted: false, sizeBytes: 100, doneBytes: 50, speedBytes: 0, sourceTransferring: 0)
-        XCTAssertTrue(DownloadClassification.isCompleted(item))
+        XCTAssertFalse(DownloadClassification.isCompleted(item))
     }
 
-    func testIsCompletedByChineseStatus() {
+    func testChineseStatusTextDoesNotInferCompleted() {
         let item = MockDownload(statusCode: 0, status: "完成", isCompleted: false, sizeBytes: 100, doneBytes: 50, speedBytes: 0, sourceTransferring: 0)
-        XCTAssertTrue(DownloadClassification.isCompleted(item))
+        XCTAssertFalse(DownloadClassification.isCompleted(item))
     }
 
     func testIsPausedByStatusCode() {
@@ -283,11 +393,11 @@ final class DownloadClassificationTests: XCTestCase {
         XCTAssertFalse(DownloadClassification.isPending(item))
     }
 
-    func testCompletedSizeMatchStillWinsWhenStatusTextLooksIdle() {
+    func testCompletedSizeMatchDoesNotOverrideOriginalStatusSemantics() {
         let item = MockDownload(statusCode: 0, status: "Waiting", isCompleted: false, sizeBytes: 100, doneBytes: 100, speedBytes: 0, sourceTransferring: 0)
-        XCTAssertTrue(DownloadClassification.isCompleted(item))
+        XCTAssertFalse(DownloadClassification.isCompleted(item))
         XCTAssertFalse(DownloadClassification.isDownloading(item))
-        XCTAssertFalse(DownloadClassification.isPending(item))
+        XCTAssertTrue(DownloadClassification.isPending(item))
     }
 }
 

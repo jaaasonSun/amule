@@ -146,8 +146,7 @@ struct DownloadDetailView: View {
         Section {
             VStack(alignment: .leading, spacing: 6) {
                 DownloadSegmentedProgressBar(
-                    colors: currentItem.progressColors,
-                    fallbackProgress: currentItem.progressDisplayValue / 100.0
+                    colors: currentItem.progressColors
                 )
 
                 HStack {

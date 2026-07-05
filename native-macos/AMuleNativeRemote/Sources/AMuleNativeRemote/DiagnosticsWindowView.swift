@@ -111,7 +111,7 @@ struct DiagnosticsWindowView: View {
     private var currentDiagnosticsText: String {
         switch diagnosticsTab {
         case .log:
-            return model.outputLog.isEmpty ? L2("No command output yet.") : model.outputLog
+            return model.outputLog.isEmpty ? L2("No bridge output yet.") : model.outputLog
         case .downloads:
             return model.lastDownloadsRawOutput.isEmpty ? L2("No raw download queue output captured yet.") : model.lastDownloadsRawOutput
         case .sources:

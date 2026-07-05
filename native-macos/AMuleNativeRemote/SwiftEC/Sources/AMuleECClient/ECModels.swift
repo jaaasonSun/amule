@@ -208,6 +208,9 @@ public struct ECDownload: Codable, Equatable, Sendable {
     public let shared: Bool
     public let alternativeNames: [AlternativeName]
     public let progressColors: [UInt32]
+    public let isStopped: Bool
+    public let hashingProgressParts: Int
+    public let displayProgress: Double?
 
     public init(
         ecid: Int,
@@ -236,7 +239,10 @@ public struct ECDownload: Codable, Equatable, Sendable {
         availableParts: Int,
         shared: Bool,
         alternativeNames: [AlternativeName] = [],
-        progressColors: [UInt32] = []
+        progressColors: [UInt32] = [],
+        isStopped: Bool = false,
+        hashingProgressParts: Int = 0,
+        displayProgress: Double? = nil
     ) {
         let normalizedNameEncoding = FileNameNormalization(
             name: name,
@@ -271,6 +277,9 @@ public struct ECDownload: Codable, Equatable, Sendable {
         self.shared = shared
         self.alternativeNames = alternativeNames
         self.progressColors = progressColors
+        self.isStopped = isStopped
+        self.hashingProgressParts = hashingProgressParts
+        self.displayProgress = displayProgress
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -290,6 +299,9 @@ public struct ECDownload: Codable, Equatable, Sendable {
         case availableParts = "available_parts"
         case alternativeNames = "alternative_names"
         case progressColors = "progress_colors"
+        case isStopped = "is_stopped"
+        case hashingProgressParts = "hashing_progress_parts"
+        case displayProgress = "display_progress"
     }
 
     public init(from decoder: Decoder) throws {
@@ -329,6 +341,9 @@ public struct ECDownload: Codable, Equatable, Sendable {
         self.shared = try container.decode(Bool.self, forKey: .shared)
         self.alternativeNames = try container.decodeIfPresent([AlternativeName].self, forKey: .alternativeNames) ?? []
         self.progressColors = try container.decodeIfPresent([UInt32].self, forKey: .progressColors) ?? []
+        self.isStopped = try container.decodeIfPresent(Bool.self, forKey: .isStopped) ?? false
+        self.hashingProgressParts = try container.decodeIfPresent(Int.self, forKey: .hashingProgressParts) ?? 0
+        self.displayProgress = try container.decodeIfPresent(Double.self, forKey: .displayProgress)
     }
 }
 

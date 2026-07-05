@@ -120,8 +120,11 @@ public struct DownloadItem: Identifiable, Hashable {
     public let shared: Bool
     public let alternativeNames: [DownloadAlternativeName]
     public let progressColors: [UInt32]
+    public let isStopped: Bool
+    public let hashingProgressParts: Int
+    public let displayProgressValue: Double?
 
-    public init(ecid: Int, id: String, name: String, nameEncodingSuspect: Bool, nameEncodingSuggestion: String?, sizeBytes: UInt64, doneBytes: UInt64, transferredBytes: UInt64, progressValue: Double, sourceCurrent: Int, sourceTotal: Int, sourceTransferring: Int, sourceA4AF: Int, statusCode: Int, isCompleted: Bool, status: String, speedBytes: Int, priority: Int, category: Int, partMetName: String, lastSeenComplete: UInt64, lastReceived: UInt64, activeSeconds: Int, availableParts: Int, shared: Bool, alternativeNames: [DownloadAlternativeName], progressColors: [UInt32]) {
+    public init(ecid: Int, id: String, name: String, nameEncodingSuspect: Bool, nameEncodingSuggestion: String?, sizeBytes: UInt64, doneBytes: UInt64, transferredBytes: UInt64, progressValue: Double, sourceCurrent: Int, sourceTotal: Int, sourceTransferring: Int, sourceA4AF: Int, statusCode: Int, isCompleted: Bool, status: String, speedBytes: Int, priority: Int, category: Int, partMetName: String, lastSeenComplete: UInt64, lastReceived: UInt64, activeSeconds: Int, availableParts: Int, shared: Bool, alternativeNames: [DownloadAlternativeName], progressColors: [UInt32], isStopped: Bool = false, hashingProgressParts: Int = 0, displayProgressValue: Double? = nil) {
         self.ecid = ecid
         self.id = id
         self.name = name
@@ -149,6 +152,9 @@ public struct DownloadItem: Identifiable, Hashable {
         self.shared = shared
         self.alternativeNames = alternativeNames
         self.progressColors = progressColors
+        self.isStopped = isStopped
+        self.hashingProgressParts = hashingProgressParts
+        self.displayProgressValue = displayProgressValue
     }
 
     public var meaningfulNameEncodingSuggestion: String? {
@@ -194,8 +200,11 @@ public struct DownloadItem: Identifiable, Hashable {
     }
 
     public var progressDisplayValue: Double {
-        let clamped = max(0, min(progressValue, 100))
-        return floor(clamped * 10.0) / 10.0
+        var clamped = max(0, min(displayProgressValue ?? progressValue, 100))
+        if !isCompletedLike, clamped > 99.9 {
+            clamped = 99.9
+        }
+        return (clamped * 10.0).rounded() / 10.0
     }
 
     public var progressSortValue: Double {
@@ -203,13 +212,7 @@ public struct DownloadItem: Identifiable, Hashable {
     }
 
     public var isCompletedLike: Bool {
-        if isCompleted || statusCode >= 8 {
-            return true
-        }
-        if sizeBytes > 0 && doneBytes >= sizeBytes {
-            return true
-        }
-        return false
+        isCompleted || statusCode == 9
     }
 
     public var speedSortValue: Int {
@@ -227,7 +230,14 @@ public struct DownloadItem: Identifiable, Hashable {
     }
 
     public var sourcesText: String {
-        "\(sourceCurrent)/\(sourceTotal)"
+        var text = sourceCurrent == sourceTotal ? "\(sourceTotal)" : "\(sourceCurrent)/\(sourceTotal)"
+        if sourceA4AF > 0 {
+            text += "+\(sourceA4AF)"
+        }
+        if sourceTransferring > 0 {
+            text += " (\(sourceTransferring))"
+        }
+        return text
     }
 
     public var speedText: String {
@@ -235,7 +245,10 @@ public struct DownloadItem: Identifiable, Hashable {
     }
 
     public var completionText: String {
-        "\(AMuleFormatter.fileSize(doneBytes)) / \(AMuleFormatter.fileSize(sizeBytes))"
+        if isCompletedLike {
+            return AMuleFormatter.fileSize(sizeBytes)
+        }
+        return "\(AMuleFormatter.fileSize(doneBytes)) / \(AMuleFormatter.fileSize(sizeBytes))"
     }
 
     public var transferredText: String {
@@ -298,7 +311,10 @@ public struct DownloadItem: Identifiable, Hashable {
                 alternativeNames: $0.alternativeNames.map {
                     DownloadAlternativeName(name: $0.name, count: $0.count)
                 },
-                progressColors: $0.progressColors
+                progressColors: $0.progressColors,
+                isStopped: $0.isStopped,
+                hashingProgressParts: $0.hashingProgressParts,
+                displayProgressValue: $0.displayProgress
             )
         }
     }

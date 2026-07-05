@@ -3,6 +3,24 @@ import SharedViews
 import SharedModels
 import SharedServices
 
+enum DownloadTableColumnPersistence {
+    static let columnCustomizationDefaultsKey = "AMuleNativeRemote.DownloadsTable.columnCustomization"
+}
+
+struct DownloadTableColumnLayout {
+    let minWidth: CGFloat
+    let idealWidth: CGFloat
+
+    var isResizable: Bool {
+        true
+    }
+
+    static let name = DownloadTableColumnLayout(minWidth: 320, idealWidth: 560)
+    static let progress = DownloadTableColumnLayout(minWidth: 128, idealWidth: 128)
+    static let speed = DownloadTableColumnLayout(minWidth: 52, idealWidth: 64)
+    static let sources = DownloadTableColumnLayout(minWidth: 48, idealWidth: 72)
+}
+
 struct DownloadsPanel: View {
     let displayedDownloads: [DownloadItem]
     @Binding var selectedDownloadIDs: Set<DownloadItem.ID>
@@ -20,8 +38,16 @@ struct DownloadsPanel: View {
     let setPriority: (DownloadItem, String) -> Void
     let isBusy: Bool
 
+    @AppStorage(DownloadTableColumnPersistence.columnCustomizationDefaultsKey)
+    private var columnCustomization = TableColumnCustomization<DownloadItem>()
+
     var body: some View {
-        Table(displayedDownloads, selection: $selectedDownloadIDs, sortOrder: $sortOrder) {
+        Table(
+            displayedDownloads,
+            selection: $selectedDownloadIDs,
+            sortOrder: $sortOrder,
+            columnCustomization: $columnCustomization
+        ) {
             TableColumn("Name", sortUsing: KeyPathComparator(\DownloadItem.name, order: .forward)) { item in
                 downloadTableCell(
                     item,
@@ -59,7 +85,11 @@ struct DownloadsPanel: View {
                 }
                 .contextMenu { downloadContextMenu(item) }
             }
-            .width(min: 320, ideal: 560)
+            .width(
+                min: DownloadTableColumnLayout.name.minWidth,
+                ideal: DownloadTableColumnLayout.name.idealWidth
+            )
+            .customizationID("name")
 
             TableColumn("Progress", sortUsing: KeyPathComparator(\DownloadItem.progressSortValue, order: .reverse)) { item in
                 downloadTableCell(
@@ -75,7 +105,11 @@ struct DownloadsPanel: View {
                 }
                 .contextMenu { downloadContextMenu(item) }
             }
-            .width(128)
+            .width(
+                min: DownloadTableColumnLayout.progress.minWidth,
+                ideal: DownloadTableColumnLayout.progress.idealWidth
+            )
+            .customizationID("progress")
 
             TableColumn("Speed", sortUsing: KeyPathComparator(\DownloadItem.speedSortValue, order: .reverse)) { item in
                 downloadTableCell(
@@ -90,7 +124,11 @@ struct DownloadsPanel: View {
                 }
                 .contextMenu { downloadContextMenu(item) }
             }
-            .width(64)
+            .width(
+                min: DownloadTableColumnLayout.speed.minWidth,
+                ideal: DownloadTableColumnLayout.speed.idealWidth
+            )
+            .customizationID("speed")
 
             TableColumn("Src", sortUsing: KeyPathComparator(\DownloadItem.sourceTotal, order: .reverse)) { item in
                 downloadTableCell(
@@ -105,7 +143,11 @@ struct DownloadsPanel: View {
                 }
                 .contextMenu { downloadContextMenu(item) }
             }
-            .width(48)
+            .width(
+                min: DownloadTableColumnLayout.sources.minWidth,
+                ideal: DownloadTableColumnLayout.sources.idealWidth
+            )
+            .customizationID("sources")
         }
         .padding(.horizontal, 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -199,10 +241,9 @@ struct DownloadsPanel: View {
             .background {
                 if showsProgressBackground {
                     DownloadRowSegmentBackground(
-                        colors: item.progressColors,
-                        fallbackProgress: item.progressDisplayValue / 100.0
+                        colors: item.progressColors
                     )
-                    .opacity(0.20)
+                    .opacity(DownloadProgressVisualStyle.rowBackgroundOpacity)
                 }
             }
     }

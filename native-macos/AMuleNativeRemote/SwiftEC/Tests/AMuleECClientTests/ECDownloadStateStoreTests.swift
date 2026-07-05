@@ -140,6 +140,19 @@ final class ECDownloadStateStoreTests: XCTestCase {
         XCTAssertEqual(store.lifecycle(forECID: 43), .tombstoned)
     }
 
+    func testStaleSnapshotOmissionDoesNotRetainCompletingRowsAsCompleted() throws {
+        var store = ECDownloadStateStore()
+        let completingPacket = ECDownloadPacketFixtures.snapshotPacket(downloads: [
+            try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "finishing.iso", size: 100, done: 100, statusCode: 8),
+        ])
+        store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(completingPacket), sourcePacket: completingPacket)
+
+        store.replaceDownloadSnapshot([])
+
+        XCTAssertEqual(store.downloads, [])
+        XCTAssertEqual(store.lifecycle(forECID: 42), .tombstoned)
+    }
+
     func testIncrementalUpdateOmissionRemovesRowsLikeOriginalRemoteGUI() throws {
         var store = ECDownloadStateStore()
         store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(ECDownloadPacketFixtures.snapshotPacket(downloads: [
@@ -264,6 +277,127 @@ final class ECDownloadStateStoreTests: XCTestCase {
         XCTAssertEqual(store.downloads.first?.statusCode, 3)
     }
 
+    func testSparseProgressStatusUpdateRefreshesExistingProgressColorsWithoutStatusTag() throws {
+        var store = ECDownloadStateStore()
+        let partSize: UInt64 = 9_728_000
+        let fullPacket = ECDownloadPacketFixtures.snapshotPacket(downloads: [
+            try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "active.iso", size: partSize * 2, done: 0, statusCode: 0),
+        ])
+        store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(fullPacket), sourcePacket: fullPacket)
+        XCTAssertEqual(store.downloads.first?.progressColors, [])
+
+        let sparseProgressTag = ECTag.integer(name: 0x0300, value: UInt64(42), children: [
+            ECTag.integer(name: 0x0303, value: partSize * 2),
+            ECTag(name: 0x0313, type: .custom, value: .custom(rleEncodedUInt64s([0, partSize]))),
+            ECTag(name: 0x0314, type: .custom, value: .custom(rleEncodedUInt64s([partSize, partSize * 2]))),
+        ])
+        let sparsePacket = ECDownloadPacketFixtures.incrementalPacket(downloads: [sparseProgressTag])
+        store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(sparsePacket), sourcePacket: sparsePacket)
+
+        let colors = try XCTUnwrap(store.downloads.first?.progressColors)
+        XCTAssertEqual(colors.count, 64)
+        guard colors.count == 64 else { return }
+        XCTAssertEqual(colors[0], Self.packedColor(r: 255, g: 0, b: 0))
+        XCTAssertEqual(colors[32], Self.packedColor(r: 255, g: 208, b: 0))
+        XCTAssertEqual(store.downloads.first?.statusCode, 0)
+        XCTAssertEqual(store.downloads.first?.status, "Waiting")
+    }
+
+    func testApplyIncrementalUpdateMergesProgressStatusLikeOriginalPartFileUpdate() throws {
+        var store = ECDownloadStateStore()
+        let partSize: UInt64 = 9_728_000
+        let fullPacket = ECDownloadPacketFixtures.snapshotPacket(downloads: [
+            try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "active.iso", size: partSize * 2, done: 0, statusCode: 0),
+        ])
+        store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(fullPacket), sourcePacket: fullPacket)
+        XCTAssertEqual(store.downloads.first?.progressColors, [])
+
+        store.applyIncrementalUpdate(ECDownloadPacketFixtures.incrementalPacket(downloads: [
+            ECTag.integer(name: 0x0300, value: UInt64(42), children: [
+                ECTag.integer(name: 0x0303, value: partSize * 2),
+                ECTag(name: 0x0313, type: .custom, value: .custom(rleEncodedUInt64s([0, partSize]))),
+                ECTag(name: 0x0314, type: .custom, value: .custom(rleEncodedUInt64s([partSize, partSize * 2]))),
+            ]),
+        ]))
+
+        let colors = try XCTUnwrap(store.downloads.first?.progressColors)
+        XCTAssertEqual(colors.count, 64)
+        guard colors.count == 64 else { return }
+        XCTAssertEqual(colors[0], Self.packedColor(r: 255, g: 0, b: 0))
+        XCTAssertEqual(colors[32], Self.packedColor(r: 255, g: 208, b: 0))
+    }
+
+    func testIncrementalProgressRLEUsesPreviousPerFileStateLikeOriginalClient() throws {
+        var store = ECDownloadStateStore()
+        let partSize: UInt64 = 9_728_000
+        let fullPacket = ECDownloadPacketFixtures.snapshotPacket(downloads: [
+            ECTag.integer(name: 0x0300, value: UInt64(42), children: [
+                ECTag(name: 0x0301, type: .string, value: .string("active.iso")),
+                ECTag.integer(name: 0x0303, value: partSize * 2),
+                ECTag.integer(name: 0x0306, value: 0),
+                ECTag.integer(name: 0x0308, value: 0),
+                ECTag(name: 0x031E, type: .hash16, value: .hash16(Self.hashData(Self.hash))),
+                ECTag(name: 0x0313, type: .custom, value: .custom(rleEncodedUInt64s([0, partSize]))),
+                ECTag(name: 0x0312, type: .custom, value: .custom(rleEncodedBytes([1, 0]))),
+            ]),
+        ])
+        store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(fullPacket), sourcePacket: fullPacket)
+        XCTAssertEqual(store.downloads.first?.progressColors.first, Self.packedColor(r: 0, g: 210, b: 255))
+
+        store.applyIncrementalUpdate(ECDownloadPacketFixtures.incrementalPacket(downloads: [
+            ECTag.integer(name: 0x0300, value: UInt64(42), children: [
+                ECTag.integer(name: 0x0303, value: partSize * 2),
+                ECTag(name: 0x0312, type: .custom, value: .custom(rleEncodedBytes([1 ^ 2, 0 ^ 0]))),
+            ]),
+        ]))
+
+        let colors = try XCTUnwrap(store.downloads.first?.progressColors)
+        XCTAssertEqual(colors.count, 64)
+        XCTAssertEqual(colors.first, Self.packedColor(r: 0, g: 188, b: 255))
+        XCTAssertEqual(colors[32], Self.packedColor(r: 104, g: 104, b: 104))
+    }
+
+    func testSparsePartFileUpdateMergesScalarFieldsWithoutStatusTag() throws {
+        var store = ECDownloadStateStore()
+        let fullPacket = ECDownloadPacketFixtures.snapshotPacket(downloads: [
+            try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "active.iso", size: 1_000, done: 100, statusCode: 0),
+        ])
+        store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(fullPacket), sourcePacket: fullPacket)
+
+        let sparseScalarTag = ECTag.integer(name: 0x0300, value: UInt64(42), children: [
+            ECTag.integer(name: 0x0303, value: 1_000),
+            ECTag.integer(name: 0x0304, value: 700),
+            ECTag.integer(name: 0x0306, value: 650),
+            ECTag.integer(name: 0x0307, value: 12_345),
+            ECTag.integer(name: 0x030A, value: 9),
+            ECTag.integer(name: 0x030B, value: 2),
+            ECTag.integer(name: 0x030C, value: 4),
+            ECTag.integer(name: 0x030D, value: 3),
+            ECTag.integer(name: 0x030F, value: 4),
+            ECTag.integer(name: 0x0310, value: 111),
+            ECTag.integer(name: 0x0311, value: 222),
+            ECTag.integer(name: 0x031D, value: 12),
+        ])
+        let sparsePacket = ECDownloadPacketFixtures.incrementalPacket(downloads: [sparseScalarTag])
+        store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(sparsePacket), sourcePacket: sparsePacket)
+
+        let download = try XCTUnwrap(store.downloads.first)
+        XCTAssertEqual(download.done, 650)
+        XCTAssertEqual(download.transferred, 700)
+        XCTAssertEqual(download.progress, 65)
+        XCTAssertEqual(download.speed, 12_345)
+        XCTAssertEqual(download.sourcesCurrent, 5)
+        XCTAssertEqual(download.sourcesTotal, 9)
+        XCTAssertEqual(download.sourcesTransferring, 3)
+        XCTAssertEqual(download.sourcesA4AF, 2)
+        XCTAssertEqual(download.statusCode, 0)
+        XCTAssertEqual(download.status, "Downloading")
+        XCTAssertEqual(download.category, 4)
+        XCTAssertEqual(download.lastReceived, 111)
+        XCTAssertEqual(download.lastSeenComplete, 222)
+        XCTAssertEqual(download.availableParts, 12)
+    }
+
     func testPartFileCompleteStatusReconcilesCompletingPartFileToComplete() throws {
         var store = ECDownloadStateStore()
         let completingPacket = ECDownloadPacketFixtures.snapshotPacket(downloads: [
@@ -299,6 +433,32 @@ final class ECDownloadStateStoreTests: XCTestCase {
         XCTAssertEqual(store.lifecycle(forECID: 52), nil)
     }
 
+    func testSparseKnownFileUpdateDoesNotRequestDownloadResync() throws {
+        var store = ECDownloadStateStore()
+        store.replaceDownloadSnapshot([
+            Self.download(ecid: 42, hash: Self.hash, name: "active.iso"),
+        ])
+
+        let knownFileOnlyPacket = ECDownloadPacketFixtures.incrementalPacket(downloads: [
+            ECTag.integer(name: 0x0400, value: 99),
+        ])
+
+        XCTAssertFalse(store.incrementalUpdateNeedsFullResync(knownFileOnlyPacket))
+    }
+
+    func testUnknownSparsePartFileWithoutStatusRequestsFullResync() throws {
+        var store = ECDownloadStateStore()
+        store.replaceDownloadSnapshot([
+            Self.download(ecid: 42, hash: Self.hash, name: "active.iso"),
+        ])
+
+        let sparseUnknownPartFile = ECDownloadPacketFixtures.incrementalPacket(downloads: [
+            try ECDownloadPacketFixtures.sparsePartFile(ecid: 99, hash: Self.otherHash, name: "unknown.iso"),
+        ])
+
+        XCTAssertTrue(store.incrementalUpdateNeedsFullResync(sparseUnknownPartFile))
+    }
+
     func testIncrementalUpdateOmissionRemovesPreviouslyCompletedDownload() throws {
         var store = ECDownloadStateStore()
         store.replaceDownloadSnapshot([Self.download(ecid: 43, hash: Self.hash, name: "done.iso", completed: true)])
@@ -312,16 +472,16 @@ final class ECDownloadStateStoreTests: XCTestCase {
         XCTAssertEqual(store.lifecycle(forECID: 43), .tombstoned)
     }
 
-    func testSharedOnlyAndMalformedLifecycleStatesAreRecorded() throws {
+    func testCompletedPartFileShapeWithNoSourcesUsesCompletedRetainedLifecycle() throws {
         var store = ECDownloadStateStore()
         let packet = ECDownloadPacketFixtures.snapshotPacket(downloads: [
             ECTag(name: 0x0300, type: .string, value: .string("not-an-ecid")),
         ])
 
-        store.replaceDownloadSnapshot([Self.download(ecid: 44, hash: Self.thirdHash, name: "shared.iso", completed: true, sharedOnly: true)], sourcePacket: packet)
+        store.replaceDownloadSnapshot([Self.download(ecid: 44, hash: Self.thirdHash, name: "done-no-sources.iso", completed: true, withoutPartMetAndSources: true)], sourcePacket: packet)
 
         XCTAssertEqual(store.downloads.map(\.ecid), [44])
-        XCTAssertEqual(store.lifecycle(forECID: 44), .sharedOnly)
+        XCTAssertEqual(store.lifecycle(forECID: 44), .completedRetained)
         XCTAssertEqual(store.lifecycle(forECID: 0), .malformedOmission)
     }
 
@@ -329,7 +489,55 @@ final class ECDownloadStateStoreTests: XCTestCase {
     private static let otherHash = "ffeeddccbbaa99887766554433221100"
     private static let thirdHash = "11112222333344445555666677778888"
 
-    private static func download(ecid: Int, hash: String, name: String, completed: Bool = false, sharedOnly: Bool = false) -> ECDownload {
+    private static func packedColor(r: Int, g: Int, b: Int) -> UInt32 {
+        (UInt32(b & 0xff) << 16) | (UInt32(g & 0xff) << 8) | UInt32(r & 0xff)
+    }
+
+    private static func hashData(_ hex: String) -> Data {
+        var data = Data()
+        var index = hex.startIndex
+        while index < hex.endIndex {
+            let next = hex.index(index, offsetBy: 2)
+            data.append(UInt8(hex[index..<next], radix: 16) ?? 0)
+            index = next
+        }
+        return data
+    }
+
+    private func rleEncodedUInt64s(_ values: [UInt64]) -> Data {
+        var bytes = [UInt8](repeating: 0, count: values.count * 8)
+        for (index, value) in values.enumerated() {
+            var remaining = value
+            for byteIndex in 0..<8 {
+                bytes[index + byteIndex * values.count] = UInt8(remaining & 0xff)
+                remaining >>= 8
+            }
+        }
+        return rleEncodedBytes(bytes)
+    }
+
+    private func rleEncodedBytes(_ bytes: [UInt8]) -> Data {
+        var encoded: [UInt8] = []
+        var index = 0
+        while index < bytes.count {
+            let value = bytes[index]
+            var runLength = 1
+            while index + runLength < bytes.count, bytes[index + runLength] == value, runLength < 0xff {
+                runLength += 1
+            }
+            if runLength > 1 {
+                encoded.append(value)
+                encoded.append(value)
+                encoded.append(UInt8(runLength))
+            } else {
+                encoded.append(value)
+            }
+            index += runLength
+        }
+        return Data(encoded)
+    }
+
+    private static func download(ecid: Int, hash: String, name: String, completed: Bool = false, withoutPartMetAndSources: Bool = false) -> ECDownload {
         ECDownload(
             ecid: ecid,
             hash: hash,
@@ -338,8 +546,8 @@ final class ECDownloadStateStoreTests: XCTestCase {
             done: completed ? 100 : 10,
             transferred: completed ? 100 : 10,
             progress: completed ? 100 : 10,
-            sourcesCurrent: sharedOnly ? 0 : 1,
-            sourcesTotal: sharedOnly ? 0 : 1,
+            sourcesCurrent: withoutPartMetAndSources ? 0 : 1,
+            sourcesTotal: withoutPartMetAndSources ? 0 : 1,
             sourcesTransferring: 0,
             sourcesA4AF: 0,
             statusCode: completed ? 9 : 7,
@@ -348,7 +556,7 @@ final class ECDownloadStateStoreTests: XCTestCase {
             speed: 0,
             priority: 0,
             category: 0,
-            partMet: sharedOnly ? "" : "001.part.met",
+            partMet: withoutPartMetAndSources ? "" : "001.part.met",
             lastSeenComplete: 0,
             lastReceived: 0,
             activeSeconds: 0,

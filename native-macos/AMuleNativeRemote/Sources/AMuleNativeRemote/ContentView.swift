@@ -193,6 +193,11 @@ struct ContentView: View {
     private var styledBody: some View {
         baseBody
             .frame(minWidth: 760, minHeight: 420)
+            .background(
+                WindowFrameAutosaveConfigurator(
+                    autosaveName: DownloadsWindowPersistence.frameAutosaveName
+                )
+            )
     }
 
     private var lifecycleBody: some View {

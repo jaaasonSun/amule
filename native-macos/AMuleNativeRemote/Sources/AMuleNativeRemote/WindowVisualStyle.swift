@@ -1,6 +1,12 @@
 import SwiftUI
 import AppKit
 
+enum DownloadsWindowPersistence {
+    static let frameAutosaveName = "AMuleNativeRemote.DownloadsWindow"
+    static let defaultWidth: CGFloat = 1040
+    static let defaultHeight: CGFloat = 620
+}
+
 struct WindowAppearanceConfigurator: NSViewRepresentable {
     var windowTitle: String? = nil
     var toolbarStyle: NSWindow.ToolbarStyle? = nil
@@ -126,6 +132,35 @@ struct WindowAppearanceConfigurator: NSViewRepresentable {
             window.standardWindowButton(.miniaturizeButton)?.isHidden = false
             window.standardWindowButton(.zoomButton)?.isHidden = false
         }
+    }
+}
+
+struct WindowFrameAutosaveConfigurator: NSViewRepresentable {
+    let autosaveName: String
+
+    final class HostView: NSView {
+        var autosaveName: String = ""
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            apply()
+        }
+
+        func apply() {
+            guard let window, !autosaveName.isEmpty else { return }
+            window.setFrameAutosaveName(autosaveName)
+        }
+    }
+
+    func makeNSView(context: Context) -> HostView {
+        let view = HostView(frame: .zero)
+        view.autosaveName = autosaveName
+        return view
+    }
+
+    func updateNSView(_ nsView: HostView, context: Context) {
+        nsView.autosaveName = autosaveName
+        nsView.apply()
     }
 }
 

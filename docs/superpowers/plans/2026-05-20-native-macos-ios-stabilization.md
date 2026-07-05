@@ -4,9 +4,9 @@
 
 **Goal:** Stabilize and improve the native macOS/iOS aMule remote apps without changing the core user-facing product direction.
 
-**Architecture:** Preserve native UI per platform while consolidating bridge contracts, shared presentation logic, and verification gates. Treat SwiftEC as the preferred Apple-platform EC implementation and keep the legacy process bridge isolated behind adapters.
+**Architecture:** Preserve native UI per platform while consolidating shared SwiftEC contracts, shared presentation logic, and verification gates. SwiftEC is the Apple-platform EC implementation.
 
-**Tech Stack:** Swift 6.2/6.3, SwiftUI, AppKit, UIKit, SwiftPM, Xcode, Network.framework, XCTest, CMake for C++ bridge smoke checks.
+**Tech Stack:** Swift 6.2/6.3, SwiftUI, AppKit, UIKit, SwiftPM, Xcode, Network.framework, XCTest.
 
 ---
 

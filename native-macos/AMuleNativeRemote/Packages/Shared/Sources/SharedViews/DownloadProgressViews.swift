@@ -1,35 +1,24 @@
 import SwiftUI
 
+public enum DownloadProgressVisualStyle {
+    public static let segmentOpacity = 0.88
+    public static let rowBackgroundOpacity = 0.26
+}
+
 public struct DownloadSegmentedProgressBar: View {
     let colors: [UInt32]
-    let fallbackProgress: Double
 
-    public init(colors: [UInt32], fallbackProgress: Double) {
+    public init(colors: [UInt32]) {
         self.colors = colors
-        self.fallbackProgress = fallbackProgress
     }
 
     private let outerCornerRadius: CGFloat = 6
     private let innerCornerRadius: CGFloat = 4.5
 
-    private static let fallbackDoneColor = packedColor(r: 104, g: 104, b: 104)
-    private static let fallbackMissingColor = packedColor(r: 255, g: 0, b: 0)
-
-    private var renderedColors: [UInt32] {
-        if !colors.isEmpty {
-            return colors
-        }
-        let segmentCount = 48
-        let safeProgress = max(0, min(fallbackProgress, 1))
-        let doneSegments = Int((safeProgress * Double(segmentCount)).rounded(.down))
-        return (0..<segmentCount).map {
-            $0 < doneSegments ? Self.fallbackDoneColor : Self.fallbackMissingColor
-        }
-    }
-
     public var body: some View {
         Canvas { context, size in
-            let segments = renderedColors
+            let segments = colors
+            guard !segments.isEmpty else { return }
             let count = max(segments.count, 1)
             let height = max(1, size.height)
 
@@ -70,43 +59,23 @@ public struct DownloadSegmentedProgressBar: View {
             red: softenedRed,
             green: softenedGreen,
             blue: softenedBlue,
-            opacity: 0.82
+            opacity: DownloadProgressVisualStyle.segmentOpacity
         )
     }
 
-    private static func packedColor(r: Int, g: Int, b: Int) -> UInt32 {
-        (UInt32(b & 0xff) << 16) | (UInt32(g & 0xff) << 8) | UInt32(r & 0xff)
-    }
 }
 
 public struct DownloadRowSegmentBackground: View {
     let colors: [UInt32]
-    let fallbackProgress: Double
 
-    public init(colors: [UInt32], fallbackProgress: Double) {
+    public init(colors: [UInt32]) {
         self.colors = colors
-        self.fallbackProgress = fallbackProgress
-    }
-
-    private static let fallbackDoneColor = packedColor(r: 104, g: 104, b: 104)
-    private static let fallbackMissingColor = packedColor(r: 255, g: 0, b: 0)
-
-    private var renderedColors: [UInt32] {
-        if !colors.isEmpty {
-            return colors
-        }
-
-        let segmentCount = 64
-        let safeProgress = max(0, min(fallbackProgress, 1))
-        let doneSegments = Int((safeProgress * Double(segmentCount)).rounded(.down))
-        return (0..<segmentCount).map {
-            $0 < doneSegments ? Self.fallbackDoneColor : Self.fallbackMissingColor
-        }
     }
 
     public var body: some View {
         Canvas { context, size in
-            let segments = renderedColors
+            let segments = colors
+            guard !segments.isEmpty else { return }
             let count = max(segments.count, 1)
             let height = max(1, size.height)
 
@@ -135,9 +104,6 @@ public struct DownloadRowSegmentBackground: View {
         return Color(red: softenedRed, green: softenedGreen, blue: softenedBlue)
     }
 
-    private static func packedColor(r: Int, g: Int, b: Int) -> UInt32 {
-        (UInt32(b & 0xff) << 16) | (UInt32(g & 0xff) << 8) | UInt32(r & 0xff)
-    }
 }
 
 #if DEBUG
@@ -146,28 +112,20 @@ import SharedModels
 #Preview("Segmented Progress Bar") {
     VStack(spacing: 16) {
         DownloadSegmentedProgressBar(
-            colors: PreviewFixtures.downloadingDownload.progressColors,
-            fallbackProgress: PreviewFixtures.downloadingDownload.progressValue / 100.0
+            colors: PreviewFixtures.downloadingDownload.progressColors
         )
         DownloadRowSegmentBackground(
-            colors: PreviewFixtures.downloadingDownload.progressColors,
-            fallbackProgress: PreviewFixtures.downloadingDownload.progressValue / 100.0
+            colors: PreviewFixtures.downloadingDownload.progressColors
         )
         .frame(height: 24)
     }
     .padding()
 }
 
-#Preview("Progress Bar - Fallback") {
+#Preview("Progress Bar - Empty Colors") {
     VStack(spacing: 16) {
-        DownloadSegmentedProgressBar(
-            colors: [],
-            fallbackProgress: 0.33
-        )
-        DownloadRowSegmentBackground(
-            colors: [],
-            fallbackProgress: 0.33
-        )
+        DownloadSegmentedProgressBar(colors: [])
+        DownloadRowSegmentBackground(colors: [])
         .frame(height: 24)
     }
     .padding()
@@ -176,12 +134,10 @@ import SharedModels
 #Preview("Progress Bar - Complete") {
     VStack(spacing: 16) {
         DownloadSegmentedProgressBar(
-            colors: PreviewFixtures.completedDownload.progressColors,
-            fallbackProgress: 1.0
+            colors: PreviewFixtures.completedDownload.progressColors
         )
         DownloadRowSegmentBackground(
-            colors: PreviewFixtures.completedDownload.progressColors,
-            fallbackProgress: 1.0
+            colors: PreviewFixtures.completedDownload.progressColors
         )
         .frame(height: 24)
     }

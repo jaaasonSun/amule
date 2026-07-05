@@ -297,8 +297,8 @@ Useful for:
 ### macOS
 
 - Full feature support
-- Can coexist with legacy bridge adapters
-- Feature flag for gradual migration
+- Native SwiftEC app integration
+- Feature flags expose daemon/app capability availability
 
 ### iOS
 

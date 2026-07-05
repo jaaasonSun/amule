@@ -163,8 +163,7 @@ struct DownloadRow: View {
 
                 ZStack(alignment: .trailing) {
                     DownloadRowSegmentBackground(
-                        colors: item.progressColors,
-                        fallbackProgress: item.progressDisplayValue / 100.0
+                        colors: item.progressColors
                     )
                     .opacity(0.36)
 

@@ -23,7 +23,7 @@ Important files:
 - `Sources/AMuleNativeRemote/SecondaryWindows.swift`: search, details, servers, diagnostics, uploads/shared/categories/friends/stats/preferences windows. This file is very large.
 - `Sources/AMuleNativeRemote/MacOSPlatformServices.swift`: pasteboard, deep-link Apple Event handler, credentials, file import/export, lifecycle helpers.
 - `SwiftEC/Sources/AMuleECBridgeAdapter/SwiftECBridgeAdapter.swift`: native Swift EC adapter used by the Apple clients.
-- `Sources/AMuleNativeRemote/BridgeAdapterFactory.swift`: bridge selection/adaptation between legacy CLI bridge and SwiftEC.
+- `Sources/AMuleNativeRemote/BridgeAdapterFactory.swift`: platform factory for the SwiftEC-backed app bridge.
 
 macOS app notes:
 - The packaged app registers `ed2k://` in `scripts/build-app.sh`.

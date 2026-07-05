@@ -2,20 +2,7 @@ import Foundation
 
 public enum DownloadClassification {
     public static func isCompleted(_ item: DownloadClassifiable) -> Bool {
-        if item.isCompleted || item.statusCode >= 8 {
-            return true
-        }
-        if item.sizeBytes > 0 && item.doneBytes >= item.sizeBytes {
-            return true
-        }
-        let lower = item.status.lowercased()
-        if lower.contains("complete") || lower.contains("completed") {
-            return true
-        }
-        if item.status.contains("完成") {
-            return true
-        }
-        return false
+        item.isCompleted || item.statusCode == 9
     }
 
     public static func isPaused(_ item: DownloadClassifiable) -> Bool {
@@ -23,7 +10,7 @@ public enum DownloadClassification {
             return true
         }
         let lower = item.status.lowercased()
-        if lower.contains("paused") || lower.contains("insufficient") {
+        if lower.contains("paused") || lower.contains("insufficient") || lower.contains("stopped") {
             return true
         }
         if item.status.contains("暂停") || item.status.contains("磁盘空间不足") {
@@ -111,7 +98,7 @@ public enum DownloadStatusSymbol {
         if hasAny(lowercase, ["complete", "completed"]) || hasAny(raw, ["完成", "已完成"]) {
             return "checkmark.circle"
         }
-        if hasAny(lowercase, ["paused"]) || hasAny(raw, ["暂停"]) {
+        if hasAny(lowercase, ["paused", "stopped"]) || hasAny(raw, ["暂停"]) {
             return "pause.circle"
         }
         if hasAny(lowercase, ["hashing", "allocat", "completing"]) || hasAny(raw, ["哈希", "分配", "完成中"]) {

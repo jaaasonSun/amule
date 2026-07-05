@@ -13,10 +13,6 @@ Primary protocol authorities:
 - `src/ECSpecialCoreTags.cpp`, `src/libs/ec/cpp/ECSpecialTags.h`: daemon-side model tags for downloads, shared files, clients, servers, search.
 - `src/amule-remote-gui.cpp`, `src/amule-remote-gui.h`: original persistent remote GUI client behavior and delta merging.
 
-Non-authority:
-
-- `src/AMuleECBridge.cpp` is useful historical context only. Do not use it as the gold standard for Swift behavior.
-
 ## Wire Format
 
 Each EC packet on TCP is:

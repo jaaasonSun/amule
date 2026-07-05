@@ -14,6 +14,10 @@ struct AMuleNativeRemoteApp: App {
                 .environmentObject(model)
         }
         .windowStyle(.automatic)
+        .defaultSize(
+            width: DownloadsWindowPersistence.defaultWidth,
+            height: DownloadsWindowPersistence.defaultHeight
+        )
 
         WindowGroup("Search", id: "search-window") {
             SearchWindowView()

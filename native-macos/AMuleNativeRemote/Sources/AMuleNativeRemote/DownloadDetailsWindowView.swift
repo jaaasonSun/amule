@@ -156,8 +156,7 @@ struct DownloadDetailsWindowView: View {
 
                     VStack(alignment: .leading, spacing: 4) {
                         DownloadSegmentedProgressBar(
-                            colors: item.progressColors,
-                            fallbackProgress: item.progressDisplayValue / 100.0
+                            colors: item.progressColors
                         )
                         Text(LF2("Progress: %@", item.progressText))
                             .font(.caption)

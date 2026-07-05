@@ -1,9 +1,9 @@
 import Foundation
 import AMuleECProtocol
 
-/// Golden JSON envelope examples matching `src/AMuleECBridge.cpp`, `AMuleECBridgeCore.cpp`,
-/// and `AMuleECBridgeJson.h` output patterns. These are daemon-free fixtures; values are
-/// representative but field names/order follow the C++ stream output.
+/// Golden JSON envelope examples for SwiftEC's native bridge-adapter contract.
+/// These are daemon-free fixtures; values are representative but field names
+/// follow the JSON envelope consumed by the Apple apps.
 public enum ECJsonEnvelopeFixtures {
     public static let messageByOperation: [String: String] = [
         "pause": "{\"ok\":true,\"message\":\"Action completed\"}",

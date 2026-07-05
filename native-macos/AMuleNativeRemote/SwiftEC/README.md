@@ -282,7 +282,7 @@ No third-party dependencies are used.
 
 - Minimum deployment: macOS 27
 - Optimal for native macOS aMule remote applications
-- Can replace process-based bridge adapters
+- Native app integration without external bridge binaries
 
 ### iOS
 

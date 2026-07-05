@@ -16,11 +16,16 @@ SwiftEC implements a three-layer architecture:
 2. **AMuleECClient**: Session management, Network.framework transport, operation builders, response parsing
 3. **AMuleECBridgeAdapter**: BridgeProtocol conformance, JSON envelope generation, platform integration
 
-All 23 canonical EC operations are fully implemented and tested.
+The native SwiftEC operation surface is defined in `ECSupportedOps` and covered by tests.
 
 ## Canonical V1 Operation Surface
 
-Based on `src/AMuleECBridgeCore.cpp::SupportedOps()`, the Swift EC bridge implements exactly these 23 operations:
+The Swift EC bridge operation surface is owned by
+`Sources/AMuleECProtocol/ECSupportedOps.swift`. Keep that source and
+`ECSupportedOpsTests` as the canonical list instead of duplicating operation
+membership in older bridge-specific code or documents.
+
+The table below summarizes common operations; it is not the authoritative list.
 
 | # | Operation | Handler | Category | Status | Swift Method |
 |---|-----------|---------|----------|--------|--------------|
@@ -45,9 +50,9 @@ Based on `src/AMuleECBridgeCore.cpp::SupportedOps()`, the Swift EC bridge implem
 | 19 | `prefs-connection-set` | ECOperations.prefsConnectionSet() | Prefs | ✅ Complete | `prefsConnectionSet(maxDownload:maxUpload:)` |
 
 **Notes:**
-- All 23 operations are fully implemented in SwiftEC
-- BridgeProtocol exposes all operations uniformly
-- Platform-specific feature flags control availability in apps
+- Supported operation names are advertised by SwiftEC capabilities.
+- BridgeProtocol exposes supported operations uniformly.
+- Platform-specific feature flags control availability in apps.
 
 ## Protocol Compatibility
 
@@ -359,7 +364,7 @@ Test fixtures in `Tests/Fixtures/`:
 
 1. **Unit tests**: Codec, auth, compression (offline, always run)
 2. **Integration tests**: Real daemon connection (env-gated)
-3. **Parity tests**: Swift vs C++ bridge output comparison
+3. **Adapter contract tests**: SwiftEC JSON envelope and app-facing bridge behavior
 
 ### Running Tests
 
@@ -473,9 +478,8 @@ ECOperationError         - Operation validation errors
 
 ## References
 
-- C++ canonical operations: `src/AMuleECBridgeCore.cpp:141`
-- macOS BridgeProtocol: `Sources/AMuleNativeRemote/BridgeProtocol.swift`
-- iOS BridgeProtocol: `iOS/SharedSources/BridgeProtocol.swift`
+- Native operation surface: `Sources/AMuleECProtocol/ECSupportedOps.swift`
+- Swift adapter protocol: `Sources/AMuleECBridgeAdapter/SwiftECBridgeAdapter.swift`
 - EC protocol headers: `src/libs/ec/cpp/ECSocket.h`, `ECPacket.h`, `ECTag.h`
 - Apple Network.framework: TN3151
 

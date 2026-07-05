@@ -20,7 +20,7 @@
 		B20000010000000000000011 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000011 /* AppModel.swift */; };
 		B20000010000000000000012 /* BridgeAdapterFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000012 /* BridgeAdapterFactory.swift */; };
 		B20000010000000000000013 /* CategoriesWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000013 /* CategoriesWindowView.swift */; };
-		B20000010000000000000014 /* CommandOutputParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000014 /* CommandOutputParser.swift */; };
+		B20000010000000000000014 /* BridgeEnvelopeSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000014 /* BridgeEnvelopeSupport.swift */; };
 		B20000010000000000000015 /* ConnectionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000015 /* ConnectionSheet.swift */; };
 		B20000010000000000000016 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000016 /* ContentView.swift */; };
 		B20000010000000000000017 /* DiagnosticsWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000017 /* DiagnosticsWindowView.swift */; };
@@ -94,7 +94,7 @@
 		B20000000000000000000011 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		B20000000000000000000012 /* BridgeAdapterFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeAdapterFactory.swift; sourceTree = "<group>"; };
 		B20000000000000000000013 /* CategoriesWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoriesWindowView.swift; sourceTree = "<group>"; };
-		B20000000000000000000014 /* CommandOutputParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandOutputParser.swift; sourceTree = "<group>"; };
+		B20000000000000000000014 /* BridgeEnvelopeSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeEnvelopeSupport.swift; sourceTree = "<group>"; };
 		B20000000000000000000015 /* ConnectionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionSheet.swift; sourceTree = "<group>"; };
 		B20000000000000000000016 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B20000000000000000000017 /* DiagnosticsWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsWindowView.swift; sourceTree = "<group>"; };
@@ -193,7 +193,7 @@
 				B20000000000000000000011 /* AppModel.swift */,
 				B20000000000000000000012 /* BridgeAdapterFactory.swift */,
 				B20000000000000000000013 /* CategoriesWindowView.swift */,
-				B20000000000000000000014 /* CommandOutputParser.swift */,
+				B20000000000000000000014 /* BridgeEnvelopeSupport.swift */,
 				B20000000000000000000015 /* ConnectionSheet.swift */,
 				B20000000000000000000016 /* ContentView.swift */,
 				B20000000000000000000017 /* DiagnosticsWindowView.swift */,
@@ -384,7 +384,7 @@
 				B20000010000000000000011 /* AppModel.swift in Sources */,
 				B20000010000000000000012 /* BridgeAdapterFactory.swift in Sources */,
 				B20000010000000000000013 /* CategoriesWindowView.swift in Sources */,
-				B20000010000000000000014 /* CommandOutputParser.swift in Sources */,
+				B20000010000000000000014 /* BridgeEnvelopeSupport.swift in Sources */,
 				B20000010000000000000015 /* ConnectionSheet.swift in Sources */,
 				B20000010000000000000016 /* ContentView.swift in Sources */,
 				B20000010000000000000017 /* DiagnosticsWindowView.swift in Sources */,

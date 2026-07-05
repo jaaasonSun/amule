@@ -1,6 +1,6 @@
 /// Canonical V1 operation names for the aMule External Connections protocol.
 ///
-/// Based on `src/AMuleECBridgeCore.cpp::SupportedOps()`.
+/// This is the SwiftEC-owned operation surface used by the native Apple apps.
 public struct ECSupportedOps {
     /// Reports supported protocol capabilities.
     public static let capabilities = "capabilities"

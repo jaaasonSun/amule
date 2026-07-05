@@ -3,7 +3,7 @@ import XCTest
 @testable import AMuleECProtocol
 
 final class ECSupportedOpsTests: XCTestCase {
-    /// Verifies Swift allOperations matches C++ SupportedOps() exactly.
+    /// Verifies Swift allOperations matches the native V1 operation surface exactly.
     func testAllOperationsMatchCanonicalFixture() {
         let expected = [
             "capabilities",

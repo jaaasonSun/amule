@@ -46,10 +46,12 @@ public enum ECResponseParser {
         public static let partFileGapStatus: UInt16 = 0x0313
         public static let partFileRequestStatus: UInt16 = 0x0314
         public static let partFileSourceNames: UInt16 = 0x0315
+        public static let partFileStopped: UInt16 = 0x0317
         public static let partFileSourceNameCounts: UInt16 = 0x031C
         public static let partFileAvailableParts: UInt16 = 0x031D
         public static let partFileHash: UInt16 = 0x031E
         public static let partFileShared: UInt16 = 0x031F
+        public static let partFileHashedPartCount: UInt16 = 0x0320
         public static let knownFile: UInt16 = 0x0400
         public static let knownFileXferred: UInt16 = 0x0401
         public static let knownFileXferredAll: UInt16 = 0x0402
@@ -480,37 +482,61 @@ public enum ECResponseParser {
         let name = tag.child(named: TagName.partFileName)?.stringValue ?? ""
         let size = tag.child(named: TagName.partFileSizeFull)?.uintValue ?? 0
         let hasStatus = tag.child(named: TagName.partFileStatus) != nil
-        let statusCode = tag.child(named: TagName.partFileStatus)?.intValue ?? 9
-        let done = tag.child(named: TagName.partFileSizeDone)?.uintValue ?? (hasStatus ? 0 : size)
+        let statusCode = tag.child(named: TagName.partFileStatus)?.intValue ?? 0
+        let done = tag.child(named: TagName.partFileSizeDone)?.uintValue ?? 0
         let sourceTotal = tag.child(named: TagName.partFileSourceCount)?.intValue ?? 0
         let sourceNotCurrent = tag.child(named: TagName.partFileSourceCountNotCurrent)?.intValue ?? 0
+        let sourcesTransferring = tag.child(named: TagName.partFileSourceCountTransfer)?.intValue ?? 0
+        let isStopped = (tag.child(named: TagName.partFileStopped)?.intValue ?? 0) != 0
+        let hashingProgressParts = tag.child(named: TagName.partFileHashedPartCount)?.intValue ?? 0
+        let displayProgress = hashingProgressParts > 0
+            ? progressPercent(done: UInt64(hashingProgressParts) * partSize, size: size, isCompleted: statusCode == 9)
+            : nil
         return ECDownload(
             ecid: tag.intValue,
             hash: tag.child(named: TagName.partFileHash)?.hashStringValue ?? tag.hashStringValue,
             name: name,
             size: size,
             done: done,
-            transferred: tag.child(named: TagName.partFileSizeTransfer)?.uintValue ?? (hasStatus ? 0 : size),
+            transferred: tag.child(named: TagName.partFileSizeTransfer)?.uintValue ?? 0,
             progress: size > 0 ? 100.0 * Double(done) / Double(size) : 0,
-            sourcesCurrent: hasStatus ? sourceTotal - sourceNotCurrent : 0,
-            sourcesTotal: hasStatus ? sourceTotal : 0,
-            sourcesTransferring: hasStatus ? (tag.child(named: TagName.partFileSourceCountTransfer)?.intValue ?? 0) : 0,
-            sourcesA4AF: hasStatus ? (tag.child(named: TagName.partFileSourceCountA4AF)?.intValue ?? 0) : 0,
+            sourcesCurrent: sourceTotal - sourceNotCurrent,
+            sourcesTotal: sourceTotal,
+            sourcesTransferring: sourcesTransferring,
+            sourcesA4AF: tag.child(named: TagName.partFileSourceCountA4AF)?.intValue ?? 0,
             statusCode: statusCode,
-            isCompleted: statusCode >= 8,
-            status: partFileStatusText(statusCode, sourcesTransferring: hasStatus ? (tag.child(named: TagName.partFileSourceCountTransfer)?.intValue ?? 0) : 0),
-            speed: hasStatus ? (tag.child(named: TagName.partFileSpeed)?.intValue ?? 0) : 0,
-            priority: hasStatus ? (tag.child(named: TagName.partFilePriority)?.intValue ?? 0) : 0,
-            category: hasStatus ? (tag.child(named: TagName.partFileCategory)?.intValue ?? 0) : 0,
-            partMet: hasStatus ? (tag.child(named: TagName.partFilePartMetID)?.stringValue ?? "") : "",
-            lastSeenComplete: hasStatus ? (tag.child(named: TagName.partFileLastSeenComplete)?.uintValue ?? 0) : 0,
-            lastReceived: hasStatus ? (tag.child(named: TagName.partFileLastReceived)?.uintValue ?? 0) : 0,
+            isCompleted: statusCode == 9,
+            status: partFileStatusText(statusCode, sourcesTransferring: sourcesTransferring, isStopped: isStopped),
+            speed: tag.child(named: TagName.partFileSpeed)?.intValue ?? 0,
+            priority: tag.child(named: TagName.partFilePriority)?.intValue ?? 0,
+            category: tag.child(named: TagName.partFileCategory)?.intValue ?? 0,
+            partMet: tag.child(named: TagName.partFilePartMetID)?.stringValue ?? "",
+            lastSeenComplete: tag.child(named: TagName.partFileLastSeenComplete)?.uintValue ?? 0,
+            lastReceived: tag.child(named: TagName.partFileLastReceived)?.uintValue ?? 0,
             activeSeconds: 0,
-            availableParts: hasStatus ? (tag.child(named: TagName.partFileAvailableParts)?.intValue ?? 0) : 0,
-            shared: hasStatus ? ((tag.child(named: TagName.partFileShared)?.intValue ?? 0) != 0) : false,
+            availableParts: tag.child(named: TagName.partFileAvailableParts)?.intValue ?? 0,
+            shared: (tag.child(named: TagName.partFileShared)?.intValue ?? 0) != 0,
             alternativeNames: parseAlternativeNames(in: tag, currentName: name),
-            progressColors: hasStatus ? buildProgressSegments(from: tag, fileSize: size) : []
+            progressColors: hasStatus || hasProgressStatusTags(tag) ? buildProgressSegments(from: tag, fileSize: size, statusCode: statusCode, isStopped: isStopped, hashingProgressParts: hashingProgressParts) : [],
+            isStopped: isStopped,
+            hashingProgressParts: hashingProgressParts,
+            displayProgress: displayProgress
         )
+    }
+
+    private static func progressPercent(done: UInt64, size: UInt64, isCompleted: Bool) -> Double {
+        guard size > 0 else { return 0 }
+        if isCompleted { return 100 }
+        let percent = 100.0 * Double(done) / Double(size)
+        return percent > 99.9 ? 99.9 : percent
+    }
+
+    private static func hasProgressStatusTags(_ tag: ECTag) -> Bool {
+        tag.child(named: TagName.partFileGapStatus) != nil ||
+            tag.child(named: TagName.partFilePartStatus) != nil ||
+            tag.child(named: TagName.partFileRequestStatus) != nil ||
+            tag.child(named: TagName.partFileStopped) != nil ||
+            tag.child(named: TagName.partFileHashedPartCount) != nil
     }
 
     private static func parseAlternativeNames(in tag: ECTag, currentName: String) -> [ECDownload.AlternativeName] {
@@ -530,15 +556,34 @@ public enum ECResponseParser {
         }.prefix(12))
     }
 
-    private static func buildProgressSegments(from tag: ECTag, fileSize: UInt64) -> [UInt32] {
+    private static func buildProgressSegments(from tag: ECTag, fileSize: UInt64, statusCode: Int, isStopped: Bool, hashingProgressParts: Int) -> [UInt32] {
+        let segmentCount = 64
+        let progressColor = packedColor(r: 0, g: 224, b: 0)
+        let downloadedColor = packedColor(r: 104, g: 104, b: 104)
+        let requestedColor = isStopped ? blendColor(r: 255, g: 208, b: 0, percentage: 50) : packedColor(r: 255, g: 208, b: 0)
+        if statusCode == 8 || statusCode == 9 {
+            return Array(repeating: progressColor, count: segmentCount)
+        }
+
+        if hashingProgressParts > 0 {
+            guard fileSize > 0 else { return Array(repeating: progressColor, count: segmentCount) }
+            let hashedEnd = min(UInt64(hashingProgressParts) * partSize, fileSize - 1)
+            return rasterizedProgressRanges(
+                [
+                    ColoredProgressRange(start: 0, end: hashedEnd, color: progressColor),
+                    ColoredProgressRange(start: min(hashedEnd + 1, fileSize - 1), end: fileSize - 1, color: requestedColor),
+                ],
+                fileSize: fileSize,
+                segmentCount: segmentCount,
+                defaultColor: requestedColor
+            )
+        }
+
         let gaps = decodeUInt64RLE(tag.child(named: TagName.partFileGapStatus)?.customData)
         let partInfo = decodeByteRLE(tag.child(named: TagName.partFilePartStatus)?.customData)
         let requests = decodeUInt64RLE(tag.child(named: TagName.partFileRequestStatus)?.customData)
         guard !gaps.isEmpty || !partInfo.isEmpty || !requests.isEmpty else { return [] }
 
-        let segmentCount = 64
-        let downloadedColor = packedColor(r: 104, g: 104, b: 104)
-        let requestedColor = packedColor(r: 255, g: 208, b: 0)
         var colorLine = Array(repeating: downloadedColor, count: segmentCount)
         guard fileSize > 0 else { return colorLine }
 
@@ -557,6 +602,9 @@ public enum ECResponseParser {
                 if part < partInfo.count, partInfo[part] > 0 {
                     let green = max(0, 210 - (22 * (Int(partInfo[part]) - 1)))
                     color = packedColor(r: 0, g: green, b: 255)
+                }
+                if isStopped {
+                    color = blendPackedColor(color, percentage: 50)
                 }
 
                 let partStart = UInt64(part) * partSize
@@ -613,6 +661,33 @@ public enum ECResponseParser {
 
         paint(gapRanges)
         paint(requestRanges)
+        return colorLine
+    }
+
+    private static func rasterizedProgressRanges(_ ranges: [ColoredProgressRange], fileSize: UInt64, segmentCount: Int, defaultColor: UInt32) -> [UInt32] {
+        var colorLine = Array(repeating: defaultColor, count: segmentCount)
+        guard fileSize >= UInt64(segmentCount) else {
+            if let first = ranges.first {
+                return Array(repeating: first.color, count: segmentCount)
+            }
+            return colorLine
+        }
+        let factor = fileSize / UInt64(segmentCount)
+        guard factor > 0 else { return colorLine }
+        for range in ranges where range.end >= range.start {
+            var start = Int(range.start / factor)
+            var end = Int(range.end / factor)
+            guard start < segmentCount else { continue }
+            start = max(0, start)
+            end = min(segmentCount, end)
+            if end <= start {
+                end = min(segmentCount, start + 1)
+            }
+            guard end > start else { continue }
+            for position in start..<end {
+                colorLine[position] = range.color
+            }
+        }
         return colorLine
     }
 
@@ -696,12 +771,12 @@ public enum ECResponseParser {
         return port > 0 ? "\(ip):\(port)" : ip
     }
 
-    private static func partFileStatusText(_ status: Int, sourcesTransferring: Int) -> String {
+    private static func partFileStatusText(_ status: Int, sourcesTransferring: Int, isStopped: Bool = false) -> String {
+        if isStopped, status != 9 { return "Stopped" }
         switch status {
         case 0, 1:
             return sourcesTransferring > 0 ? "Downloading" : "Waiting"
-        case 2: return "Waiting for hash"
-        case 3: return "Hashing"
+        case 2, 3: return "Hashing"
         case 4: return "Erroneous"
         case 5: return "Insufficient disk space"
         case 6: return "Unknown"
@@ -738,6 +813,21 @@ public enum ECResponseParser {
         case 4: return "No needed parts"
         default: return String(code)
         }
+    }
+
+    private static func blendPackedColor(_ color: UInt32, percentage: Int) -> UInt32 {
+        let red = Int(color & 0xff)
+        let green = Int((color >> 8) & 0xff)
+        let blue = Int((color >> 16) & 0xff)
+        return blendColor(r: red, g: green, b: blue, percentage: percentage)
+    }
+
+    private static func blendColor(r: Int, g: Int, b: Int, percentage: Int) -> UInt32 {
+        packedColor(
+            r: min(255, (r * percentage) / 100),
+            g: min(255, (g * percentage) / 100),
+            b: min(255, (b * percentage) / 100)
+        )
     }
 }
 

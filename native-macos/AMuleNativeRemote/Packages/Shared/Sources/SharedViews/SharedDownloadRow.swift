@@ -69,8 +69,7 @@ public struct DownloadRowContent: View {
             }
 
             DownloadSegmentedProgressBar(
-                colors: progressColors,
-                fallbackProgress: progressDisplayValue / 100.0
+                colors: progressColors
             )
 
             HStack(spacing: 12) {

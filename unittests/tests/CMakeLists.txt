@@ -209,33 +209,3 @@ target_include_directories (TextFileTest
 target_link_libraries (TextFileTest
 	muleunit
 )
-
-add_executable (AMuleECBridgeJsonTest
-	AMuleECBridgeJsonTest.cpp
-)
-
-add_test (NAME AMuleECBridgeJsonTest
-	COMMAND AMuleECBridgeJsonTest
-)
-
-target_include_directories (AMuleECBridgeJsonTest
-	PRIVATE ${CMAKE_SOURCE_DIR}/src
-)
-
-target_link_libraries (AMuleECBridgeJsonTest
-	muleunit
-)
-
-add_executable (AMuleECBridgeCoreTest
-	AMuleECBridgeCoreTest.cpp
-	${CMAKE_SOURCE_DIR}/src/AMuleECBridgeCore.cpp
-)
-
-add_test (NAME AMuleECBridgeCoreTest
-	COMMAND AMuleECBridgeCoreTest
-)
-
-target_include_directories (AMuleECBridgeCoreTest
-	PRIVATE ${CMAKE_BINARY_DIR}
-	PRIVATE ${CMAKE_SOURCE_DIR}/src
-)
