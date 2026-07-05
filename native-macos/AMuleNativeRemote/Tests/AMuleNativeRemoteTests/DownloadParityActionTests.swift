@@ -12,7 +12,11 @@ final class DownloadParityActionTests: XCTestCase {
         let item = DownloadItem.fixture(hash: "00112233445566778899aabbccddeeff")
 
         model.stopDownload(item)
-        try await Task.sleep(nanoseconds: 50_000_000)
+        await waitForAction(in: model, description: "stop download refreshes") {
+            bridge.invokedOperations.contains("download-stop") &&
+                bridge.invokedOperations.contains("downloads") &&
+                bridge.invokedOperations.contains("status")
+        }
 
         let operations = bridge.invokedOperations
         let stopIndex = try XCTUnwrap(operations.firstIndex(of: "download-stop"))
@@ -29,7 +33,9 @@ final class DownloadParityActionTests: XCTestCase {
         let item = DownloadItem.fixture(hash: "00112233445566778899aabbccddeeff")
 
         model.setDownloadCategory(item, categoryID: 7)
-        try await Task.sleep(nanoseconds: 50_000_000)
+        await waitForAction(in: model, description: "download category assignment") {
+            bridge.lastDownloadCategoryID == 7
+        }
 
         XCTAssertEqual(bridge.lastDownloadCategoryID, 7)
     }
@@ -41,12 +47,54 @@ final class DownloadParityActionTests: XCTestCase {
         let item = DownloadItem.fixture(hash: "00112233445566778899aabbccddeeff")
 
         model.swapA4AF(item, mode: .toThisAuto)
-        try await Task.sleep(nanoseconds: 50_000_000)
+        await waitForAction(in: model, description: "A4AF swap") {
+            bridge.invokedOperations.contains("download-a4af") &&
+                bridge.lastA4AFMode == .toThisAuto
+        }
 
         XCTAssertTrue(bridge.invokedOperations.contains("download-a4af"))
         guard case .toThisAuto? = bridge.lastA4AFMode else {
             return XCTFail("Expected A4AF auto swap mode")
         }
+    }
+
+    func testDownloadsLifecyclePreloadsCategoriesAfterCapabilities() throws {
+        let source = try readPackageFile("Sources/AMuleNativeRemote/ContentView.swift")
+        let capabilitiesRange = try XCTUnwrap(source.range(of: "await model.refreshBridgeCapabilities(logOutput: false, suppressErrors: true)"))
+        let categoriesSupportRange = try XCTUnwrap(source.range(of: "if model.isBridgeOpSupported(\"categories\")"))
+        let categoriesRefreshRange = try XCTUnwrap(source.range(of: "try? await model.refreshCategoriesNow(logOutput: false, suppressErrors: true)"))
+
+        XCTAssertLessThan(capabilitiesRange.lowerBound, categoriesSupportRange.lowerBound)
+        XCTAssertLessThan(categoriesSupportRange.lowerBound, categoriesRefreshRange.lowerBound)
+    }
+
+    private func waitForAction(
+        in model: AppModel,
+        description: String,
+        until predicate: () -> Bool
+    ) async {
+        for _ in 0..<200 {
+            if !model.isBusy, predicate() {
+                return
+            }
+            await Task.yield()
+        }
+
+        XCTFail("Timed out waiting for \(description)")
+    }
+
+    private func readPackageFile(_ relativePath: String) throws -> String {
+        var url = URL(fileURLWithPath: #filePath)
+        while url.lastPathComponent != "AMuleNativeRemote" {
+            let parent = url.deletingLastPathComponent()
+            if parent.path == url.path {
+                XCTFail("Could not locate AMuleNativeRemote package root from \(#filePath)")
+                return ""
+            }
+            url = parent
+        }
+
+        return try String(contentsOf: url.appendingPathComponent(relativePath), encoding: .utf8)
     }
 }
 
