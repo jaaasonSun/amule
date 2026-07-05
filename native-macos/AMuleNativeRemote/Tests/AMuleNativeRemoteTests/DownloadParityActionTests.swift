@@ -14,7 +14,12 @@ final class DownloadParityActionTests: XCTestCase {
         model.stopDownload(item)
         try await Task.sleep(nanoseconds: 50_000_000)
 
-        XCTAssertTrue(bridge.invokedOperations.contains("download-stop"))
+        let operations = bridge.invokedOperations
+        let stopIndex = try XCTUnwrap(operations.firstIndex(of: "download-stop"))
+        let downloadsIndex = try XCTUnwrap(operations.firstIndex(of: "downloads"))
+        let statusIndex = try XCTUnwrap(operations.firstIndex(of: "status"))
+        XCTAssertLessThan(stopIndex, downloadsIndex)
+        XCTAssertLessThan(downloadsIndex, statusIndex)
     }
 
     func testAssignDownloadCategoryUsesSelectedCategoryID() async throws {

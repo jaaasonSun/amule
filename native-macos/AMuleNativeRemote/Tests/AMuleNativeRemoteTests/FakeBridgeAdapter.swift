@@ -68,8 +68,14 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
     func connect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func disconnect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func capabilities(config: AMuleConnectionConfig) async throws -> (schemaVersion: Int?, capabilities: BridgeCapabilitiesPayload, raw: String) { capabilitiesResult }
-    func status(config: AMuleConnectionConfig) async throws -> (BridgeStatusPayload, String) { statusResult }
-    func downloads(config: AMuleConnectionConfig) async throws -> ([BridgeDownloadPayload], String) { downloadsResult }
+    func status(config: AMuleConnectionConfig) async throws -> (BridgeStatusPayload, String) {
+        invokedOperations.append("status")
+        return statusResult
+    }
+    func downloads(config: AMuleConnectionConfig) async throws -> ([BridgeDownloadPayload], String) {
+        invokedOperations.append("downloads")
+        return downloadsResult
+    }
     func search(scope: String, query: String, polls: Int, pollIntervalMs: Int, config: AMuleConnectionConfig) async throws -> (progress: Int, results: [BridgeSearchPayload], raw: String) { searchResult }
     func searchStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func download(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
