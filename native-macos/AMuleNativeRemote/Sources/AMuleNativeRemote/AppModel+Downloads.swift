@@ -1,5 +1,6 @@
 import Foundation
 import SharedViews
+import AMuleECClient
 import AMuleECBridgeAdapter
 import SharedModels
 import SharedServices
@@ -82,6 +83,37 @@ extension AppModel {
     func resumeDownloads(_ items: [DownloadItem]) {
         run(label: "resume") {
             try await self.runDownloadActions(.resume, items)
+        }
+    }
+
+    func stopDownload(_ item: DownloadItem) {
+        run(label: "download-stop") {
+            let (_, raw) = try await self.bridge.stop(hash: item.id, config: self.config)
+            await MainActor.run {
+                self.appendLog("$ download-stop \(item.id)\n\(raw)")
+            }
+            try await self.refreshDownloadsNow(logOutput: false)
+            await self.refreshStatus(logOutput: false)
+        }
+    }
+
+    func swapA4AF(_ item: DownloadItem, mode: ECOperations.A4AFSwapMode) {
+        run(label: "download-a4af") {
+            let (_, raw) = try await self.bridge.swapA4AF(hash: item.id, mode: mode, config: self.config)
+            await MainActor.run {
+                self.appendLog("$ download-a4af \(item.id)\n\(raw)")
+            }
+            try await self.refreshDownloadsNow(logOutput: false)
+        }
+    }
+
+    func setDownloadCategory(_ item: DownloadItem, categoryID: Int) {
+        run(label: "download-set-category") {
+            let (_, raw) = try await self.bridge.downloadSetCategory(hash: item.id, categoryID: categoryID, config: self.config)
+            await MainActor.run {
+                self.appendLog("$ download-set-category \(item.id) \(categoryID)\n\(raw)")
+            }
+            try await self.refreshDownloadsNow(logOutput: false)
         }
     }
 

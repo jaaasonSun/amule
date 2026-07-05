@@ -14,6 +14,27 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
     var searchResult: (progress: Int, results: [BridgeSearchPayload], raw: String) = (0, [], #"{"ok":true,"progress":0,"results":[]}"#)
     var messageRaw: String = #"{"ok":true,"message":"ok"}"#
     var renameResult: RenameAcknowledgement = .success(message: "ok", raw: #"{"ok":true,"message":"ok"}"#)
+    var invokedOperations: [String] = []
+    var lastDownloadCategoryID: Int?
+    var lastA4AFMode: ECOperations.A4AFSwapMode?
+
+    var capabilityOps: Set<String> {
+        get { Set(capabilitiesResult.capabilities.ops) }
+        set {
+            let capabilities = capabilitiesResult.capabilities
+            capabilitiesResult = (
+                capabilitiesResult.schemaVersion,
+                BridgeCapabilitiesPayload(
+                    bridgeVersion: capabilities.bridgeVersion,
+                    clientName: capabilities.clientName,
+                    defaultHost: capabilities.defaultHost,
+                    defaultPort: capabilities.defaultPort,
+                    ops: newValue.sorted()
+                ),
+                capabilitiesResult.raw
+            )
+        }
+    }
 
     init(
         capabilitiesResult: (schemaVersion: Int?, capabilities: BridgeCapabilitiesPayload, raw: String)? = nil,
@@ -56,9 +77,20 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
     func rename(hash: String, name: String, config: AMuleConnectionConfig) async throws -> RenameAcknowledgement { renameResult }
     func pause(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func resume(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
-    func stop(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
-    func swapA4AF(hash: String, mode: ECOperations.A4AFSwapMode, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
-    func downloadSetCategory(hash: String, categoryID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func stop(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        invokedOperations.append("download-stop")
+        return ("ok", messageRaw)
+    }
+    func swapA4AF(hash: String, mode: ECOperations.A4AFSwapMode, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        invokedOperations.append("download-a4af")
+        lastA4AFMode = mode
+        return ("ok", messageRaw)
+    }
+    func downloadSetCategory(hash: String, categoryID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        invokedOperations.append("download-set-category")
+        lastDownloadCategoryID = categoryID
+        return ("ok", messageRaw)
+    }
     func cancel(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func servers(config: AMuleConnectionConfig) async throws -> ([BridgeServerPayload], String) { ([], #"{"ok":true,"servers":[]}"#) }
     func serverConnect(ip: String?, port: Int?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }

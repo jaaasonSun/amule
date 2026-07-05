@@ -253,6 +253,29 @@ struct DownloadDetailsWindowView: View {
                                 ProgressView()
                                     .controlSize(.small)
                             }
+                            Menu("A4AF") {
+                                Button("Swap to this file") {
+                                    model.swapA4AF(item, mode: .toThis)
+                                }
+                                .disabled(!model.isBridgeOpSupported("download-a4af-this"))
+                                Button("Swap to this file automatically") {
+                                    model.swapA4AF(item, mode: .toThisAuto)
+                                }
+                                .disabled(!model.isBridgeOpSupported("download-a4af-auto"))
+                                Button("Swap to another file") {
+                                    model.swapA4AF(item, mode: .toAnyOther)
+                                }
+                                .disabled(!model.isBridgeOpSupported("download-a4af-others"))
+                            }
+                            .disabled(
+                                model.isBusy ||
+                                item.sourceA4AF == 0 ||
+                                (
+                                    !model.isBridgeOpSupported("download-a4af-this") &&
+                                    !model.isBridgeOpSupported("download-a4af-auto") &&
+                                    !model.isBridgeOpSupported("download-a4af-others")
+                                )
+                            )
                             Button("Refresh") {
                                 model.refreshDownloadSources(for: item)
                             }
