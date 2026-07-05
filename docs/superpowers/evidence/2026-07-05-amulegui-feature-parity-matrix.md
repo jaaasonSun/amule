@@ -13,3 +13,5 @@ Baseline: upstream `amulegui` / `CLIENT_GUI`.
 | Logs | `src/amule-remote-gui.cpp` | core/server log read and reset | log/debug-log/server-info/reset-log/clear-server-info | Diagnostics/Server Logs | partial |
 | Friends | `src/FriendListCtrl.cpp` | add/remove/message/details/friend slot/shared list | friends/friend-add/friend-remove/friend-slot/friend-message | Friends/Messages windows | partial |
 | Preferences | `src/amule-remote-gui.h` | remote preference load/apply | prefs-* | Preferences window | partial |
+
+Task 2 RED evidence: the packet-builder tests were run before the builders existed and failed to compile on missing `ECOperations` builder members and missing server tag constants. This was observed during the implementation turn and was not isolated into a separate commit.
