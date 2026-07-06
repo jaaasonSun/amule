@@ -99,6 +99,7 @@ private final class IOSRecordingRenameBridge: BridgeProtocol, @unchecked Sendabl
     func serverSetPriority(ecid: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func prefsConnectionGet(config: AMuleConnectionConfig) async throws -> (BridgeConnectionPrefsPayload, String) { (ECConnectionPrefs(maxDownload: 0, maxUpload: 0), "{}") }
     func prefsConnectionSet(maxDownload: Int, maxUpload: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
+    func prefsConnectionSet(prefs: BridgeConnectionPrefsPayload, group: ECOperations.PreferencesGroup, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
     func cancel(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
     func servers(config: AMuleConnectionConfig) async throws -> ([BridgeServerPayload], String) { ([], "{}") }
     func sources(hash: String, config: AMuleConnectionConfig) async throws -> ([BridgeDownloadSourcePayload], String) { ([], "{}") }
