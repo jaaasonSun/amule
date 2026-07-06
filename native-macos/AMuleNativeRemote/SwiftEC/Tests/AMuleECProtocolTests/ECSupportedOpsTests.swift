@@ -58,8 +58,10 @@ final class ECSupportedOpsTests: XCTestCase {
             "ipfilter-reload",
             "ipfilter-update",
             "friends",
+            "friend-add",
             "friend-remove",
             "friend-slot",
+            "friend-shared",
             "stats-tree",
             "stats-graphs",
         ]
@@ -122,8 +124,10 @@ final class ECSupportedOpsTests: XCTestCase {
             "ipfilter-reload",
             "ipfilter-update",
             "friends",
+            "friend-add",
             "friend-remove",
             "friend-slot",
+            "friend-shared",
             "stats-tree",
             "stats-graphs",
         ])

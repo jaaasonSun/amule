@@ -75,6 +75,12 @@ struct AMuleNativeRemoteApp: App {
         }
         .windowStyle(.automatic)
 
+        WindowGroup("Messages", id: "messages-window") {
+            MessagesWindowView()
+                .environmentObject(model)
+        }
+        .windowStyle(.automatic)
+
         WindowGroup("Statistics", id: "stats-window") {
             StatsWindowView()
                 .environmentObject(model)
@@ -154,6 +160,10 @@ private struct AppMenuCommands: Commands {
                 openWindow(id: "friends-window")
             }
             .disabled(!model.isBridgeOpSupported("friends"))
+
+            Button("Messages") {
+                openWindow(id: "messages-window")
+            }
 
             Button("Statistics") {
                 openWindow(id: "stats-window")

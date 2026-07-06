@@ -54,8 +54,10 @@ public enum ECOperationName: String, CaseIterable, Codable, Sendable {
     case ipfilterReload = "ipfilter-reload"
     case ipfilterUpdate = "ipfilter-update"
     case friends
+    case friendAdd = "friend-add"
     case friendRemove = "friend-remove"
     case friendSlot = "friend-slot"
+    case friendShared = "friend-shared"
     case statsTree = "stats-tree"
     case statsGraphs = "stats-graphs"
 }

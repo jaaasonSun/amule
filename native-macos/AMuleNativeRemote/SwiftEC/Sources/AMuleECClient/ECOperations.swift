@@ -155,6 +155,7 @@ public enum ECOperations {
         public static let knownFilePriority: UInt16 = 0x040B
         public static let knownFileComment: UInt16 = 0x040E
         public static let knownFileRating: UInt16 = 0x040F
+        public static let client: UInt16 = 0x0600
         public static let clientUploadTotal: UInt16 = 0x060A
         public static let clientDownloadTotal: UInt16 = 0x060B
         public static let clientUpSpeed: UInt16 = 0x060D
@@ -165,8 +166,10 @@ public enum ECOperations {
         public static let friendIP: UInt16 = 0x0803
         public static let friendPort: UInt16 = 0x0804
         public static let friendClient: UInt16 = 0x0805
+        public static let friendAdd: UInt16 = 0x0806
         public static let friendRemove: UInt16 = 0x0807
         public static let friendSlot: UInt16 = 0x0808
+        public static let friendShared: UInt16 = 0x0809
         public static let prefsCategories: UInt16 = 0x1100
         public static let category: UInt16 = 0x1101
         public static let categoryTitle: UInt16 = 0x1102
@@ -573,6 +576,46 @@ public enum ECOperations {
         ])
     }
 
+    public static func friendAdd(hash: String, ip: String, port: Int, name: String, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.friendAdd)
+        guard isValidMD4Hash(hash) else { throw ECOperationError.invalidHash(hash) }
+        return ECPacket(opcode: OpCode.friend, tags: [
+            ECTag(name: TagName.friendAdd, type: .custom, children: [
+                ECTag(name: TagName.friendHash, type: .hash16, value: .hash16(try hashData(hash))),
+                ECTag.integer(name: TagName.friendIP, value: UInt64(try antiHostIPValue(ip))),
+                ECTag.integer(name: TagName.friendPort, value: UInt64(clampPort(port))),
+                ECTag(name: TagName.friendName, type: .string, value: .string(name)),
+            ])
+        ])
+    }
+
+    public static func friendAdd(clientID: Int, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.friendAdd)
+        return ECPacket(opcode: OpCode.friend, tags: [
+            ECTag(name: TagName.friendAdd, type: .custom, children: [
+                ECTag.integer(name: TagName.client, value: UInt64(max(0, clientID)))
+            ])
+        ])
+    }
+
+    public static func friendRequestSharedList(friendID: Int, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.friendShared)
+        return ECPacket(opcode: OpCode.friend, tags: [
+            ECTag(name: TagName.friendShared, type: .custom, children: [
+                ECTag.integer(name: TagName.friend, value: UInt64(max(0, friendID)))
+            ])
+        ])
+    }
+
+    public static func friendRequestSharedList(clientID: Int, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.friendShared)
+        return ECPacket(opcode: OpCode.friend, tags: [
+            ECTag(name: TagName.friendShared, type: .custom, children: [
+                ECTag.integer(name: TagName.client, value: UInt64(max(0, clientID)))
+            ])
+        ])
+    }
+
     public static func friendSlot(friendID: Int, enabled: Bool, gate: ECCapabilityGate? = nil) throws -> ECPacket {
         try gate?.require(.friendSlot)
         return ECPacket(opcode: OpCode.friend, tags: [
@@ -625,6 +668,21 @@ public enum ECOperations {
             index = next
         }
         return bytes
+    }
+
+    private static func antiHostIPValue(_ ip: String) throws -> UInt32 {
+        let parts = ip.split(separator: ".").compactMap { UInt8($0) }
+        guard parts.count == 4 else {
+            throw ECOperationError.invalidServerEndpoint(ip)
+        }
+        return UInt32(parts[0]) |
+            UInt32(parts[1]) << 8 |
+            UInt32(parts[2]) << 16 |
+            UInt32(parts[3]) << 24
+    }
+
+    private static func clampPort(_ port: Int) -> Int {
+        min(65535, max(0, port))
     }
 
     private static func partFileAction(opcode: UInt8, operation: ECOperationName, hash: String, gate: ECCapabilityGate?) throws -> ECPacket {

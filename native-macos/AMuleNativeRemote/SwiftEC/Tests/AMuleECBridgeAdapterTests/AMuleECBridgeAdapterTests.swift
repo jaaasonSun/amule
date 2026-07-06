@@ -20,6 +20,7 @@ actor AdapterMockTransport: ECConnectionTransport {
         return replies.removeFirst()
     }
     func sentOpcodes() -> [UInt8] { sentPackets.map(\.opcode) }
+    func sentPacket(at index: Int) -> ECPacket? { sentPackets.indices.contains(index) ? sentPackets[index] : nil }
     func disconnectCalls() -> Int { disconnectCount }
 }
 
@@ -453,6 +454,40 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
         XCTAssertTrue(raw.contains(#""friends""#))
         let sentOpcodes = await mock.sentOpcodes()
         XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x52])
+    }
+
+    func testAdapterFriendAddByHashSendsVerifiedFriendRequest() async throws {
+        let mock = AdapterMockTransport(replies: [Self.salt, Self.authOK, ECPacket(opcode: 0x01)])
+        let session = ECSession(configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false), transportFactory: { mock })
+        let capabilities = ECCapabilities(ops: [ECSupportedOps.friendAdd])
+        let adapter = SwiftECBridgeAdapter(session: session, capabilities: capabilities)
+
+        let result = try await adapter.friendAdd(hash: Self.hash, ip: "1.2.3.4", port: 4662, name: "Alice", config: AMuleConnectionConfig(password: "secret"))
+
+        XCTAssertEqual(result.message, "Friend add requested")
+        XCTAssertTrue(result.raw.contains(#""ok":true"#))
+        let sentOpcodes = await mock.sentOpcodes()
+        XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x57])
+        let sentFriendPacket = await mock.sentPacket(at: 2)
+        let friendPacket = try XCTUnwrap(sentFriendPacket)
+        XCTAssertEqual(friendPacket.tags.first?.name, 0x0806)
+    }
+
+    func testAdapterFriendSharedListSendsVerifiedFriendRequest() async throws {
+        let mock = AdapterMockTransport(replies: [Self.salt, Self.authOK, ECPacket(opcode: 0x01)])
+        let session = ECSession(configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false), transportFactory: { mock })
+        let capabilities = ECCapabilities(ops: [ECSupportedOps.friendShared])
+        let adapter = SwiftECBridgeAdapter(session: session, capabilities: capabilities)
+
+        let result = try await adapter.friendRequestSharedList(friendID: 11, config: AMuleConnectionConfig(password: "secret"))
+
+        XCTAssertEqual(result.message, "Friend shared list requested")
+        XCTAssertTrue(result.raw.contains(#""ok":true"#))
+        let sentOpcodes = await mock.sentOpcodes()
+        XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x57])
+        let sentFriendPacket = await mock.sentPacket(at: 2)
+        let friendPacket = try XCTUnwrap(sentFriendPacket)
+        XCTAssertEqual(friendPacket.tags.first?.name, 0x0809)
     }
 
     func testAdapterRejectsMissingCapabilityBeforeSending() async throws {

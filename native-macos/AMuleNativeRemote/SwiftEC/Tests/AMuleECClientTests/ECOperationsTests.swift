@@ -266,6 +266,45 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertEqual(try ECOperations.resetLog().opcode, 0x3B)
     }
 
+    func testFriendAddByHashUsesFriendOpcode() throws {
+        let packet = try ECOperations.friendAdd(hash: "00112233445566778899aabbccddeeff", ip: "1.2.3.4", port: 4662, name: "Alice")
+        let addTag = try XCTUnwrap(packet.tags.first)
+
+        XCTAssertEqual(packet.opcode, 0x57)
+        XCTAssertEqual(packet.tags.map(\.name), [0x0806])
+        XCTAssertEqual(addTag.children.map(\.name), [0x0802, 0x0803, 0x0804, 0x0801])
+        XCTAssertEqual(addTag.child(named: 0x0802)?.hashStringValue, "00112233445566778899aabbccddeeff")
+        XCTAssertEqual(addTag.child(named: 0x0803)?.intValue, 0x04030201)
+        XCTAssertEqual(addTag.child(named: 0x0804)?.intValue, 4662)
+        XCTAssertEqual(addTag.child(named: 0x0801)?.stringValue, "Alice")
+    }
+
+    func testFriendAddByClientIDUsesFriendAddClientTag() throws {
+        let packet = try ECOperations.friendAdd(clientID: 42)
+        let addTag = try XCTUnwrap(packet.tags.first)
+
+        XCTAssertEqual(packet.opcode, 0x57)
+        XCTAssertEqual(packet.tags.map(\.name), [0x0806])
+        XCTAssertEqual(addTag.children.map(\.name), [0x0600])
+        XCTAssertEqual(addTag.child(named: 0x0600)?.intValue, 42)
+    }
+
+    func testFriendSharedListRequestUsesFriendOrClientID() throws {
+        let friendPacket = try ECOperations.friendRequestSharedList(friendID: 11)
+        let friendSharedTag = try XCTUnwrap(friendPacket.tags.first)
+        XCTAssertEqual(friendPacket.opcode, 0x57)
+        XCTAssertEqual(friendPacket.tags.map(\.name), [0x0809])
+        XCTAssertEqual(friendSharedTag.children.map(\.name), [0x0800])
+        XCTAssertEqual(friendSharedTag.child(named: 0x0800)?.intValue, 11)
+
+        let clientPacket = try ECOperations.friendRequestSharedList(clientID: 42)
+        let clientSharedTag = try XCTUnwrap(clientPacket.tags.first)
+        XCTAssertEqual(clientPacket.opcode, 0x57)
+        XCTAssertEqual(clientPacket.tags.map(\.name), [0x0809])
+        XCTAssertEqual(clientSharedTag.children.map(\.name), [0x0600])
+        XCTAssertEqual(clientSharedTag.child(named: 0x0600)?.intValue, 42)
+    }
+
     func testAmuleGuiParityMutationBuildersUseCapabilityGate() throws {
         let hash = "00112233445566778899aabbccddeeff"
         let emptyGate = ECCapabilityGate([])

@@ -122,7 +122,9 @@ private final class IOSRecordingRenameBridge: BridgeProtocol, @unchecked Sendabl
     func ipfilterReload(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
     func ipfilterUpdate(url: String?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
     func friends(config: AMuleConnectionConfig) async throws -> ([BridgeFriendPayload], String) { ([], "{}") }
+    func friendAdd(hash: String, ip: String, port: Int, name: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
     func friendRemove(friendID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
+    func friendRequestSharedList(friendID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
     func friendSlot(friendID: Int, enabled: Bool, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
     func clearCompleted(ecids: [Int], config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }
     func priority(hash: String, value: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", "{}") }

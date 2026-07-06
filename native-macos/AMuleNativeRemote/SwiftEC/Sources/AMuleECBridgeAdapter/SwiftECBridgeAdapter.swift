@@ -375,6 +375,22 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
         try await mutation(try ECOperations.friendRemove(friendID: friendID, gate: capabilityGate), message: "Friend remove requested", config: config)
     }
 
+    public func friendAdd(hash: String, ip: String, port: Int, name: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await mutation(
+            try ECOperations.friendAdd(hash: hash, ip: ip, port: port, name: name, gate: capabilityGate),
+            message: "Friend add requested",
+            config: config
+        )
+    }
+
+    public func friendRequestSharedList(friendID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await mutation(
+            try ECOperations.friendRequestSharedList(friendID: friendID, gate: capabilityGate),
+            message: "Friend shared list requested",
+            config: config
+        )
+    }
+
     public func friendSlot(friendID: Int, enabled: Bool, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await mutation(try ECOperations.friendSlot(friendID: friendID, enabled: enabled, gate: capabilityGate), message: "Friend slot update requested", config: config)
     }
@@ -599,7 +615,9 @@ public protocol BridgeProtocol: Sendable {
     func ipfilterReload(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func ipfilterUpdate(url: String?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func friends(config: AMuleConnectionConfig) async throws -> ([BridgeFriendPayload], String)
+    func friendAdd(hash: String, ip: String, port: Int, name: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func friendRemove(friendID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func friendRequestSharedList(friendID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func friendSlot(friendID: Int, enabled: Bool, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func clearCompleted(ecids: [Int], config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func priority(hash: String, value: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)

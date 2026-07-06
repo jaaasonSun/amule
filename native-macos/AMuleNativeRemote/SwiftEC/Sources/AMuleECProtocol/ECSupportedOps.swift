@@ -82,8 +82,10 @@ public struct ECSupportedOps {
     public static let ipfilterReload = "ipfilter-reload"
     public static let ipfilterUpdate = "ipfilter-update"
     public static let friends = "friends"
+    public static let friendAdd = "friend-add"
     public static let friendRemove = "friend-remove"
     public static let friendSlot = "friend-slot"
+    public static let friendShared = "friend-shared"
     public static let statsTree = "stats-tree"
     public static let statsGraphs = "stats-graphs"
 
@@ -147,8 +149,10 @@ public struct ECSupportedOps {
         ipfilterReload,
         ipfilterUpdate,
         friends,
+        friendAdd,
         friendRemove,
         friendSlot,
+        friendShared,
         statsTree,
         statsGraphs,
     ]
