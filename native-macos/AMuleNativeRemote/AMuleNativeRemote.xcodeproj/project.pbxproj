@@ -13,6 +13,7 @@
 		B20000010000000000000004 /* AppModel+Bridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000004 /* AppModel+Bridge.swift */; };
 		B20000010000000000000005 /* AppModel+Connection.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000005 /* AppModel+Connection.swift */; };
 		B20000010000000000000006 /* AppModel+Downloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000006 /* AppModel+Downloads.swift */; };
+		B20000010000000000000038 /* AppModel+FriendsMessages.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000039 /* AppModel+FriendsMessages.swift */; };
 		B20000010000000000000007 /* AppModel+HUD.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000007 /* AppModel+HUD.swift */; };
 		B20000010000000000000008 /* AppModel+Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000008 /* AppModel+Preferences.swift */; };
 		B20000010000000000000009 /* AppModel+Search.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000009 /* AppModel+Search.swift */; };
@@ -31,6 +32,7 @@
 		B20000010000000000000022 /* LocalizedHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000022 /* LocalizedHelpers.swift */; };
 		B20000010000000000000023 /* MacOSPlatformServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000023 /* MacOSPlatformServices.swift */; };
 		B20000010000000000000024 /* MainToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000024 /* MainToolbar.swift */; };
+		B20000010000000000000039 /* MessagesWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000040 /* MessagesWindowView.swift */; };
 		B20000010000000000000025 /* PreferencesWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000025 /* PreferencesWindowView.swift */; };
 		B20000010000000000000026 /* SearchPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000026 /* SearchPanel.swift */; };
 		B20000010000000000000027 /* SearchResultRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000027 /* SearchResultRow.swift */; };
@@ -51,6 +53,7 @@
 		B20000011000000000000105 /* DownloadNameSuggestionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000105 /* DownloadNameSuggestionTests.swift */; };
 		B20000011000000000000106 /* DownloadRowValueRegressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000106 /* DownloadRowValueRegressionTests.swift */; };
 		B20000011000000000000107 /* FakeBridgeAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000107 /* FakeBridgeAdapter.swift */; };
+		B20000011000000000000113 /* FriendsMessagesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000113 /* FriendsMessagesTests.swift */; };
 		B20000011000000000000108 /* IncomingLinksTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000108 /* IncomingLinksTests.swift */; };
 		B20000011000000000000109 /* PlatformServiceAdapterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000109 /* PlatformServiceAdapterTests.swift */; };
 		B20000011000000000000110 /* PlatformServiceStubs.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000110 /* PlatformServiceStubs.swift */; };
@@ -87,6 +90,7 @@
 		B20000000000000000000004 /* AppModel+Bridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Bridge.swift"; sourceTree = "<group>"; };
 		B20000000000000000000005 /* AppModel+Connection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Connection.swift"; sourceTree = "<group>"; };
 		B20000000000000000000006 /* AppModel+Downloads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Downloads.swift"; sourceTree = "<group>"; };
+		B20000000000000000000039 /* AppModel+FriendsMessages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+FriendsMessages.swift"; sourceTree = "<group>"; };
 		B20000000000000000000007 /* AppModel+HUD.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+HUD.swift"; sourceTree = "<group>"; };
 		B20000000000000000000008 /* AppModel+Preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Preferences.swift"; sourceTree = "<group>"; };
 		B20000000000000000000009 /* AppModel+Search.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Search.swift"; sourceTree = "<group>"; };
@@ -105,6 +109,7 @@
 		B20000000000000000000022 /* LocalizedHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizedHelpers.swift; sourceTree = "<group>"; };
 		B20000000000000000000023 /* MacOSPlatformServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacOSPlatformServices.swift; sourceTree = "<group>"; };
 		B20000000000000000000024 /* MainToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainToolbar.swift; sourceTree = "<group>"; };
+		B20000000000000000000040 /* MessagesWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagesWindowView.swift; sourceTree = "<group>"; };
 		B20000000000000000000025 /* PreferencesWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesWindowView.swift; sourceTree = "<group>"; };
 		B20000000000000000000026 /* SearchPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchPanel.swift; sourceTree = "<group>"; };
 		B20000000000000000000027 /* SearchResultRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResultRow.swift; sourceTree = "<group>"; };
@@ -131,6 +136,7 @@
 		B20000000000000000000105 /* DownloadNameSuggestionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadNameSuggestionTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000106 /* DownloadRowValueRegressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadRowValueRegressionTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000107 /* FakeBridgeAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FakeBridgeAdapter.swift; sourceTree = "<group>"; };
+		B20000000000000000000113 /* FriendsMessagesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsMessagesTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000108 /* IncomingLinksTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomingLinksTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000109 /* PlatformServiceAdapterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformServiceAdapterTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000110 /* PlatformServiceStubs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformServiceStubs.swift; sourceTree = "<group>"; };
@@ -186,6 +192,7 @@
 				B20000000000000000000004 /* AppModel+Bridge.swift */,
 				B20000000000000000000005 /* AppModel+Connection.swift */,
 				B20000000000000000000006 /* AppModel+Downloads.swift */,
+				B20000000000000000000039 /* AppModel+FriendsMessages.swift */,
 				B20000000000000000000007 /* AppModel+HUD.swift */,
 				B20000000000000000000008 /* AppModel+Preferences.swift */,
 				B20000000000000000000009 /* AppModel+Search.swift */,
@@ -204,6 +211,7 @@
 				B20000000000000000000022 /* LocalizedHelpers.swift */,
 				B20000000000000000000023 /* MacOSPlatformServices.swift */,
 				B20000000000000000000024 /* MainToolbar.swift */,
+				B20000000000000000000040 /* MessagesWindowView.swift */,
 				B20000000000000000000025 /* PreferencesWindowView.swift */,
 				B20000000000000000000026 /* SearchPanel.swift */,
 				B20000000000000000000027 /* SearchResultRow.swift */,
@@ -232,6 +240,7 @@
 				B20000000000000000000105 /* DownloadNameSuggestionTests.swift */,
 				B20000000000000000000106 /* DownloadRowValueRegressionTests.swift */,
 				B20000000000000000000107 /* FakeBridgeAdapter.swift */,
+				B20000000000000000000113 /* FriendsMessagesTests.swift */,
 				B20000000000000000000108 /* IncomingLinksTests.swift */,
 				B20000000000000000000109 /* PlatformServiceAdapterTests.swift */,
 				B20000000000000000000110 /* PlatformServiceStubs.swift */,
@@ -377,6 +386,7 @@
 				B20000010000000000000004 /* AppModel+Bridge.swift in Sources */,
 				B20000010000000000000005 /* AppModel+Connection.swift in Sources */,
 				B20000010000000000000006 /* AppModel+Downloads.swift in Sources */,
+				B20000010000000000000038 /* AppModel+FriendsMessages.swift in Sources */,
 				B20000010000000000000007 /* AppModel+HUD.swift in Sources */,
 				B20000010000000000000008 /* AppModel+Preferences.swift in Sources */,
 				B20000010000000000000009 /* AppModel+Search.swift in Sources */,
@@ -395,6 +405,7 @@
 				B20000010000000000000022 /* LocalizedHelpers.swift in Sources */,
 				B20000010000000000000023 /* MacOSPlatformServices.swift in Sources */,
 				B20000010000000000000024 /* MainToolbar.swift in Sources */,
+				B20000010000000000000039 /* MessagesWindowView.swift in Sources */,
 				B20000010000000000000025 /* PreferencesWindowView.swift in Sources */,
 				B20000010000000000000026 /* SearchPanel.swift in Sources */,
 				B20000010000000000000027 /* SearchResultRow.swift in Sources */,
@@ -422,6 +433,7 @@
 				B20000011000000000000105 /* DownloadNameSuggestionTests.swift in Sources */,
 				B20000011000000000000106 /* DownloadRowValueRegressionTests.swift in Sources */,
 				B20000011000000000000107 /* FakeBridgeAdapter.swift in Sources */,
+				B20000011000000000000113 /* FriendsMessagesTests.swift in Sources */,
 				B20000011000000000000108 /* IncomingLinksTests.swift in Sources */,
 				B20000011000000000000109 /* PlatformServiceAdapterTests.swift in Sources */,
 				B20000011000000000000110 /* PlatformServiceStubs.swift in Sources */,
