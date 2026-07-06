@@ -259,4 +259,38 @@ final class ECPreferencesParserTests: XCTestCase {
         }
         XCTAssertEqual(group.children.first { $0.name == 0x180E }?.value, .uint(256))
     }
+
+    func testDocumentsIntentionallyOmittedRemoteFilePreferenceTags() throws {
+        let omissions = ECOperations.omittedRemoteFilePreferenceTags
+
+        XCTAssertEqual(omissions.map(\.tag), [0x1801, 0x1802, 0x1807, 0x1808, 0x1809])
+        XCTAssertEqual(omissions.map(\.symbol), [
+            "EC_TAG_FILES_ICH_ENABLED",
+            "EC_TAG_FILES_AICH_TRUST",
+            "EC_TAG_FILES_UL_FULL_CHUNKS",
+            "EC_TAG_FILES_START_NEXT_PAUSED",
+            "EC_TAG_FILES_RESUME_SAME_CAT",
+        ])
+        XCTAssertTrue(omissions.allSatisfy { !$0.rationale.isEmpty })
+
+        let prefs = ECConnectionPrefs(
+            maxDownload: 0,
+            maxUpload: 0,
+            newFilesPaused: true,
+            autoDownloadPriority: true,
+            previewPriority: true,
+            autoUploadPriority: true,
+            saveSources: true,
+            extractMetadata: true,
+            allocateFullFileSize: true,
+            checkFreeSpace: true,
+            minFreeDiskSpaceMB: 256,
+            createSparseFiles: false
+        )
+        let packet = try ECOperations.prefsConnectionSet(prefs: prefs, group: .files)
+        let group = try XCTUnwrap(packet.tags.first { $0.name == 0x1800 })
+        let emittedTags = Set(group.children.map(\.name))
+
+        XCTAssertTrue(Set(omissions.map(\.tag)).isDisjoint(with: emittedTags))
+    }
 }

@@ -239,6 +239,24 @@ public enum ECOperations {
         public static let statsTreeNodeID: UInt16 = 0x1B09
     }
 
+    struct OmittedPreferenceTag: Equatable, Sendable {
+        let tag: UInt16
+        let symbol: String
+        let rationale: String
+    }
+
+    // Upstream exposes these EC_TAG_FILES_* values in CEC_Prefs_Packet, but the
+    // native remote intentionally models only safe remote settings. These are
+    // local integrity/trust or queue-automation behaviors and stay hidden until
+    // their remote UX and daemon-side side effects are explicitly designed.
+    static let omittedRemoteFilePreferenceTags: [OmittedPreferenceTag] = [
+        .init(tag: 0x1801, symbol: "EC_TAG_FILES_ICH_ENABLED", rationale: "ICH integrity behavior is a local core policy, not a routine remote GUI setting."),
+        .init(tag: 0x1802, symbol: "EC_TAG_FILES_AICH_TRUST", rationale: "AICH hash trust changes security posture and is outside the safe remote subset."),
+        .init(tag: 0x1807, symbol: "EC_TAG_FILES_UL_FULL_CHUNKS", rationale: "Upload full chunks affects sharing policy and is not part of the scoped amulegui parity UI."),
+        .init(tag: 0x1808, symbol: "EC_TAG_FILES_START_NEXT_PAUSED", rationale: "Start-next automation can change queue behavior beyond per-file preference parity."),
+        .init(tag: 0x1809, symbol: "EC_TAG_FILES_RESUME_SAME_CAT", rationale: "Resume-same-category automation depends on broader category workflow state."),
+    ]
+
     public enum SearchScope: UInt64 {
         case local = 0x00
         case global = 0x01
