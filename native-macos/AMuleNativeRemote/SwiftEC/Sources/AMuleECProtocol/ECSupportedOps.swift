@@ -93,6 +93,7 @@ public struct ECSupportedOps {
     /// advertisement until they have a complete builder, adapter endpoint, and
     /// app bridge contract.
     public static let unsupportedDisabledOperations: [String] = [
+        friendShared,
     ]
 
     /// All supported V1 operations in canonical order.
@@ -152,7 +153,6 @@ public struct ECSupportedOps {
         friendAdd,
         friendRemove,
         friendSlot,
-        friendShared,
         statsTree,
         statsGraphs,
     ]

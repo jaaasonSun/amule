@@ -279,6 +279,15 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertEqual(addTag.child(named: 0x0801)?.stringValue, "Alice")
     }
 
+    func testFriendAddByHashRejectsInvalidPorts() throws {
+        XCTAssertThrowsError(try ECOperations.friendAdd(hash: "00112233445566778899aabbccddeeff", ip: "1.2.3.4", port: 0, name: "Alice")) { error in
+            XCTAssertEqual(error as? ECOperationError, .invalidServerEndpoint("1.2.3.4:0"))
+        }
+        XCTAssertThrowsError(try ECOperations.friendAdd(hash: "00112233445566778899aabbccddeeff", ip: "1.2.3.4", port: 70_000, name: "Alice")) { error in
+            XCTAssertEqual(error as? ECOperationError, .invalidServerEndpoint("1.2.3.4:70000"))
+        }
+    }
+
     func testFriendAddByClientIDUsesFriendAddClientTag() throws {
         let packet = try ECOperations.friendAdd(clientID: 42)
         let addTag = try XCTUnwrap(packet.tags.first)
@@ -361,12 +370,16 @@ final class ECOperationsTests: XCTestCase {
         }
     }
 
-    func testNoUnsupportedDisabledOperationNamesRemainUnadvertised() throws {
-        XCTAssertEqual(ECSupportedOps.unsupportedDisabledOperations, [])
+    func testUnsupportedDisabledOperationNamesRemainUnadvertised() throws {
+        XCTAssertEqual(ECSupportedOps.unsupportedDisabledOperations, [ECSupportedOps.friendShared])
+        XCTAssertFalse(ECSupportedOps.allOperations.contains(ECSupportedOps.friendShared))
 
         let gate = ECCapabilityGate(capabilities: ECOperations.capabilities())
         XCTAssertNoThrow(try gate.require(.categoryUpdate))
         XCTAssertNoThrow(try gate.require(.downloadSetCategory))
+        XCTAssertThrowsError(try gate.require(.friendShared)) { error in
+            XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("friend-shared"))
+        }
     }
 
     func testStatusParserAndEnvelopeMatchBridgeShape() throws {

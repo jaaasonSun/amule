@@ -579,11 +579,14 @@ public enum ECOperations {
     public static func friendAdd(hash: String, ip: String, port: Int, name: String, gate: ECCapabilityGate? = nil) throws -> ECPacket {
         try gate?.require(.friendAdd)
         guard isValidMD4Hash(hash) else { throw ECOperationError.invalidHash(hash) }
+        guard (1...65535).contains(port) else {
+            throw ECOperationError.invalidServerEndpoint("\(ip):\(port)")
+        }
         return ECPacket(opcode: OpCode.friend, tags: [
             ECTag(name: TagName.friendAdd, type: .custom, children: [
                 ECTag(name: TagName.friendHash, type: .hash16, value: .hash16(try hashData(hash))),
                 ECTag.integer(name: TagName.friendIP, value: UInt64(try antiHostIPValue(ip))),
-                ECTag.integer(name: TagName.friendPort, value: UInt64(clampPort(port))),
+                ECTag.integer(name: TagName.friendPort, value: UInt64(port)),
                 ECTag(name: TagName.friendName, type: .string, value: .string(name)),
             ])
         ])
@@ -679,10 +682,6 @@ public enum ECOperations {
             UInt32(parts[1]) << 8 |
             UInt32(parts[2]) << 16 |
             UInt32(parts[3]) << 24
-    }
-
-    private static func clampPort(_ port: Int) -> Int {
-        min(65535, max(0, port))
     }
 
     private static func partFileAction(opcode: UInt8, operation: ECOperationName, hash: String, gate: ECCapabilityGate?) throws -> ECPacket {

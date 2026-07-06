@@ -61,7 +61,6 @@ final class ECSupportedOpsTests: XCTestCase {
             "friend-add",
             "friend-remove",
             "friend-slot",
-            "friend-shared",
             "stats-tree",
             "stats-graphs",
         ]
@@ -127,7 +126,6 @@ final class ECSupportedOpsTests: XCTestCase {
             "friend-add",
             "friend-remove",
             "friend-slot",
-            "friend-shared",
             "stats-tree",
             "stats-graphs",
         ])
@@ -138,7 +136,7 @@ final class ECSupportedOpsTests: XCTestCase {
     }
 
     func testUnsupportedDisabledOperationsAreNotAdvertised() {
-        XCTAssertEqual(ECSupportedOps.unsupportedDisabledOperations, [])
+        XCTAssertEqual(ECSupportedOps.unsupportedDisabledOperations, [ECSupportedOps.friendShared])
 
         for operation in ECSupportedOps.unsupportedDisabledOperations {
             XCTAssertFalse(ECSupportedOps.allOperations.contains(operation), operation)

@@ -88,14 +88,6 @@ struct FriendsWindowView: View {
                             .disabled(model.isBusy || !model.isBridgeOpSupported("friend-slot"))
 
                             Spacer()
-                            Button {
-                                model.requestFriendSharedList(id: friend.id)
-                            } label: {
-                                Label("Shared", systemImage: "folder")
-                            }
-                            .buttonStyle(.bordered)
-                            .disabled(model.isBusy || !model.isBridgeOpSupported("friend-shared"))
-
                             Button("Remove") {
                                 model.removeFriend(id: friend.id)
                             }

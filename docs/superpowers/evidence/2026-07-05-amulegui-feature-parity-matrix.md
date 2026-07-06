@@ -11,7 +11,7 @@ Baseline: upstream `amulegui` / `CLIENT_GUI`.
 | Shared Files | `src/SharedFilesCtrl.cpp` | Upload priority/comment/rating/link variants | shared-file-priority/shared-file-comment-rating | Shared Files window | missing mutations |
 | Servers | `src/amule-remote-gui.cpp` | Static server and priority | server-set-static/server-set-priority | eD2k window | missing mutations |
 | Logs | `src/amule-remote-gui.cpp` | core/server log read and reset | log/debug-log/server-info/reset-log/clear-server-info | Diagnostics/Server Logs | partial |
-| Friends | `src/FriendListCtrl.cpp`, `src/amule-remote-gui.cpp` | add/remove/details/friend slot/shared list; message UI is present but remote chat send is not EC-backed in this branch | friends/friend-add/friend-remove/friend-slot/friend-shared; no friend-message EC op verified | Friends/Messages windows | partial |
+| Friends | `src/FriendListCtrl.cpp`, `src/amule-remote-gui.cpp`, `src/ExternalConn.cpp` | add/remove/details/friend slot; remote GUI sends shared-list request but daemon returns not implemented; message UI is present but remote chat send is not EC-backed in this branch | friends/friend-add/friend-remove/friend-slot; friend-shared disabled/unadvertised; no friend-message EC op verified | Friends/Messages windows | partial |
 | Preferences | `src/amule-remote-gui.h` | remote preference load/apply | prefs-* | Preferences window | partial |
 
 Task 2 RED evidence: the packet-builder tests were run before the builders existed and failed to compile on missing `ECOperations` builder members and missing server tag constants. This was observed during the implementation turn and was not isolated into a separate commit.
@@ -22,4 +22,5 @@ Task 9 upstream verification:
 - `CFriendListRem::AddFriend(const CMD4Hash&, uint32, uint32, const wxString&)` sends `EC_OP_FRIEND` with `EC_TAG_FRIEND_ADD` containing `EC_TAG_FRIEND_HASH`, `EC_TAG_FRIEND_IP`, `EC_TAG_FRIEND_PORT`, and `EC_TAG_FRIEND_NAME`.
 - `CFriendListRem::RemoveFriend`, `SetFriendSlot`, and `RequestSharedFileList(CFriend*)` send `EC_OP_FRIEND` with `EC_TAG_FRIEND_REMOVE`, `EC_TAG_FRIEND_FRIENDSLOT`, or `EC_TAG_FRIEND_SHARED`, each containing `EC_TAG_FRIEND`.
 - `CFriendListRem::RequestSharedFileList(CClientRef&)` sends `EC_OP_FRIEND` with `EC_TAG_FRIEND_SHARED` containing `EC_TAG_CLIENT`.
+- `src/ExternalConn.cpp` handles `EC_TAG_FRIEND_SHARED` by returning `EC_OP_FAILED` with `Request shared files list not implemented yet.`; native UI must not advertise or enable this action until daemon result transfer is implemented.
 - `src/ChatWnd.cpp` and `src/ChatSelector.cpp` expose chat UI paths, but `CChatSelector::SendMessage` has an `#ifndef CLIENT_GUI` block and a source comment `EC needed here`; `ECCodes.h` has no chat/message EC opcode. Remote chat send/receive is therefore unsupported/deferred for this branch.

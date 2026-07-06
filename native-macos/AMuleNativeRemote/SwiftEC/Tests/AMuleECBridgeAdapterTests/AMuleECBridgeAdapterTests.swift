@@ -473,21 +473,20 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
         XCTAssertEqual(friendPacket.tags.first?.name, 0x0806)
     }
 
-    func testAdapterFriendSharedListSendsVerifiedFriendRequest() async throws {
+    func testAdapterFriendSharedListIsNotAdvertisedByDefaultCapabilities() async throws {
         let mock = AdapterMockTransport(replies: [Self.salt, Self.authOK, ECPacket(opcode: 0x01)])
         let session = ECSession(configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false), transportFactory: { mock })
-        let capabilities = ECCapabilities(ops: [ECSupportedOps.friendShared])
-        let adapter = SwiftECBridgeAdapter(session: session, capabilities: capabilities)
+        let adapter = SwiftECBridgeAdapter(session: session)
 
-        let result = try await adapter.friendRequestSharedList(friendID: 11, config: AMuleConnectionConfig(password: "secret"))
+        do {
+            _ = try await adapter.friendRequestSharedList(friendID: 11, config: AMuleConnectionConfig(password: "secret"))
+            XCTFail("Expected unsupported friend-shared operation")
+        } catch let error as ECOperationError {
+            XCTAssertEqual(error, .unsupportedOperation("friend-shared"))
+        }
 
-        XCTAssertEqual(result.message, "Friend shared list requested")
-        XCTAssertTrue(result.raw.contains(#""ok":true"#))
         let sentOpcodes = await mock.sentOpcodes()
-        XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x57])
-        let sentFriendPacket = await mock.sentPacket(at: 2)
-        let friendPacket = try XCTUnwrap(sentFriendPacket)
-        XCTAssertEqual(friendPacket.tags.first?.name, 0x0809)
+        XCTAssertEqual(sentOpcodes, [])
     }
 
     func testAdapterRejectsMissingCapabilityBeforeSending() async throws {

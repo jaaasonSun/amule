@@ -33,18 +33,16 @@ final class FriendsMessagesTests: XCTestCase {
         XCTAssertFalse(bridge.invokedOperations.contains("friend-add"))
     }
 
-    func testRequestFriendSharedListInvokesBridge() async throws {
+    func testRequestFriendSharedListIsNotAdvertised() {
         let bridge = FakeBridgeAdapter()
-        bridge.capabilityOps = Set(["friend-shared"])
         let model = AppModel(bridge: bridge, credentialStorage: PlatformServiceStubs.Credentials())
-        model.bridgeOps = bridge.capabilityOps
+        model.bridgeOps = Set(["friends", "friend-add", "friend-remove", "friend-slot"])
 
         model.requestFriendSharedList(id: 11)
 
-        try await waitUntil {
-            bridge.invokedOperations.contains("friend-shared")
-        }
-        XCTAssertEqual(bridge.lastFriendSharedListID, 11)
+        XCTAssertFalse(model.isBusy)
+        XCTAssertFalse(bridge.invokedOperations.contains("friend-shared"))
+        XCTAssertNil(bridge.lastFriendSharedListID)
     }
 
     private func waitUntil(
