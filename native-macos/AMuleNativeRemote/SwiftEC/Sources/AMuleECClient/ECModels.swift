@@ -166,6 +166,16 @@ public struct ECConnectionPrefs: Codable, Equatable, Sendable {
     public let tempDirectory: String?
     public let sharedDirectories: [String]?
     public let shareHiddenFiles: Bool?
+    public let newFilesPaused: Bool?
+    public let autoDownloadPriority: Bool?
+    public let previewPriority: Bool?
+    public let autoUploadPriority: Bool?
+    public let saveSources: Bool?
+    public let extractMetadata: Bool?
+    public let allocateFullFileSize: Bool?
+    public let checkFreeSpace: Bool?
+    public let minFreeDiskSpaceMB: Int?
+    public let createSparseFiles: Bool?
     public let serverUpdateURL: String?
     public let removeDeadServers: Bool?
     public let deadServerRetries: Int?
@@ -210,6 +220,16 @@ public struct ECConnectionPrefs: Codable, Equatable, Sendable {
         tempDirectory: String? = nil,
         sharedDirectories: [String]? = nil,
         shareHiddenFiles: Bool? = nil,
+        newFilesPaused: Bool? = nil,
+        autoDownloadPriority: Bool? = nil,
+        previewPriority: Bool? = nil,
+        autoUploadPriority: Bool? = nil,
+        saveSources: Bool? = nil,
+        extractMetadata: Bool? = nil,
+        allocateFullFileSize: Bool? = nil,
+        checkFreeSpace: Bool? = nil,
+        minFreeDiskSpaceMB: Int? = nil,
+        createSparseFiles: Bool? = nil,
         serverUpdateURL: String? = nil,
         removeDeadServers: Bool? = nil,
         deadServerRetries: Int? = nil,
@@ -253,6 +273,16 @@ public struct ECConnectionPrefs: Codable, Equatable, Sendable {
         self.tempDirectory = tempDirectory
         self.sharedDirectories = sharedDirectories
         self.shareHiddenFiles = shareHiddenFiles
+        self.newFilesPaused = newFilesPaused
+        self.autoDownloadPriority = autoDownloadPriority
+        self.previewPriority = previewPriority
+        self.autoUploadPriority = autoUploadPriority
+        self.saveSources = saveSources
+        self.extractMetadata = extractMetadata
+        self.allocateFullFileSize = allocateFullFileSize
+        self.checkFreeSpace = checkFreeSpace
+        self.minFreeDiskSpaceMB = minFreeDiskSpaceMB
+        self.createSparseFiles = createSparseFiles
         self.serverUpdateURL = serverUpdateURL
         self.removeDeadServers = removeDeadServers
         self.deadServerRetries = deadServerRetries
@@ -298,6 +328,16 @@ public struct ECConnectionPrefs: Codable, Equatable, Sendable {
         case tempDirectory = "temp_dir"
         case sharedDirectories = "shared_dirs"
         case shareHiddenFiles = "share_hidden_files"
+        case newFilesPaused = "new_files_paused"
+        case autoDownloadPriority = "auto_download_priority"
+        case previewPriority = "preview_priority"
+        case autoUploadPriority = "auto_upload_priority"
+        case saveSources = "save_sources"
+        case extractMetadata = "extract_metadata"
+        case allocateFullFileSize = "allocate_full_file_size"
+        case checkFreeSpace = "check_free_space"
+        case minFreeDiskSpaceMB = "min_free_disk_space_mb"
+        case createSparseFiles = "create_sparse_files"
         case serverUpdateURL = "server_update_url"
         case removeDeadServers = "remove_dead_servers"
         case deadServerRetries = "dead_server_retries"
@@ -345,6 +385,16 @@ public struct ECConnectionPrefs: Codable, Equatable, Sendable {
             tempDirectory: try container.decodeIfPresent(String.self, forKey: .tempDirectory),
             sharedDirectories: try container.decodeIfPresent([String].self, forKey: .sharedDirectories),
             shareHiddenFiles: try container.decodeIfPresent(Bool.self, forKey: .shareHiddenFiles),
+            newFilesPaused: try container.decodeIfPresent(Bool.self, forKey: .newFilesPaused),
+            autoDownloadPriority: try container.decodeIfPresent(Bool.self, forKey: .autoDownloadPriority),
+            previewPriority: try container.decodeIfPresent(Bool.self, forKey: .previewPriority),
+            autoUploadPriority: try container.decodeIfPresent(Bool.self, forKey: .autoUploadPriority),
+            saveSources: try container.decodeIfPresent(Bool.self, forKey: .saveSources),
+            extractMetadata: try container.decodeIfPresent(Bool.self, forKey: .extractMetadata),
+            allocateFullFileSize: try container.decodeIfPresent(Bool.self, forKey: .allocateFullFileSize),
+            checkFreeSpace: try container.decodeIfPresent(Bool.self, forKey: .checkFreeSpace),
+            minFreeDiskSpaceMB: try container.decodeIfPresent(Int.self, forKey: .minFreeDiskSpaceMB),
+            createSparseFiles: try container.decodeIfPresent(Bool.self, forKey: .createSparseFiles),
             serverUpdateURL: try container.decodeIfPresent(String.self, forKey: .serverUpdateURL),
             removeDeadServers: try container.decodeIfPresent(Bool.self, forKey: .removeDeadServers),
             deadServerRetries: try container.decodeIfPresent(Int.self, forKey: .deadServerRetries),

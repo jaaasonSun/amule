@@ -89,6 +89,16 @@ final class AppModel: ObservableObject {
     @Published var tempDirectoryInput: String = ""
     @Published var sharedDirectoriesInput: String = ""
     @Published var shareHiddenFiles: Bool = false
+    @Published var newFilesPaused: Bool = false
+    @Published var autoDownloadPriority: Bool = false
+    @Published var previewPriority: Bool = false
+    @Published var autoUploadPriority: Bool = false
+    @Published var saveSources: Bool = false
+    @Published var extractMetadata: Bool = false
+    @Published var allocateFullFileSize: Bool = false
+    @Published var checkFreeSpace: Bool = false
+    @Published var minFreeDiskSpaceInput: String = "0"
+    @Published var createSparseFiles: Bool = true
     @Published var serverUpdateURLInput: String = ""
     @Published var removeDeadServers: Bool = false
     @Published var autoUpdateServers: Bool = false

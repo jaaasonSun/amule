@@ -167,6 +167,17 @@ public enum ECOperations {
         public static let serversAutoConnectStaticOnly: UInt16 = 0x170A
         public static let serversManualHighPriority: UInt16 = 0x170B
         public static let serversUpdateURL: UInt16 = 0x170C
+        public static let prefsFiles: UInt16 = 0x1800
+        public static let filesNewPaused: UInt16 = 0x1803
+        public static let filesNewAutoDownloadPriority: UInt16 = 0x1804
+        public static let filesPreviewPriority: UInt16 = 0x1805
+        public static let filesNewAutoUploadPriority: UInt16 = 0x1806
+        public static let filesSaveSources: UInt16 = 0x180A
+        public static let filesExtractMetadata: UInt16 = 0x180B
+        public static let filesAllocateFullSize: UInt16 = 0x180C
+        public static let filesCheckFreeSpace: UInt16 = 0x180D
+        public static let filesMinFreeSpace: UInt16 = 0x180E
+        public static let filesCreateNormal: UInt16 = 0x180F
         public static let prefsDirectories: UInt16 = 0x1A00
         public static let directoriesIncoming: UInt16 = 0x1A01
         public static let directoriesTemp: UInt16 = 0x1A02
@@ -246,6 +257,7 @@ public enum ECOperations {
     private static let prefsCategories: UInt64 = 0x00000001
     private static let prefsRemoteControls: UInt64 = 0x00000010
     private static let prefsServers: UInt64 = 0x00000040
+    private static let prefsFiles: UInt64 = 0x00000080
     private static let prefsDirectories: UInt64 = 0x00000200
     private static let prefsStatistics: UInt64 = 0x00000400
     private static let prefsSecurity: UInt64 = 0x00000800
@@ -253,6 +265,7 @@ public enum ECOperations {
     public enum PreferencesGroup: Sendable {
         case connection
         case directories
+        case files
         case servers
         case security
         case remoteControls
@@ -262,6 +275,7 @@ public enum ECOperations {
             switch self {
             case .connection: return prefsConnections
             case .directories: return prefsDirectories
+            case .files: return prefsFiles
             case .servers: return prefsServers
             case .security: return prefsSecurity
             case .remoteControls: return prefsRemoteControls
@@ -270,7 +284,7 @@ public enum ECOperations {
         }
     }
 
-    private static let allRemotePreferenceGroups = prefsConnections | prefsDirectories | prefsServers | prefsSecurity | prefsRemoteControls | prefsStatistics
+    private static let allRemotePreferenceGroups = prefsConnections | prefsFiles | prefsDirectories | prefsServers | prefsSecurity | prefsRemoteControls | prefsStatistics
 
     public static let readOnlyOperations: [String] = ECSupportedOps.allOperations
 
@@ -586,6 +600,7 @@ public enum ECOperations {
         if let maxDownload { prefsChildren.append(ECTag.integer(name: TagName.connMaxDownload, value: UInt64(max(0, maxDownload)))) }
         if let maxUpload { prefsChildren.append(ECTag.integer(name: TagName.connMaxUpload, value: UInt64(max(0, maxUpload)))) }
         return ECPacket(opcode: OpCode.setPreferences, tags: [
+            ECTag.integer(name: TagName.detailLevel, value: DetailLevel.full.rawValue),
             ECTag.integer(name: TagName.selectPrefs, value: prefsConnections),
             ECTag(name: TagName.prefsConnections, type: .custom, children: prefsChildren),
         ])
@@ -594,6 +609,7 @@ public enum ECOperations {
     public static func prefsConnectionSet(prefs: ECConnectionPrefs, group: PreferencesGroup, gate: ECCapabilityGate? = nil) throws -> ECPacket {
         try gate?.require(.prefsConnectionSet)
         return ECPacket(opcode: OpCode.setPreferences, tags: [
+            ECTag.integer(name: TagName.detailLevel, value: DetailLevel.full.rawValue),
             ECTag.integer(name: TagName.selectPrefs, value: group.mask),
             preferenceGroupTag(prefs: prefs, group: group),
         ])
@@ -608,9 +624,9 @@ public enum ECOperations {
             ]
             if let tcpPort = prefs.tcpPort { children.append(ECTag.integer(name: TagName.connTCPPort, value: UInt64(max(0, tcpPort)))) }
             if let udpPort = prefs.udpPort { children.append(ECTag.integer(name: TagName.connUDPPort, value: UInt64(max(0, udpPort)))) }
-            if prefs.udpEnabled == false { children.append(emptyTag(TagName.connUDPDisable)) }
-            if prefs.ed2kEnabled == true { children.append(emptyTag(TagName.networkED2K)) }
-            if prefs.kadEnabled == true { children.append(emptyTag(TagName.networkKademlia)) }
+            appendBool(prefs.udpEnabled.map { !$0 }, TagName.connUDPDisable, to: &children)
+            appendBool(prefs.ed2kEnabled, TagName.networkED2K, to: &children)
+            appendBool(prefs.kadEnabled, TagName.networkKademlia, to: &children)
             return ECTag(name: TagName.prefsConnections, type: .custom, children: children)
         case .directories:
             var children: [ECTag] = []
@@ -629,49 +645,64 @@ public enum ECOperations {
                 children.append(ECTag.integer(name: TagName.directoriesShareHidden, value: shareHiddenFiles ? 1 : 0))
             }
             return ECTag(name: TagName.prefsDirectories, type: .custom, children: children)
+        case .files:
+            var children: [ECTag] = []
+            appendBool(prefs.newFilesPaused, TagName.filesNewPaused, to: &children)
+            appendBool(prefs.autoDownloadPriority, TagName.filesNewAutoDownloadPriority, to: &children)
+            appendBool(prefs.previewPriority, TagName.filesPreviewPriority, to: &children)
+            appendBool(prefs.autoUploadPriority, TagName.filesNewAutoUploadPriority, to: &children)
+            appendBool(prefs.saveSources, TagName.filesSaveSources, to: &children)
+            appendBool(prefs.extractMetadata, TagName.filesExtractMetadata, to: &children)
+            appendBool(prefs.allocateFullFileSize, TagName.filesAllocateFullSize, to: &children)
+            appendBool(prefs.checkFreeSpace, TagName.filesCheckFreeSpace, to: &children)
+            if let minFreeDiskSpaceMB = prefs.minFreeDiskSpaceMB {
+                children.append(ECTag.integer(name: TagName.filesMinFreeSpace, value: UInt64(max(0, minFreeDiskSpaceMB))))
+            }
+            appendBool(prefs.createSparseFiles.map { !$0 }, TagName.filesCreateNormal, to: &children)
+            return ECTag(name: TagName.prefsFiles, type: .custom, children: children)
         case .servers:
             var children: [ECTag] = []
-            appendEmptyIfTrue(prefs.removeDeadServers, TagName.serversRemoveDead, to: &children)
+            appendBool(prefs.removeDeadServers, TagName.serversRemoveDead, to: &children)
             if let deadServerRetries = prefs.deadServerRetries {
                 children.append(ECTag.integer(name: TagName.serversDeadServerRetries, value: UInt64(max(0, deadServerRetries))))
             }
-            appendEmptyIfTrue(prefs.autoUpdateServers, TagName.serversAutoUpdate, to: &children)
-            appendEmptyIfTrue(prefs.addServersFromServer, TagName.serversAddFromServer, to: &children)
-            appendEmptyIfTrue(prefs.addServersFromClient, TagName.serversAddFromClient, to: &children)
-            appendEmptyIfTrue(prefs.useServerPrioritySystem, TagName.serversUseScoreSystem, to: &children)
-            appendEmptyIfTrue(prefs.smartIdCheck, TagName.serversSmartIDCheck, to: &children)
-            appendEmptyIfTrue(prefs.safeServerConnect, TagName.serversSafeServerConnect, to: &children)
-            appendEmptyIfTrue(prefs.autoConnectStaticOnly, TagName.serversAutoConnectStaticOnly, to: &children)
-            appendEmptyIfTrue(prefs.manualHighPriority, TagName.serversManualHighPriority, to: &children)
+            appendBool(prefs.autoUpdateServers, TagName.serversAutoUpdate, to: &children)
+            appendBool(prefs.addServersFromServer, TagName.serversAddFromServer, to: &children)
+            appendBool(prefs.addServersFromClient, TagName.serversAddFromClient, to: &children)
+            appendBool(prefs.useServerPrioritySystem, TagName.serversUseScoreSystem, to: &children)
+            appendBool(prefs.smartIdCheck, TagName.serversSmartIDCheck, to: &children)
+            appendBool(prefs.safeServerConnect, TagName.serversSafeServerConnect, to: &children)
+            appendBool(prefs.autoConnectStaticOnly, TagName.serversAutoConnectStaticOnly, to: &children)
+            appendBool(prefs.manualHighPriority, TagName.serversManualHighPriority, to: &children)
             if let serverUpdateURL = prefs.serverUpdateURL {
                 children.append(ECTag(name: TagName.serversUpdateURL, type: .string, value: .string(serverUpdateURL)))
             }
             return ECTag(name: TagName.prefsServers, type: .custom, children: children)
         case .security:
             var children: [ECTag] = []
-            appendEmptyIfTrue(prefs.filterClients, TagName.ipFilterClients, to: &children)
-            appendEmptyIfTrue(prefs.filterServers, TagName.ipFilterServers, to: &children)
-            appendEmptyIfTrue(prefs.ipFilterAutoUpdate, TagName.ipFilterAutoUpdate, to: &children)
+            appendBool(prefs.filterClients, TagName.ipFilterClients, to: &children)
+            appendBool(prefs.filterServers, TagName.ipFilterServers, to: &children)
+            appendBool(prefs.ipFilterAutoUpdate, TagName.ipFilterAutoUpdate, to: &children)
             if let ipFilterUpdateURL = prefs.ipFilterUpdateURL {
                 children.append(ECTag(name: TagName.ipFilterUpdateURL, type: .string, value: .string(ipFilterUpdateURL)))
             }
             if let ipFilterLevel = prefs.ipFilterLevel {
                 children.append(ECTag.integer(name: TagName.ipFilterLevel, value: UInt64(max(0, ipFilterLevel))))
             }
-            appendEmptyIfTrue(prefs.filterLanIPs, TagName.ipFilterFilterLan, to: &children)
-            appendEmptyIfTrue(prefs.secureIdentEnabled, TagName.securityUseSecureIdent, to: &children)
-            appendEmptyIfTrue(prefs.obfuscationSupported, TagName.securityObfuscationSupported, to: &children)
-            appendEmptyIfTrue(prefs.obfuscationRequested, TagName.securityObfuscationRequested, to: &children)
-            appendEmptyIfTrue(prefs.obfuscationRequired, TagName.securityObfuscationRequired, to: &children)
+            appendBool(prefs.filterLanIPs, TagName.ipFilterFilterLan, to: &children)
+            appendBool(prefs.secureIdentEnabled, TagName.securityUseSecureIdent, to: &children)
+            appendBool(prefs.obfuscationSupported, TagName.securityObfuscationSupported, to: &children)
+            appendBool(prefs.obfuscationRequested, TagName.securityObfuscationRequested, to: &children)
+            appendBool(prefs.obfuscationRequired, TagName.securityObfuscationRequired, to: &children)
             return ECTag(name: TagName.prefsSecurity, type: .custom, children: children)
         case .remoteControls:
             var children: [ECTag] = []
-            appendEmptyIfTrue(prefs.webServerEnabled, TagName.webServerAutorun, to: &children)
+            appendBool(prefs.webServerEnabled, TagName.webServerAutorun, to: &children)
             if let webServerPort = prefs.webServerPort {
                 children.append(ECTag.integer(name: TagName.webServerPort, value: UInt64(max(0, webServerPort))))
             }
-            appendEmptyIfTrue(prefs.webServerGuestEnabled, TagName.webServerGuest, to: &children)
-            appendEmptyIfTrue(prefs.webServerUseGzip, TagName.webServerUseGzip, to: &children)
+            appendBool(prefs.webServerGuestEnabled, TagName.webServerGuest, to: &children)
+            appendBool(prefs.webServerUseGzip, TagName.webServerUseGzip, to: &children)
             if let webServerRefreshSeconds = prefs.webServerRefreshSeconds {
                 children.append(ECTag.integer(name: TagName.webServerRefresh, value: UInt64(max(0, webServerRefreshSeconds))))
             }
@@ -684,13 +715,9 @@ public enum ECOperations {
         }
     }
 
-    private static func emptyTag(_ name: UInt16) -> ECTag {
-        ECTag(name: name, type: .unknown)
-    }
-
-    private static func appendEmptyIfTrue(_ value: Bool?, _ name: UInt16, to children: inout [ECTag]) {
-        if value == true {
-            children.append(emptyTag(name))
+    private static func appendBool(_ value: Bool?, _ name: UInt16, to children: inout [ECTag]) {
+        if let value {
+            children.append(ECTag.integer(name: name, value: value ? 1 : 0))
         }
     }
 

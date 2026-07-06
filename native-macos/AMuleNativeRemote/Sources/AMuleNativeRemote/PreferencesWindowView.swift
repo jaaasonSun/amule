@@ -90,6 +90,23 @@ struct PreferencesWindowView: View {
                                 sharedDirectories: model.sharedDirectoriesInput
                             )
                         }
+
+                        Divider()
+                            .padding(.vertical, 4)
+
+                        Toggle("Pause new files", isOn: $model.newFilesPaused)
+                        Toggle("Auto download priority", isOn: $model.autoDownloadPriority)
+                        Toggle("Preview priority", isOn: $model.previewPriority)
+                        Toggle("Auto upload priority", isOn: $model.autoUploadPriority)
+                        Toggle("Save sources", isOn: $model.saveSources)
+                        Toggle("Extract metadata", isOn: $model.extractMetadata)
+                        Toggle("Allocate full file size", isOn: $model.allocateFullFileSize)
+                        Toggle("Check free space", isOn: $model.checkFreeSpace)
+                        preferenceTextField("Min free space MB", text: $model.minFreeDiskSpaceInput, placeholder: "0")
+                        Toggle("Create sparse files", isOn: $model.createSparseFiles)
+                        applyButton("Apply File Preferences") {
+                            model.setFilePrefs()
+                        }
                     }
                     .padding(.vertical, 6)
                 }

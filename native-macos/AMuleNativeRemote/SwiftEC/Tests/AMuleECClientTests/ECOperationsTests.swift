@@ -55,10 +55,10 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertEqual(try ECOperations.serverUpdateFromURL(url: "https://example.test/server.met").tags.first?.name, 0x170C)
         XCTAssertEqual(try ECOperations.kadUpdateFromURL(url: "https://example.test/nodes.dat").tags.first?.name, 0x1E01)
         XCTAssertEqual(try ECOperations.prefsConnectionGet().opcode, 0x3F)
-        XCTAssertEqual(try ECOperations.prefsConnectionGet().tags.first { $0.name == 0x1000 }?.value, .uint(0x00000E54))
+        XCTAssertEqual(try ECOperations.prefsConnectionGet().tags.first { $0.name == 0x1000 }?.value, .uint(0x00000ED4))
         let prefsSet = try ECOperations.prefsConnectionSet(maxDownload: 512, maxUpload: 64)
         XCTAssertEqual(prefsSet.opcode, 0x40)
-        XCTAssertNil(prefsSet.tags.first { $0.name == 0x0004 })
+        XCTAssertEqual(prefsSet.tags.first { $0.name == 0x0004 }?.value, .uint(0x02))
     }
 
     func testSearchBuilderIncludesAmuleGuiExtendedCriteria() throws {
@@ -159,8 +159,8 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertEqual(serverUpdate.tags.first?.stringValue, "https://example.test/server.met")
 
         let prefsSet = try ECOperations.prefsConnectionSet(maxDownload: 512, maxUpload: 64)
-        XCTAssertEqual(prefsSet.tags.map(\.name), [ECOperations.TagName.selectPrefs, ECOperations.TagName.prefsConnections])
-        XCTAssertEqual(prefsSet.tags.first?.intValue, 4)
+        XCTAssertEqual(prefsSet.tags.map(\.name), [ECOperations.TagName.detailLevel, ECOperations.TagName.selectPrefs, ECOperations.TagName.prefsConnections])
+        XCTAssertEqual(prefsSet.tags[1].intValue, 4)
         XCTAssertEqual(prefsSet.tags.last?.children.map(\.name), [ECOperations.TagName.connMaxDownload, ECOperations.TagName.connMaxUpload])
         XCTAssertEqual(prefsSet.tags.last?.children.map(\.intValue), [512, 64])
 

@@ -42,6 +42,34 @@ final class ECPreferencesParserTests: XCTestCase {
         XCTAssertEqual(prefs.shareHiddenFiles, true)
     }
 
+    func testParsesFilesPreferencesGroupFromPrefsPacket() throws {
+        let prefs = try ECResponseParser.parseConnectionPrefs(ECPacket(opcode: 0x40, tags: [
+            ECTag(name: 0x1800, type: .custom, children: [
+                ECTag(name: 0x1803, type: .unknown),
+                ECTag(name: 0x1804, type: .unknown),
+                .integer(name: 0x1805, value: 0),
+                ECTag(name: 0x1806, type: .unknown),
+                ECTag(name: 0x180A, type: .unknown),
+                .integer(name: 0x180B, value: 0),
+                ECTag(name: 0x180C, type: .unknown),
+                ECTag(name: 0x180D, type: .unknown),
+                .integer(name: 0x180E, value: 512),
+                .integer(name: 0x180F, value: 0),
+            ]),
+        ]))
+
+        XCTAssertEqual(prefs.newFilesPaused, true)
+        XCTAssertEqual(prefs.autoDownloadPriority, true)
+        XCTAssertEqual(prefs.previewPriority, false)
+        XCTAssertEqual(prefs.autoUploadPriority, true)
+        XCTAssertEqual(prefs.saveSources, true)
+        XCTAssertEqual(prefs.extractMetadata, false)
+        XCTAssertEqual(prefs.allocateFullFileSize, true)
+        XCTAssertEqual(prefs.checkFreeSpace, true)
+        XCTAssertEqual(prefs.minFreeDiskSpaceMB, 512)
+        XCTAssertEqual(prefs.createSparseFiles, true)
+    }
+
     func testParsesServersPreferencesGroupFromPrefsPacket() throws {
         let prefs = try ECResponseParser.parseConnectionPrefs(ECPacket(opcode: 0x40, tags: [
             ECTag(name: 0x1700, type: .custom, children: [
@@ -113,8 +141,122 @@ final class ECPreferencesParserTests: XCTestCase {
         let packet = try ECOperations.prefsConnectionSet(prefs: prefs, group: .connection)
 
         XCTAssertEqual(packet.opcode, 0x40)
+        XCTAssertEqual(packet.tags.first { $0.name == 0x0004 }?.value, .uint(0x02))
         XCTAssertEqual(packet.tags.first { $0.name == 0x1000 }?.value, .uint(0x00000004))
         let group = try XCTUnwrap(packet.tags.first { $0.name == 0x1300 })
-        XCTAssertEqual(group.children.map(\.name), [0x1303, 0x1304, 0x1306, 0x1307, 0x1308, 0x130D])
+        XCTAssertEqual(group.children.map(\.name), [0x1303, 0x1304, 0x1306, 0x1307, 0x1308, 0x130D, 0x130E])
+        XCTAssertEqual(group.children.first { $0.name == 0x1308 }?.value, .uint(1))
+        XCTAssertEqual(group.children.first { $0.name == 0x130D }?.value, .uint(1))
+        XCTAssertEqual(group.children.first { $0.name == 0x130E }?.value, .uint(0))
+    }
+
+    func testBuildsConnectionSetPacketThatCanTurnConnectionBooleansOff() throws {
+        let prefs = ECConnectionPrefs(maxDownload: 1024, maxUpload: 128, tcpPort: 4662, udpPort: 4672, udpEnabled: true, ed2kEnabled: false, kadEnabled: false)
+        let packet = try ECOperations.prefsConnectionSet(prefs: prefs, group: .connection)
+        let group = try XCTUnwrap(packet.tags.first { $0.name == 0x1300 })
+
+        XCTAssertEqual(packet.tags.first { $0.name == 0x0004 }?.value, .uint(0x02))
+        XCTAssertEqual(packet.tags.first { $0.name == 0x1000 }?.value, .uint(0x00000004))
+        XCTAssertEqual(group.children.first { $0.name == 0x1308 }?.value, .uint(0))
+        XCTAssertEqual(group.children.first { $0.name == 0x130D }?.value, .uint(0))
+        XCTAssertEqual(group.children.first { $0.name == 0x130E }?.value, .uint(0))
+    }
+
+    func testBuildsServerSetPacketThatCanTurnBooleansOff() throws {
+        let prefs = ECConnectionPrefs(
+            maxDownload: 0,
+            maxUpload: 0,
+            serverUpdateURL: "https://example.test/server.met",
+            removeDeadServers: false,
+            deadServerRetries: 2,
+            autoUpdateServers: false,
+            addServersFromServer: false,
+            addServersFromClient: false,
+            useServerPrioritySystem: false,
+            smartIdCheck: false,
+            safeServerConnect: false,
+            autoConnectStaticOnly: false,
+            manualHighPriority: false
+        )
+        let packet = try ECOperations.prefsConnectionSet(prefs: prefs, group: .servers)
+        let group = try XCTUnwrap(packet.tags.first { $0.name == 0x1700 })
+
+        XCTAssertEqual(packet.tags.first { $0.name == 0x0004 }?.value, .uint(0x02))
+        XCTAssertEqual(packet.tags.first { $0.name == 0x1000 }?.value, .uint(0x00000040))
+        for tagName in [0x1701, 0x1703, 0x1705, 0x1706, 0x1707, 0x1708, 0x1709, 0x170A, 0x170B] as [UInt16] {
+            XCTAssertEqual(group.children.first { $0.name == tagName }?.value, .uint(0), "Missing explicit false value for \(String(tagName, radix: 16))")
+        }
+    }
+
+    func testBuildsSecuritySetPacketThatCanTurnBooleansOff() throws {
+        let prefs = ECConnectionPrefs(
+            maxDownload: 0,
+            maxUpload: 0,
+            ipFilterLevel: 127,
+            filterClients: false,
+            filterServers: false,
+            ipFilterAutoUpdate: false,
+            ipFilterUpdateURL: "https://example.test/ipfilter.dat",
+            filterLanIPs: false,
+            secureIdentEnabled: false,
+            obfuscationSupported: false,
+            obfuscationRequested: false,
+            obfuscationRequired: false
+        )
+        let packet = try ECOperations.prefsConnectionSet(prefs: prefs, group: .security)
+        let group = try XCTUnwrap(packet.tags.first { $0.name == 0x1C00 })
+
+        XCTAssertEqual(packet.tags.first { $0.name == 0x0004 }?.value, .uint(0x02))
+        XCTAssertEqual(packet.tags.first { $0.name == 0x1000 }?.value, .uint(0x00000800))
+        for tagName in [0x1C02, 0x1C03, 0x1C04, 0x1C07, 0x1C08, 0x1C09, 0x1C0A, 0x1C0B] as [UInt16] {
+            XCTAssertEqual(group.children.first { $0.name == tagName }?.value, .uint(0), "Missing explicit false value for \(String(tagName, radix: 16))")
+        }
+    }
+
+    func testBuildsRemoteControlSetPacketThatCanTurnBooleansOff() throws {
+        let prefs = ECConnectionPrefs(
+            maxDownload: 0,
+            maxUpload: 0,
+            webServerEnabled: false,
+            webServerPort: 4711,
+            webServerGuestEnabled: false,
+            webServerUseGzip: false,
+            webServerRefreshSeconds: 120,
+            webServerTemplate: "default"
+        )
+        let packet = try ECOperations.prefsConnectionSet(prefs: prefs, group: .remoteControls)
+        let group = try XCTUnwrap(packet.tags.first { $0.name == 0x1500 })
+
+        XCTAssertEqual(packet.tags.first { $0.name == 0x0004 }?.value, .uint(0x02))
+        XCTAssertEqual(packet.tags.first { $0.name == 0x1000 }?.value, .uint(0x00000010))
+        for tagName in [0x1501, 0x1503, 0x1504] as [UInt16] {
+            XCTAssertEqual(group.children.first { $0.name == tagName }?.value, .uint(0), "Missing explicit false value for \(String(tagName, radix: 16))")
+        }
+    }
+
+    func testBuildsFilesSetPacketWithExplicitBooleanValues() throws {
+        let prefs = ECConnectionPrefs(
+            maxDownload: 0,
+            maxUpload: 0,
+            newFilesPaused: false,
+            autoDownloadPriority: false,
+            previewPriority: false,
+            autoUploadPriority: false,
+            saveSources: false,
+            extractMetadata: false,
+            allocateFullFileSize: false,
+            checkFreeSpace: false,
+            minFreeDiskSpaceMB: 256,
+            createSparseFiles: true
+        )
+        let packet = try ECOperations.prefsConnectionSet(prefs: prefs, group: .files)
+        let group = try XCTUnwrap(packet.tags.first { $0.name == 0x1800 })
+
+        XCTAssertEqual(packet.tags.first { $0.name == 0x0004 }?.value, .uint(0x02))
+        XCTAssertEqual(packet.tags.first { $0.name == 0x1000 }?.value, .uint(0x00000080))
+        for tagName in [0x1803, 0x1804, 0x1805, 0x1806, 0x180A, 0x180B, 0x180C, 0x180D, 0x180F] as [UInt16] {
+            XCTAssertEqual(group.children.first { $0.name == tagName }?.value, .uint(0), "Missing explicit false value for \(String(tagName, radix: 16))")
+        }
+        XCTAssertEqual(group.children.first { $0.name == 0x180E }?.value, .uint(256))
     }
 }

@@ -108,6 +108,17 @@ public enum ECResponseParser {
         public static let serversAutoConnectStaticOnly: UInt16 = 0x170A
         public static let serversManualHighPriority: UInt16 = 0x170B
         public static let serversUpdateURL: UInt16 = 0x170C
+        public static let prefsFiles: UInt16 = 0x1800
+        public static let filesNewPaused: UInt16 = 0x1803
+        public static let filesNewAutoDownloadPriority: UInt16 = 0x1804
+        public static let filesPreviewPriority: UInt16 = 0x1805
+        public static let filesNewAutoUploadPriority: UInt16 = 0x1806
+        public static let filesSaveSources: UInt16 = 0x180A
+        public static let filesExtractMetadata: UInt16 = 0x180B
+        public static let filesAllocateFullSize: UInt16 = 0x180C
+        public static let filesCheckFreeSpace: UInt16 = 0x180D
+        public static let filesMinFreeSpace: UInt16 = 0x180E
+        public static let filesCreateNormal: UInt16 = 0x180F
         public static let prefsDirectories: UInt16 = 0x1A00
         public static let directoriesIncoming: UInt16 = 0x1A01
         public static let directoriesTemp: UInt16 = 0x1A02
@@ -514,11 +525,12 @@ public enum ECResponseParser {
         try requireOpcode(packet, ECOperations.OpCode.setPreferences)
         let connection = packet.tags.first(named: TagName.prefsConnections)
         let directories = packet.tags.first(named: TagName.prefsDirectories)
+        let files = packet.tags.first(named: TagName.prefsFiles)
         let servers = packet.tags.first(named: TagName.prefsServers)
         let security = packet.tags.first(named: TagName.prefsSecurity)
         let remoteControls = packet.tags.first(named: TagName.prefsRemoteControls)
         let statistics = packet.tags.first(named: TagName.prefsStatistics)
-        guard connection != nil || directories != nil || servers != nil || security != nil || remoteControls != nil || statistics != nil else {
+        guard connection != nil || directories != nil || files != nil || servers != nil || security != nil || remoteControls != nil || statistics != nil else {
             throw ECResponseParserError.missingPreferences
         }
         let hasConnectionNetworkFields = connection.map {
@@ -533,38 +545,48 @@ public enum ECResponseParser {
             maxUpload: connection?.child(named: TagName.connMaxUpload)?.intValue ?? 0,
             tcpPort: connection?.child(named: TagName.connTCPPort)?.intValue,
             udpPort: connection?.child(named: TagName.connUDPPort)?.intValue,
-            udpEnabled: hasConnectionNetworkFields ? connection.map { $0.child(named: TagName.connUDPDisable) == nil } : nil,
-            ed2kEnabled: hasConnectionNetworkFields ? connection.map { $0.child(named: TagName.networkED2K) != nil } : nil,
-            kadEnabled: hasConnectionNetworkFields ? connection.map { $0.child(named: TagName.networkKademlia) != nil } : nil,
+            udpEnabled: hasConnectionNetworkFields ? connection.map { !(preferenceBool($0, TagName.connUDPDisable) ?? false) } : nil,
+            ed2kEnabled: hasConnectionNetworkFields ? connection.flatMap { preferenceBool($0, TagName.networkED2K) } : nil,
+            kadEnabled: hasConnectionNetworkFields ? connection.flatMap { preferenceBool($0, TagName.networkKademlia) } : nil,
             incomingDirectory: directories?.child(named: TagName.directoriesIncoming)?.stringValue,
             tempDirectory: directories?.child(named: TagName.directoriesTemp)?.stringValue,
             sharedDirectories: directories?.child(named: TagName.directoriesShared)?.children.compactMap(\.stringValue),
             shareHiddenFiles: directories?.child(named: TagName.directoriesShareHidden).map { $0.intValue != 0 },
+            newFilesPaused: files.flatMap { preferenceBool($0, TagName.filesNewPaused) },
+            autoDownloadPriority: files.flatMap { preferenceBool($0, TagName.filesNewAutoDownloadPriority) },
+            previewPriority: files.flatMap { preferenceBool($0, TagName.filesPreviewPriority) },
+            autoUploadPriority: files.flatMap { preferenceBool($0, TagName.filesNewAutoUploadPriority) },
+            saveSources: files.flatMap { preferenceBool($0, TagName.filesSaveSources) },
+            extractMetadata: files.flatMap { preferenceBool($0, TagName.filesExtractMetadata) },
+            allocateFullFileSize: files.flatMap { preferenceBool($0, TagName.filesAllocateFullSize) },
+            checkFreeSpace: files.flatMap { preferenceBool($0, TagName.filesCheckFreeSpace) },
+            minFreeDiskSpaceMB: files?.child(named: TagName.filesMinFreeSpace)?.intValue,
+            createSparseFiles: files.map { !(preferenceBool($0, TagName.filesCreateNormal) ?? false) },
             serverUpdateURL: servers?.child(named: TagName.serversUpdateURL)?.stringValue,
-            removeDeadServers: servers.map { $0.child(named: TagName.serversRemoveDead) != nil },
+            removeDeadServers: servers.flatMap { preferenceBool($0, TagName.serversRemoveDead) },
             deadServerRetries: servers?.child(named: TagName.serversDeadServerRetries)?.intValue,
-            autoUpdateServers: servers.map { $0.child(named: TagName.serversAutoUpdate) != nil },
-            addServersFromServer: servers.map { $0.child(named: TagName.serversAddFromServer) != nil },
-            addServersFromClient: servers.map { $0.child(named: TagName.serversAddFromClient) != nil },
-            useServerPrioritySystem: servers.map { $0.child(named: TagName.serversUseScoreSystem) != nil },
-            smartIdCheck: servers.map { $0.child(named: TagName.serversSmartIDCheck) != nil },
-            safeServerConnect: servers.map { $0.child(named: TagName.serversSafeServerConnect) != nil },
-            autoConnectStaticOnly: servers.map { $0.child(named: TagName.serversAutoConnectStaticOnly) != nil },
-            manualHighPriority: servers.map { $0.child(named: TagName.serversManualHighPriority) != nil },
+            autoUpdateServers: servers.flatMap { preferenceBool($0, TagName.serversAutoUpdate) },
+            addServersFromServer: servers.flatMap { preferenceBool($0, TagName.serversAddFromServer) },
+            addServersFromClient: servers.flatMap { preferenceBool($0, TagName.serversAddFromClient) },
+            useServerPrioritySystem: servers.flatMap { preferenceBool($0, TagName.serversUseScoreSystem) },
+            smartIdCheck: servers.flatMap { preferenceBool($0, TagName.serversSmartIDCheck) },
+            safeServerConnect: servers.flatMap { preferenceBool($0, TagName.serversSafeServerConnect) },
+            autoConnectStaticOnly: servers.flatMap { preferenceBool($0, TagName.serversAutoConnectStaticOnly) },
+            manualHighPriority: servers.flatMap { preferenceBool($0, TagName.serversManualHighPriority) },
             ipFilterLevel: security?.child(named: TagName.ipFilterLevel)?.intValue,
-            filterClients: security.map { $0.child(named: TagName.ipFilterClients) != nil },
-            filterServers: security.map { $0.child(named: TagName.ipFilterServers) != nil },
-            ipFilterAutoUpdate: security.map { $0.child(named: TagName.ipFilterAutoUpdate) != nil },
+            filterClients: security.flatMap { preferenceBool($0, TagName.ipFilterClients) },
+            filterServers: security.flatMap { preferenceBool($0, TagName.ipFilterServers) },
+            ipFilterAutoUpdate: security.flatMap { preferenceBool($0, TagName.ipFilterAutoUpdate) },
             ipFilterUpdateURL: security?.child(named: TagName.ipFilterUpdateURL)?.stringValue,
-            filterLanIPs: security.map { $0.child(named: TagName.ipFilterFilterLan) != nil },
-            secureIdentEnabled: security.map { $0.child(named: TagName.securityUseSecureIdent) != nil },
-            obfuscationSupported: security.map { $0.child(named: TagName.securityObfuscationSupported) != nil },
-            obfuscationRequested: security.map { $0.child(named: TagName.securityObfuscationRequested) != nil },
-            obfuscationRequired: security.map { $0.child(named: TagName.securityObfuscationRequired) != nil },
-            webServerEnabled: remoteControls.map { $0.child(named: TagName.webServerAutorun) != nil },
+            filterLanIPs: security.flatMap { preferenceBool($0, TagName.ipFilterFilterLan) },
+            secureIdentEnabled: security.flatMap { preferenceBool($0, TagName.securityUseSecureIdent) },
+            obfuscationSupported: security.flatMap { preferenceBool($0, TagName.securityObfuscationSupported) },
+            obfuscationRequested: security.flatMap { preferenceBool($0, TagName.securityObfuscationRequested) },
+            obfuscationRequired: security.flatMap { preferenceBool($0, TagName.securityObfuscationRequired) },
+            webServerEnabled: remoteControls.flatMap { preferenceBool($0, TagName.webServerAutorun) },
             webServerPort: remoteControls?.child(named: TagName.webServerPort)?.intValue,
-            webServerGuestEnabled: remoteControls.map { $0.child(named: TagName.webServerGuest) != nil },
-            webServerUseGzip: remoteControls.map { $0.child(named: TagName.webServerUseGzip) != nil },
+            webServerGuestEnabled: remoteControls.flatMap { preferenceBool($0, TagName.webServerGuest) },
+            webServerUseGzip: remoteControls.flatMap { preferenceBool($0, TagName.webServerUseGzip) },
             webServerRefreshSeconds: remoteControls?.child(named: TagName.webServerRefresh)?.intValue,
             webServerTemplate: remoteControls?.child(named: TagName.webServerTemplate)?.stringValue,
             remoteAuthMetadata: nil,
@@ -572,6 +594,14 @@ public enum ECResponseParser {
             statsGraphUpdateInterval: nil,
             statsDisplayLimit: nil
         )
+    }
+
+    private static func preferenceBool(_ parent: ECTag, _ name: UInt16) -> Bool? {
+        guard let tag = parent.child(named: name) else { return false }
+        if case .uint(let value) = tag.value {
+            return value != 0
+        }
+        return true
     }
 
     public static func validateSharedFilesUpdate(_ packet: ECPacket) throws {

@@ -82,6 +82,35 @@ extension AppModel {
         applyPreferenceGroup(.directories, prefs: prefs, logGroup: "directories")
     }
 
+    func setFilePrefs() {
+        guard isBridgeOpSupported("prefs-connection-set") else { return }
+        let minFreeDiskSpace: Int
+        do {
+            minFreeDiskSpace = try validateNonNegativeInteger(minFreeDiskSpaceInput, label: L3("Minimum free disk space"))
+        } catch PreferenceValidationError.invalidValue(let message) {
+            lastError = message
+            return
+        } catch {
+            lastError = error.localizedDescription
+            return
+        }
+        let prefs = BridgeConnectionPrefsPayload(
+            maxDownload: 0,
+            maxUpload: 0,
+            newFilesPaused: newFilesPaused,
+            autoDownloadPriority: autoDownloadPriority,
+            previewPriority: previewPriority,
+            autoUploadPriority: autoUploadPriority,
+            saveSources: saveSources,
+            extractMetadata: extractMetadata,
+            allocateFullFileSize: allocateFullFileSize,
+            checkFreeSpace: checkFreeSpace,
+            minFreeDiskSpaceMB: minFreeDiskSpace,
+            createSparseFiles: createSparseFiles
+        )
+        applyPreferenceGroup(.files, prefs: prefs, logGroup: "files")
+    }
+
     func setServersPrefs() {
         guard isBridgeOpSupported("prefs-connection-set") else { return }
         let retries: Int
@@ -195,6 +224,16 @@ extension AppModel {
                     self.sharedDirectoriesInput = sharedDirectories.joined(separator: "\n")
                 }
                 self.shareHiddenFiles = payload.shareHiddenFiles ?? self.shareHiddenFiles
+                self.newFilesPaused = payload.newFilesPaused ?? self.newFilesPaused
+                self.autoDownloadPriority = payload.autoDownloadPriority ?? self.autoDownloadPriority
+                self.previewPriority = payload.previewPriority ?? self.previewPriority
+                self.autoUploadPriority = payload.autoUploadPriority ?? self.autoUploadPriority
+                self.saveSources = payload.saveSources ?? self.saveSources
+                self.extractMetadata = payload.extractMetadata ?? self.extractMetadata
+                self.allocateFullFileSize = payload.allocateFullFileSize ?? self.allocateFullFileSize
+                self.checkFreeSpace = payload.checkFreeSpace ?? self.checkFreeSpace
+                self.minFreeDiskSpaceInput = payload.minFreeDiskSpaceMB.map(String.init) ?? self.minFreeDiskSpaceInput
+                self.createSparseFiles = payload.createSparseFiles ?? self.createSparseFiles
                 self.serverUpdateURLInput = payload.serverUpdateURL ?? self.serverUpdateURLInput
                 self.removeDeadServers = payload.removeDeadServers ?? self.removeDeadServers
                 self.deadServerRetriesInput = payload.deadServerRetries.map(String.init) ?? self.deadServerRetriesInput
