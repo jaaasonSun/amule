@@ -25,6 +25,8 @@ struct ServersWindowView: View {
     @State private var selectedServerID: ServerItem.ID? = nil
     @State private var showingAddServerSheet = false
     @State private var showingImportServerMetSheet = false
+    @State private var showingKadBootstrapSheet = false
+    @State private var showingKadNodesSheet = false
 
     private var selectedServer: ServerItem? {
         guard let selectedServerID else { return nil }
@@ -72,6 +74,43 @@ struct ServersWindowView: View {
             }
             .help("Import server list from URL")
             .disabled(model.isBusy)
+        }
+
+        ToolbarItem(placement: .primaryAction) {
+            Menu {
+                Button {
+                    model.startKad()
+                } label: {
+                    Label("Start Kad", systemImage: "play.fill")
+                }
+                .disabled(model.isBusy || !model.isBridgeOpSupported("kad-start"))
+
+                Button {
+                    model.stopKad()
+                } label: {
+                    Label("Stop Kad", systemImage: "stop.fill")
+                }
+                .disabled(model.isBusy || !model.isBridgeOpSupported("kad-stop"))
+
+                Divider()
+
+                Button {
+                    showingKadBootstrapSheet = true
+                } label: {
+                    Label("Bootstrap...", systemImage: "point.3.filled.connected.trianglepath.dotted")
+                }
+                .disabled(model.isBusy || !model.isBridgeOpSupported("kad-bootstrap"))
+
+                Button {
+                    showingKadNodesSheet = true
+                } label: {
+                    Label("Update nodes.dat...", systemImage: "arrow.down.circle")
+                }
+                .disabled(model.isBusy || !model.isBridgeOpSupported("kad-update-from-url"))
+            } label: {
+                Label("Kad", systemImage: "point.3.filled.connected.trianglepath.dotted")
+            }
+            .help("Kad controls")
         }
 
         ToolbarItem(placement: .primaryAction) {
@@ -128,7 +167,11 @@ struct ServersWindowView: View {
                         .truncationMode(.tail)
                 }
                 Spacer()
-                ServerConnectionStatusView(statusText: model.status.ed2k)
+                let summary = NetworkStatusSummary(status: model.status)
+                ServerConnectionStatusView(statusText: summary.ed2k)
+                Text("Kad: \(localizedConnectionStatusText(for: summary.kad))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Text(LF2("%lld server(s)", Int64(displayedServers.count)))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -165,6 +208,22 @@ struct ServersWindowView: View {
             ImportServerMetSheetView(isBusy: model.isBusy) { url in
                 model.updateServerListFromURL(url)
                 showingImportServerMetSheet = false
+            }
+            .presentationDetents([.height(200)])
+            .presentationDragIndicator(.hidden)
+        }
+        .sheet(isPresented: $showingKadBootstrapSheet) {
+            KadBootstrapSheetView(isBusy: model.isBusy) { ip, port in
+                model.bootstrapKad(ip: ip, port: port)
+                showingKadBootstrapSheet = false
+            }
+            .presentationDetents([.height(210)])
+            .presentationDragIndicator(.hidden)
+        }
+        .sheet(isPresented: $showingKadNodesSheet) {
+            KadNodesURLSheetView(isBusy: model.isBusy) { url in
+                model.updateKadNodesFromURL(url)
+                showingKadNodesSheet = false
             }
             .presentationDetents([.height(200)])
             .presentationDragIndicator(.hidden)
@@ -472,6 +531,96 @@ private struct ImportServerMetSheetView: View {
 
                 Button("Add") {
                     onAdd(trimmedURL)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isBusy || trimmedURL.isEmpty)
+            }
+        }
+        .padding(16)
+        .frame(width: 520)
+    }
+}
+
+private struct KadBootstrapSheetView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let isBusy: Bool
+    let onBootstrap: (_ ip: String, _ port: String) -> Void
+
+    @State private var ip: String = ""
+    @State private var port: String = ""
+
+    private var trimmedIP: String {
+        ip.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var trimmedPort: String {
+        port.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Bootstrap Kad")
+                .font(.headline)
+
+            HStack(spacing: 8) {
+                TextField("IP address", text: $ip)
+                    .textFieldStyle(.roundedBorder)
+                TextField("Port", text: $port)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 90)
+            }
+
+            HStack {
+                Button("Close") {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+
+                Spacer()
+
+                Button("Bootstrap") {
+                    onBootstrap(trimmedIP, trimmedPort)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isBusy || trimmedIP.isEmpty || trimmedPort.isEmpty)
+            }
+        }
+        .padding(16)
+        .frame(width: 440)
+    }
+}
+
+private struct KadNodesURLSheetView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let isBusy: Bool
+    let onUpdate: (_ url: String) -> Void
+
+    @State private var url: String = ""
+
+    private var trimmedURL: String {
+        url.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Update Kad nodes.dat")
+                .font(.headline)
+
+            TextField("http://example.com/nodes.dat", text: $url)
+                .textFieldStyle(.roundedBorder)
+
+            HStack {
+                Button("Close") {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+
+                Spacer()
+
+                Button("Download nodes.dat") {
+                    onUpdate(trimmedURL)
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(isBusy || trimmedURL.isEmpty)

@@ -102,6 +102,20 @@ func compactED2kBadgeValue(_ value: String) -> String {
     return rest.isEmpty ? compactConnectionState(value) : rest
 }
 
+struct NetworkStatusSummary: Equatable {
+    let ed2k: String
+    let kad: String
+
+    init(ed2k: String, kad: String) {
+        self.ed2k = ed2k
+        self.kad = kad
+    }
+
+    init(status: StatusSnapshot) {
+        self.init(ed2k: status.ed2k, kad: status.kad)
+    }
+}
+
 struct ConnectionSheet: View {
     @EnvironmentObject private var model: AppModel
     @Binding var isPresented: Bool
@@ -176,6 +190,8 @@ struct KadSheet: View {
     @Binding var isPresented: Bool
     @Binding var nodesURL: String
     @Binding var isRefreshingStatus: Bool
+    @State private var bootstrapIP = ""
+    @State private var bootstrapPort = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -221,6 +237,48 @@ struct KadSheet: View {
                 }
             }
 
+            HStack(spacing: 8) {
+                Button {
+                    model.startKad()
+                } label: {
+                    Label("Start", systemImage: "play.fill")
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.isBusy || !model.isBridgeOpSupported("kad-start"))
+
+                Button {
+                    model.stopKad()
+                } label: {
+                    Label("Stop", systemImage: "stop.fill")
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.isBusy || !model.isBridgeOpSupported("kad-stop"))
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Bootstrap from node")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 8) {
+                    TextField("IP address", text: $bootstrapIP)
+                        .textFieldStyle(.roundedBorder)
+                    TextField("Port", text: $bootstrapPort)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 84)
+                    Button("Bootstrap") {
+                        model.bootstrapKad(ip: bootstrapIP, port: bootstrapPort)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(
+                        model.isBusy
+                        || !model.isBridgeOpSupported("kad-bootstrap")
+                        || bootstrapIP.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        || bootstrapPort.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    )
+                }
+            }
+
             VStack(alignment: .leading, spacing: 6) {
                 Text("Update nodes.dat from URL")
                     .font(.caption)
@@ -242,11 +300,15 @@ struct KadSheet: View {
                     model.updateKadNodesFromURL(nodesURL)
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(model.isBusy || nodesURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(
+                    model.isBusy
+                    || !model.isBridgeOpSupported("kad-update-from-url")
+                    || nodesURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                )
             }
         }
         .padding(16)
-        .frame(minWidth: 300, idealWidth: 320, maxWidth: 360)
+        .frame(minWidth: 420, idealWidth: 460, maxWidth: 520)
         .background(.regularMaterial)
     }
 
