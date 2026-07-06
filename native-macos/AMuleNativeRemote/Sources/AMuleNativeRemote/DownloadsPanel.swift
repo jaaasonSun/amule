@@ -21,6 +21,11 @@ struct DownloadTableColumnLayout {
     static let sources = DownloadTableColumnLayout(minWidth: 48, idealWidth: 72)
 }
 
+struct DownloadCategoryMenuItem: Identifiable {
+    let id: Int
+    let title: String
+}
+
 struct DownloadsPanel: View {
     let displayedDownloads: [DownloadItem]
     @Binding var selectedDownloadIDs: Set<DownloadItem.ID>
@@ -34,8 +39,13 @@ struct DownloadsPanel: View {
     let copyED2KLink: (DownloadItem) -> Void
     let pauseDownload: (DownloadItem) -> Void
     let resumeDownload: (DownloadItem) -> Void
+    let stopDownload: (DownloadItem) -> Void
     let removeDownload: (DownloadItem) -> Void
     let setPriority: (DownloadItem, String) -> Void
+    let setCategory: (DownloadItem, Int) -> Void
+    let categories: [DownloadCategoryMenuItem]
+    let isDownloadStopSupported: Bool
+    let isDownloadSetCategorySupported: Bool
     let isBusy: Bool
 
     @AppStorage(DownloadTableColumnPersistence.columnCustomizationDefaultsKey)
@@ -176,6 +186,10 @@ struct DownloadsPanel: View {
         Button("Resume") {
             resumeDownload(item)
         }
+        Button("Stop") {
+            stopDownload(item)
+        }
+        .disabled(isBusy || !isDownloadStopSupported || item.isCompletedLike)
         Divider()
         Button("Remove") {
             removeDownload(item)
@@ -187,6 +201,15 @@ struct DownloadsPanel: View {
             Button("High") { setPriority(item, "high") }
             Button("Auto") { setPriority(item, "auto") }
         }
+        Menu("Assign to Category") {
+            Button("Unassign") { setCategory(item, 0) }
+            ForEach(categories) { category in
+                Button(category.title.isEmpty ? "Category \(category.id)" : category.title) {
+                    setCategory(item, category.id)
+                }
+            }
+        }
+        .disabled(isBusy || !isDownloadSetCategorySupported)
     }
 
     private func hasDisplayedFilenameSuggestion(for item: DownloadItem) -> Bool {
@@ -268,8 +291,16 @@ private extension DownloadsPanel {
             copyED2KLink: { _ in },
             pauseDownload: { _ in },
             resumeDownload: { _ in },
+            stopDownload: { _ in },
             removeDownload: { _ in },
             setPriority: { _, _ in },
+            setCategory: { _, _ in },
+            categories: [
+                DownloadCategoryMenuItem(id: 1, title: "Movies"),
+                DownloadCategoryMenuItem(id: 2, title: "Music")
+            ],
+            isDownloadStopSupported: true,
+            isDownloadSetCategorySupported: true,
             isBusy: false
         )
     }

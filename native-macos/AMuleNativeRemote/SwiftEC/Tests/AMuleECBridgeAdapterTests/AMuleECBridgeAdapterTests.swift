@@ -20,6 +20,7 @@ actor AdapterMockTransport: ECConnectionTransport {
         return replies.removeFirst()
     }
     func sentOpcodes() -> [UInt8] { sentPackets.map(\.opcode) }
+    func sentPacket(at index: Int) -> ECPacket? { sentPackets.indices.contains(index) ? sentPackets[index] : nil }
     func disconnectCalls() -> Int { disconnectCount }
 }
 
@@ -137,16 +138,28 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
             ("pause", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.pause(hash: hash, config: config) }, 0x19),
             ("resume", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.resume(hash: hash, config: config) }, 0x1A),
             ("cancel", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.cancel(hash: hash, config: config) }, 0x1D),
+            ("download-stop", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.stop(hash: hash, config: config) }, 0x1B),
+            ("download-a4af-this", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.swapA4AF(hash: hash, mode: .toThis, config: config) }, 0x16),
+            ("download-a4af-auto", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.swapA4AF(hash: hash, mode: .toThisAuto, config: config) }, 0x17),
+            ("download-a4af-others", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.swapA4AF(hash: hash, mode: .toAnyOther, config: config) }, 0x18),
+            ("download-set-category", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.downloadSetCategory(hash: hash, categoryID: 7, config: config) }, 0x1E),
             ("priority", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.priority(hash: hash, value: "3", config: config) }, 0x1C),
             ("clear-completed", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.clearCompleted(ecids: [42], config: config) }, 0x53),
             ("server-connect", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.serverConnect(ip: "1.2.3.4", port: 4661, config: config) }, 0x2F),
             ("server-disconnect", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.serverDisconnect(config: config) }, 0x2E),
             ("server-add", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.serverAdd(address: "1.2.3.4:4661", name: "Fixture", config: config) }, 0x31),
             ("server-remove", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.serverRemove(ip: "1.2.3.4", port: 4661, config: config) }, 0x30),
+            ("server-set-static", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.serverSetStatic(ecid: 42, isStatic: true, config: config) }, 0x56),
+            ("server-set-priority", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.serverSetPriority(ecid: 42, priority: 2, config: config) }, 0x56),
+            ("clear-server-info", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.clearServerInfo(config: config) }, 0x3D),
+            ("reset-log", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.resetLog(config: config) }, 0x3B),
             ("server-update-from-url", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.serverUpdateFromURL(url: "https://example.test/server.met", config: config) }, 0x32),
             ("prefs-connection-set", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.prefsConnectionSet(maxDownload: 512, maxUpload: 64, config: config) }, 0x40),
             ("category-create", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.categoryCreate(name: "Linux ISO", path: "/downloads/linux", comment: "Fixture category", color: 0xff00ff, priority: 2, config: config) }, 0x41),
+            ("category-update", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.categoryUpdate(id: 7, name: "Video", path: "/downloads/video", comment: "media", color: 0x00aaff, priority: 2, config: config) }, 0x42),
             ("category-delete", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.categoryDelete(categoryID: 7, config: config) }, 0x43),
+            ("shared-file-priority", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.sharedFilePriority(hash: hash, priority: 10, config: config) }, 0x11),
+            ("shared-file-comment-rating", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.sharedFileCommentRating(hash: hash, comment: "verified", rating: 4, config: config) }, 0x55),
         ]
 
         for (name, replies, call, expectedOpcode) in scenarios {
@@ -160,6 +173,25 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
             let sentOpcodes = await mock.sentOpcodes()
             XCTAssertEqual(sentOpcodes, [0x02, 0x50, expectedOpcode], "opcode mismatch for \(name)")
         }
+    }
+
+    func testAdapterParsesServerInfoLogEnvelope() async throws {
+        let mock = AdapterMockTransport(replies: [
+            Self.salt,
+            Self.authOK,
+            ECPacket(opcode: 0x3A, tags: [
+                ECTag(name: 0x0000, type: .string, value: .string("server line 1\nserver line 2\n")),
+            ]),
+        ])
+        let session = ECSession(configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false), transportFactory: { mock })
+        let adapter = SwiftECBridgeAdapter(session: session)
+
+        let (log, raw) = try await adapter.serverInfo(config: AMuleConnectionConfig(password: "secret"))
+
+        XCTAssertEqual(log, BridgeCoreLogPayload(kind: "server-info", lines: ["server line 1", "server line 2", ""]))
+        assertJSONEqual(raw, #"{"ok":true,"log":{"kind":"server-info","lines":["server line 1","server line 2",""]}}"#)
+        let sentOpcodes = await mock.sentOpcodes()
+        XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x37])
     }
 
     func testAdapterBuildsInitialDownloadBaselineThenMergesIncrementalUpdate() async throws {
@@ -422,6 +454,39 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
         XCTAssertTrue(raw.contains(#""friends""#))
         let sentOpcodes = await mock.sentOpcodes()
         XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x52])
+    }
+
+    func testAdapterFriendAddByHashSendsVerifiedFriendRequest() async throws {
+        let mock = AdapterMockTransport(replies: [Self.salt, Self.authOK, ECPacket(opcode: 0x01)])
+        let session = ECSession(configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false), transportFactory: { mock })
+        let capabilities = ECCapabilities(ops: [ECSupportedOps.friendAdd])
+        let adapter = SwiftECBridgeAdapter(session: session, capabilities: capabilities)
+
+        let result = try await adapter.friendAdd(hash: Self.hash, ip: "1.2.3.4", port: 4662, name: "Alice", config: AMuleConnectionConfig(password: "secret"))
+
+        XCTAssertEqual(result.message, "Friend add requested")
+        XCTAssertTrue(result.raw.contains(#""ok":true"#))
+        let sentOpcodes = await mock.sentOpcodes()
+        XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x57])
+        let sentFriendPacket = await mock.sentPacket(at: 2)
+        let friendPacket = try XCTUnwrap(sentFriendPacket)
+        XCTAssertEqual(friendPacket.tags.first?.name, 0x0806)
+    }
+
+    func testAdapterFriendSharedListIsNotAdvertisedByDefaultCapabilities() async throws {
+        let mock = AdapterMockTransport(replies: [Self.salt, Self.authOK, ECPacket(opcode: 0x01)])
+        let session = ECSession(configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false), transportFactory: { mock })
+        let adapter = SwiftECBridgeAdapter(session: session)
+
+        do {
+            _ = try await adapter.friendRequestSharedList(friendID: 11, config: AMuleConnectionConfig(password: "secret"))
+            XCTFail("Expected unsupported friend-shared operation")
+        } catch let error as ECOperationError {
+            XCTAssertEqual(error, .unsupportedOperation("friend-shared"))
+        }
+
+        let sentOpcodes = await mock.sentOpcodes()
+        XCTAssertEqual(sentOpcodes, [])
     }
 
     func testAdapterRejectsMissingCapabilityBeforeSending() async throws {

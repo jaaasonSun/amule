@@ -15,6 +15,10 @@ public enum ECOperationName: String, CaseIterable, Codable, Sendable {
     case disconnect
     case pause
     case resume
+    case downloadStop = "download-stop"
+    case downloadA4AFThis = "download-a4af-this"
+    case downloadA4AFAuto = "download-a4af-auto"
+    case downloadA4AFOthers = "download-a4af-others"
     case rename
     case cancel
     case priority
@@ -40,11 +44,20 @@ public enum ECOperationName: String, CaseIterable, Codable, Sendable {
     case categoryUpdate = "category-update"
     case categoryDelete = "category-delete"
     case downloadSetCategory = "download-set-category"
+    case sharedFilePriority = "shared-file-priority"
+    case sharedFileCommentRating = "shared-file-comment-rating"
+    case serverSetStatic = "server-set-static"
+    case serverSetPriority = "server-set-priority"
+    case serverInfo = "server-info"
+    case clearServerInfo = "clear-server-info"
+    case resetLog = "reset-log"
     case ipfilterReload = "ipfilter-reload"
     case ipfilterUpdate = "ipfilter-update"
     case friends
+    case friendAdd = "friend-add"
     case friendRemove = "friend-remove"
     case friendSlot = "friend-slot"
+    case friendShared = "friend-shared"
     case statsTree = "stats-tree"
     case statsGraphs = "stats-graphs"
 }
@@ -113,18 +126,307 @@ public struct ECSearchResult: Codable, Equatable, Sendable {
     }
 }
 
+public struct ECSearchRequest: Equatable, Sendable {
+    public let scope: String
+    public let query: String
+    public let fileType: String
+    public let `extension`: String
+    public let minSize: UInt64
+    public let maxSize: UInt64
+    public let availability: UInt64
+
+    public init(
+        scope: String,
+        query: String,
+        fileType: String = "",
+        extension: String = "",
+        minSize: UInt64 = 0,
+        maxSize: UInt64 = 0,
+        availability: UInt64 = 0
+    ) {
+        self.scope = scope
+        self.query = query
+        self.fileType = fileType
+        self.extension = `extension`
+        self.minSize = minSize
+        self.maxSize = maxSize
+        self.availability = availability
+    }
+}
+
 public struct ECConnectionPrefs: Codable, Equatable, Sendable {
     public let maxDownload: Int
     public let maxUpload: Int
+    public let tcpPort: Int?
+    public let udpPort: Int?
+    public let udpEnabled: Bool?
+    public let ed2kEnabled: Bool?
+    public let kadEnabled: Bool?
+    public let incomingDirectory: String?
+    public let tempDirectory: String?
+    public let sharedDirectories: [String]?
+    public let shareHiddenFiles: Bool?
+    public let newFilesPaused: Bool?
+    public let autoDownloadPriority: Bool?
+    public let previewPriority: Bool?
+    public let autoUploadPriority: Bool?
+    public let saveSources: Bool?
+    public let extractMetadata: Bool?
+    public let allocateFullFileSize: Bool?
+    public let checkFreeSpace: Bool?
+    public let minFreeDiskSpaceMB: Int?
+    public let createSparseFiles: Bool?
+    public let serverUpdateURL: String?
+    public let removeDeadServers: Bool?
+    public let deadServerRetries: Int?
+    public let autoUpdateServers: Bool?
+    public let addServersFromServer: Bool?
+    public let addServersFromClient: Bool?
+    public let useServerPrioritySystem: Bool?
+    public let smartIdCheck: Bool?
+    public let safeServerConnect: Bool?
+    public let autoConnectStaticOnly: Bool?
+    public let manualHighPriority: Bool?
+    public let ipFilterLevel: Int?
+    public let filterClients: Bool?
+    public let filterServers: Bool?
+    public let ipFilterAutoUpdate: Bool?
+    public let ipFilterUpdateURL: String?
+    public let filterLanIPs: Bool?
+    public let secureIdentEnabled: Bool?
+    public let obfuscationSupported: Bool?
+    public let obfuscationRequested: Bool?
+    public let obfuscationRequired: Bool?
+    public let webServerEnabled: Bool?
+    public let webServerPort: Int?
+    public let webServerGuestEnabled: Bool?
+    public let webServerUseGzip: Bool?
+    public let webServerRefreshSeconds: Int?
+    public let webServerTemplate: String?
+    public let remoteAuthMetadata: String?
+    public let statisticsSupported: Bool
+    public let statsGraphUpdateInterval: Int?
+    public let statsDisplayLimit: Int?
 
-    public init(maxDownload: Int, maxUpload: Int) {
+    public init(
+        maxDownload: Int,
+        maxUpload: Int,
+        tcpPort: Int? = nil,
+        udpPort: Int? = nil,
+        udpEnabled: Bool? = nil,
+        ed2kEnabled: Bool? = nil,
+        kadEnabled: Bool? = nil,
+        incomingDirectory: String? = nil,
+        tempDirectory: String? = nil,
+        sharedDirectories: [String]? = nil,
+        shareHiddenFiles: Bool? = nil,
+        newFilesPaused: Bool? = nil,
+        autoDownloadPriority: Bool? = nil,
+        previewPriority: Bool? = nil,
+        autoUploadPriority: Bool? = nil,
+        saveSources: Bool? = nil,
+        extractMetadata: Bool? = nil,
+        allocateFullFileSize: Bool? = nil,
+        checkFreeSpace: Bool? = nil,
+        minFreeDiskSpaceMB: Int? = nil,
+        createSparseFiles: Bool? = nil,
+        serverUpdateURL: String? = nil,
+        removeDeadServers: Bool? = nil,
+        deadServerRetries: Int? = nil,
+        autoUpdateServers: Bool? = nil,
+        addServersFromServer: Bool? = nil,
+        addServersFromClient: Bool? = nil,
+        useServerPrioritySystem: Bool? = nil,
+        smartIdCheck: Bool? = nil,
+        safeServerConnect: Bool? = nil,
+        autoConnectStaticOnly: Bool? = nil,
+        manualHighPriority: Bool? = nil,
+        ipFilterLevel: Int? = nil,
+        filterClients: Bool? = nil,
+        filterServers: Bool? = nil,
+        ipFilterAutoUpdate: Bool? = nil,
+        ipFilterUpdateURL: String? = nil,
+        filterLanIPs: Bool? = nil,
+        secureIdentEnabled: Bool? = nil,
+        obfuscationSupported: Bool? = nil,
+        obfuscationRequested: Bool? = nil,
+        obfuscationRequired: Bool? = nil,
+        webServerEnabled: Bool? = nil,
+        webServerPort: Int? = nil,
+        webServerGuestEnabled: Bool? = nil,
+        webServerUseGzip: Bool? = nil,
+        webServerRefreshSeconds: Int? = nil,
+        webServerTemplate: String? = nil,
+        remoteAuthMetadata: String? = nil,
+        statisticsSupported: Bool = false,
+        statsGraphUpdateInterval: Int? = nil,
+        statsDisplayLimit: Int? = nil
+    ) {
         self.maxDownload = maxDownload
         self.maxUpload = maxUpload
+        self.tcpPort = tcpPort
+        self.udpPort = udpPort
+        self.udpEnabled = udpEnabled
+        self.ed2kEnabled = ed2kEnabled
+        self.kadEnabled = kadEnabled
+        self.incomingDirectory = incomingDirectory
+        self.tempDirectory = tempDirectory
+        self.sharedDirectories = sharedDirectories
+        self.shareHiddenFiles = shareHiddenFiles
+        self.newFilesPaused = newFilesPaused
+        self.autoDownloadPriority = autoDownloadPriority
+        self.previewPriority = previewPriority
+        self.autoUploadPriority = autoUploadPriority
+        self.saveSources = saveSources
+        self.extractMetadata = extractMetadata
+        self.allocateFullFileSize = allocateFullFileSize
+        self.checkFreeSpace = checkFreeSpace
+        self.minFreeDiskSpaceMB = minFreeDiskSpaceMB
+        self.createSparseFiles = createSparseFiles
+        self.serverUpdateURL = serverUpdateURL
+        self.removeDeadServers = removeDeadServers
+        self.deadServerRetries = deadServerRetries
+        self.autoUpdateServers = autoUpdateServers
+        self.addServersFromServer = addServersFromServer
+        self.addServersFromClient = addServersFromClient
+        self.useServerPrioritySystem = useServerPrioritySystem
+        self.smartIdCheck = smartIdCheck
+        self.safeServerConnect = safeServerConnect
+        self.autoConnectStaticOnly = autoConnectStaticOnly
+        self.manualHighPriority = manualHighPriority
+        self.ipFilterLevel = ipFilterLevel
+        self.filterClients = filterClients
+        self.filterServers = filterServers
+        self.ipFilterAutoUpdate = ipFilterAutoUpdate
+        self.ipFilterUpdateURL = ipFilterUpdateURL
+        self.filterLanIPs = filterLanIPs
+        self.secureIdentEnabled = secureIdentEnabled
+        self.obfuscationSupported = obfuscationSupported
+        self.obfuscationRequested = obfuscationRequested
+        self.obfuscationRequired = obfuscationRequired
+        self.webServerEnabled = webServerEnabled
+        self.webServerPort = webServerPort
+        self.webServerGuestEnabled = webServerGuestEnabled
+        self.webServerUseGzip = webServerUseGzip
+        self.webServerRefreshSeconds = webServerRefreshSeconds
+        self.webServerTemplate = webServerTemplate
+        self.remoteAuthMetadata = remoteAuthMetadata
+        self.statisticsSupported = statisticsSupported
+        self.statsGraphUpdateInterval = statsGraphUpdateInterval
+        self.statsDisplayLimit = statsDisplayLimit
     }
 
     private enum CodingKeys: String, CodingKey {
         case maxDownload = "max_dl"
         case maxUpload = "max_ul"
+        case tcpPort = "tcp_port"
+        case udpPort = "udp_port"
+        case udpEnabled = "udp_enabled"
+        case ed2kEnabled = "ed2k_enabled"
+        case kadEnabled = "kad_enabled"
+        case incomingDirectory = "incoming_dir"
+        case tempDirectory = "temp_dir"
+        case sharedDirectories = "shared_dirs"
+        case shareHiddenFiles = "share_hidden_files"
+        case newFilesPaused = "new_files_paused"
+        case autoDownloadPriority = "auto_download_priority"
+        case previewPriority = "preview_priority"
+        case autoUploadPriority = "auto_upload_priority"
+        case saveSources = "save_sources"
+        case extractMetadata = "extract_metadata"
+        case allocateFullFileSize = "allocate_full_file_size"
+        case checkFreeSpace = "check_free_space"
+        case minFreeDiskSpaceMB = "min_free_disk_space_mb"
+        case createSparseFiles = "create_sparse_files"
+        case serverUpdateURL = "server_update_url"
+        case removeDeadServers = "remove_dead_servers"
+        case deadServerRetries = "dead_server_retries"
+        case autoUpdateServers = "auto_update_servers"
+        case addServersFromServer = "add_servers_from_server"
+        case addServersFromClient = "add_servers_from_client"
+        case useServerPrioritySystem = "use_server_priority_system"
+        case smartIdCheck = "smart_id_check"
+        case safeServerConnect = "safe_server_connect"
+        case autoConnectStaticOnly = "auto_connect_static_only"
+        case manualHighPriority = "manual_high_priority"
+        case ipFilterLevel = "ip_filter_level"
+        case filterClients = "filter_clients"
+        case filterServers = "filter_servers"
+        case ipFilterAutoUpdate = "ip_filter_auto_update"
+        case ipFilterUpdateURL = "ip_filter_update_url"
+        case filterLanIPs = "filter_lan_ips"
+        case secureIdentEnabled = "secure_ident_enabled"
+        case obfuscationSupported = "obfuscation_supported"
+        case obfuscationRequested = "obfuscation_requested"
+        case obfuscationRequired = "obfuscation_required"
+        case webServerEnabled = "webserver_enabled"
+        case webServerPort = "webserver_port"
+        case webServerGuestEnabled = "webserver_guest_enabled"
+        case webServerUseGzip = "webserver_use_gzip"
+        case webServerRefreshSeconds = "webserver_refresh_seconds"
+        case webServerTemplate = "webserver_template"
+        case remoteAuthMetadata = "remote_auth_metadata"
+        case statisticsSupported = "statistics_supported"
+        case statsGraphUpdateInterval = "stats_graph_update_interval"
+        case statsDisplayLimit = "stats_display_limit"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            maxDownload: try container.decodeIfPresent(Int.self, forKey: .maxDownload) ?? 0,
+            maxUpload: try container.decodeIfPresent(Int.self, forKey: .maxUpload) ?? 0,
+            tcpPort: try container.decodeIfPresent(Int.self, forKey: .tcpPort),
+            udpPort: try container.decodeIfPresent(Int.self, forKey: .udpPort),
+            udpEnabled: try container.decodeIfPresent(Bool.self, forKey: .udpEnabled),
+            ed2kEnabled: try container.decodeIfPresent(Bool.self, forKey: .ed2kEnabled),
+            kadEnabled: try container.decodeIfPresent(Bool.self, forKey: .kadEnabled),
+            incomingDirectory: try container.decodeIfPresent(String.self, forKey: .incomingDirectory),
+            tempDirectory: try container.decodeIfPresent(String.self, forKey: .tempDirectory),
+            sharedDirectories: try container.decodeIfPresent([String].self, forKey: .sharedDirectories),
+            shareHiddenFiles: try container.decodeIfPresent(Bool.self, forKey: .shareHiddenFiles),
+            newFilesPaused: try container.decodeIfPresent(Bool.self, forKey: .newFilesPaused),
+            autoDownloadPriority: try container.decodeIfPresent(Bool.self, forKey: .autoDownloadPriority),
+            previewPriority: try container.decodeIfPresent(Bool.self, forKey: .previewPriority),
+            autoUploadPriority: try container.decodeIfPresent(Bool.self, forKey: .autoUploadPriority),
+            saveSources: try container.decodeIfPresent(Bool.self, forKey: .saveSources),
+            extractMetadata: try container.decodeIfPresent(Bool.self, forKey: .extractMetadata),
+            allocateFullFileSize: try container.decodeIfPresent(Bool.self, forKey: .allocateFullFileSize),
+            checkFreeSpace: try container.decodeIfPresent(Bool.self, forKey: .checkFreeSpace),
+            minFreeDiskSpaceMB: try container.decodeIfPresent(Int.self, forKey: .minFreeDiskSpaceMB),
+            createSparseFiles: try container.decodeIfPresent(Bool.self, forKey: .createSparseFiles),
+            serverUpdateURL: try container.decodeIfPresent(String.self, forKey: .serverUpdateURL),
+            removeDeadServers: try container.decodeIfPresent(Bool.self, forKey: .removeDeadServers),
+            deadServerRetries: try container.decodeIfPresent(Int.self, forKey: .deadServerRetries),
+            autoUpdateServers: try container.decodeIfPresent(Bool.self, forKey: .autoUpdateServers),
+            addServersFromServer: try container.decodeIfPresent(Bool.self, forKey: .addServersFromServer),
+            addServersFromClient: try container.decodeIfPresent(Bool.self, forKey: .addServersFromClient),
+            useServerPrioritySystem: try container.decodeIfPresent(Bool.self, forKey: .useServerPrioritySystem),
+            smartIdCheck: try container.decodeIfPresent(Bool.self, forKey: .smartIdCheck),
+            safeServerConnect: try container.decodeIfPresent(Bool.self, forKey: .safeServerConnect),
+            autoConnectStaticOnly: try container.decodeIfPresent(Bool.self, forKey: .autoConnectStaticOnly),
+            manualHighPriority: try container.decodeIfPresent(Bool.self, forKey: .manualHighPriority),
+            ipFilterLevel: try container.decodeIfPresent(Int.self, forKey: .ipFilterLevel),
+            filterClients: try container.decodeIfPresent(Bool.self, forKey: .filterClients),
+            filterServers: try container.decodeIfPresent(Bool.self, forKey: .filterServers),
+            ipFilterAutoUpdate: try container.decodeIfPresent(Bool.self, forKey: .ipFilterAutoUpdate),
+            ipFilterUpdateURL: try container.decodeIfPresent(String.self, forKey: .ipFilterUpdateURL),
+            filterLanIPs: try container.decodeIfPresent(Bool.self, forKey: .filterLanIPs),
+            secureIdentEnabled: try container.decodeIfPresent(Bool.self, forKey: .secureIdentEnabled),
+            obfuscationSupported: try container.decodeIfPresent(Bool.self, forKey: .obfuscationSupported),
+            obfuscationRequested: try container.decodeIfPresent(Bool.self, forKey: .obfuscationRequested),
+            obfuscationRequired: try container.decodeIfPresent(Bool.self, forKey: .obfuscationRequired),
+            webServerEnabled: try container.decodeIfPresent(Bool.self, forKey: .webServerEnabled),
+            webServerPort: try container.decodeIfPresent(Int.self, forKey: .webServerPort),
+            webServerGuestEnabled: try container.decodeIfPresent(Bool.self, forKey: .webServerGuestEnabled),
+            webServerUseGzip: try container.decodeIfPresent(Bool.self, forKey: .webServerUseGzip),
+            webServerRefreshSeconds: try container.decodeIfPresent(Int.self, forKey: .webServerRefreshSeconds),
+            webServerTemplate: try container.decodeIfPresent(String.self, forKey: .webServerTemplate),
+            remoteAuthMetadata: try container.decodeIfPresent(String.self, forKey: .remoteAuthMetadata),
+            statisticsSupported: try container.decodeIfPresent(Bool.self, forKey: .statisticsSupported) ?? false,
+            statsGraphUpdateInterval: try container.decodeIfPresent(Int.self, forKey: .statsGraphUpdateInterval),
+            statsDisplayLimit: try container.decodeIfPresent(Int.self, forKey: .statsDisplayLimit)
+        )
     }
 }
 

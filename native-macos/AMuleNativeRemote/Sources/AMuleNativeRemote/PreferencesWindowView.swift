@@ -36,7 +36,7 @@ struct PreferencesWindowView: View {
             Divider()
 
             Form {
-                Section("Connection Speed Limits") {
+                Section("Connection") {
                     VStack(alignment: .leading, spacing: 14) {
                         limitField(
                             title: "Download",
@@ -50,7 +50,129 @@ struct PreferencesWindowView: View {
                             value: model.connectionMaxUploadKBps,
                             placeholder: "0"
                         )
+                        preferenceTextField("TCP port", text: $model.connectionTCPPortInput, placeholder: "4662")
+                        preferenceTextField("UDP port", text: $model.connectionUDPPortInput, placeholder: "4672")
+                        Toggle("UDP enabled", isOn: $model.connectionUDPEnabled)
+                        Toggle("ED2K network", isOn: $model.connectionED2KEnabled)
+                        Toggle("Kademlia network", isOn: $model.connectionKADEnabled)
                         Text("Values are in KiB/s. Use 0 for unlimited speed.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        applyButton("Apply Connection") {
+                            model.setConnectionSpeedLimits(
+                                maxDL: model.connectionMaxDownloadInput,
+                                maxUL: model.connectionMaxUploadInput
+                            )
+                        }
+                    }
+                    .padding(.vertical, 6)
+                }
+
+                Section("Directories and Files") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        preferenceTextField("Incoming", text: $model.incomingDirectoryInput, placeholder: "/path/to/incoming")
+                        preferenceTextField("Temp", text: $model.tempDirectoryInput, placeholder: "/path/to/temp")
+                        Toggle("Share hidden files", isOn: $model.shareHiddenFiles)
+                        Text("Shared directories")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        TextEditor(text: $model.sharedDirectoriesInput)
+                            .font(.body.monospaced())
+                            .frame(minHeight: 72)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .stroke(Color.secondary.opacity(0.25))
+                            )
+                        applyButton("Apply Directories") {
+                            model.setDirectoriesPrefs(
+                                incoming: model.incomingDirectoryInput,
+                                temp: model.tempDirectoryInput,
+                                sharedDirectories: model.sharedDirectoriesInput
+                            )
+                        }
+
+                        Divider()
+                            .padding(.vertical, 4)
+
+                        Toggle("Pause new files", isOn: $model.newFilesPaused)
+                        Toggle("Auto download priority", isOn: $model.autoDownloadPriority)
+                        Toggle("Preview priority", isOn: $model.previewPriority)
+                        Toggle("Auto upload priority", isOn: $model.autoUploadPriority)
+                        Toggle("Save sources", isOn: $model.saveSources)
+                        Toggle("Extract metadata", isOn: $model.extractMetadata)
+                        Toggle("Allocate full file size", isOn: $model.allocateFullFileSize)
+                        Toggle("Check free space", isOn: $model.checkFreeSpace)
+                        preferenceTextField("Min free space MB", text: $model.minFreeDiskSpaceInput, placeholder: "0")
+                        Toggle("Create sparse files", isOn: $model.createSparseFiles)
+                        applyButton("Apply File Preferences") {
+                            model.setFilePrefs()
+                        }
+                    }
+                    .padding(.vertical, 6)
+                }
+
+                Section("Servers") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        preferenceTextField("server.met URL", text: $model.serverUpdateURLInput, placeholder: "https://example.com/server.met")
+                        preferenceTextField("Dead retries", text: $model.deadServerRetriesInput, placeholder: "3")
+                        Toggle("Auto-update server list", isOn: $model.autoUpdateServers)
+                        Toggle("Remove dead servers", isOn: $model.removeDeadServers)
+                        Toggle("Add servers from servers", isOn: $model.addServersFromServer)
+                        Toggle("Add servers from clients", isOn: $model.addServersFromClient)
+                        Toggle("Use priority system", isOn: $model.useServerPrioritySystem)
+                        Toggle("Smart low ID check", isOn: $model.smartIDCheck)
+                        Toggle("Safe server connect", isOn: $model.safeServerConnect)
+                        Toggle("Auto-connect static only", isOn: $model.autoConnectStaticOnly)
+                        Toggle("Manual high priority", isOn: $model.manualHighPriority)
+                        applyButton("Apply Servers") {
+                            model.setServersPrefs()
+                        }
+                    }
+                    .padding(.vertical, 6)
+                }
+
+                Section("Security") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        preferenceTextField("IP filter level", text: $model.ipFilterLevelInput, placeholder: "127")
+                        preferenceTextField("IP filter URL", text: $model.ipFilterUpdateURLInput, placeholder: "https://example.com/ipfilter.dat")
+                        Toggle("Filter clients", isOn: $model.filterClients)
+                        Toggle("Filter servers", isOn: $model.filterServers)
+                        Toggle("Auto-update IP filter", isOn: $model.ipFilterAutoUpdate)
+                        Toggle("Filter LAN IPs", isOn: $model.filterLanIPs)
+                        Toggle("Secure identification", isOn: $model.secureIdentEnabled)
+                        Toggle("Obfuscation supported", isOn: $model.obfuscationSupported)
+                        Toggle("Obfuscation requested", isOn: $model.obfuscationRequested)
+                        Toggle("Obfuscation required", isOn: $model.obfuscationRequired)
+                        applyButton("Apply Security") {
+                            model.setSecurityPrefs()
+                        }
+                    }
+                    .padding(.vertical, 6)
+                }
+
+                Section("Remote Controls") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Toggle("Webserver enabled", isOn: $model.webServerEnabled)
+                        preferenceTextField("Webserver port", text: $model.webServerPortInput, placeholder: "4711")
+                        Toggle("Guest user enabled", isOn: $model.webServerGuestEnabled)
+                        Toggle("Use gzip", isOn: $model.webServerUseGzip)
+                        preferenceTextField("Refresh seconds", text: $model.webServerRefreshInput, placeholder: "120")
+                        preferenceTextField("Template", text: $model.webServerTemplateInput, placeholder: "default")
+                        Text("External connection password and auth hashes are not exposed.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        applyButton("Apply Remote Controls") {
+                            model.setRemoteControlPrefs()
+                        }
+                    }
+                    .padding(.vertical, 6)
+                }
+
+                Section("Statistics") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Remote preference support", isOn: $model.remotePrefsStatisticsSupported)
+                            .disabled(true)
+                        Text("Graph update interval and display limits are not present in the upstream remote preferences packet.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -122,22 +244,8 @@ struct PreferencesWindowView: View {
                 }
             }
             .formStyle(.grouped)
-
-            HStack {
-                Spacer()
-                Button("Apply") {
-                    model.setConnectionSpeedLimits(
-                        maxDL: model.connectionMaxDownloadInput,
-                        maxUL: model.connectionMaxUploadInput
-                    )
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(model.isBusy || !model.isBridgeOpSupported("prefs-connection-set"))
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
         }
-        .frame(minWidth: 640, minHeight: 420)
+        .frame(minWidth: 720, minHeight: 620)
         .task {
             if model.isBridgeOpSupported("prefs-connection-get") {
                 model.refreshConnectionPrefs()
@@ -158,6 +266,26 @@ struct PreferencesWindowView: View {
             Text("Current: \(value)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    private func preferenceTextField(_ title: String, text: Binding<String>, placeholder: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .frame(width: 136, alignment: .leading)
+            TextField(placeholder, text: text)
+                .textFieldStyle(.roundedBorder)
+                .frame(maxWidth: 360)
+            Spacer()
+        }
+    }
+
+    private func applyButton(_ title: String, action: @escaping () -> Void) -> some View {
+        HStack {
+            Spacer()
+            Button(title, action: action)
+                .buttonStyle(.borderedProminent)
+                .disabled(model.isBusy || !model.isBridgeOpSupported("prefs-connection-set"))
         }
     }
 

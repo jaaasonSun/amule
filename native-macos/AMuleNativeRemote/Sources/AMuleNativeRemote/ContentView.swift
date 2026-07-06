@@ -181,11 +181,18 @@ struct ContentView: View {
             copyED2KLink: model.copyDownloadLinkToClipboard,
             pauseDownload: model.pauseDownload,
             resumeDownload: model.resumeDownload,
+            stopDownload: model.stopDownload,
             removeDownload: { item in
                 pendingRemoveDownloadIDs = [item.id]
                 showRemoveConfirmation = true
             },
             setPriority: model.setDownloadPriority,
+            setCategory: model.setDownloadCategory,
+            categories: model.categories.map { category in
+                DownloadCategoryMenuItem(id: category.id, title: category.title)
+            },
+            isDownloadStopSupported: model.isBridgeOpSupported("download-stop"),
+            isDownloadSetCategorySupported: model.isBridgeOpSupported("download-set-category"),
             isBusy: model.isBusy
         )
     }
@@ -209,7 +216,7 @@ struct ContentView: View {
                 model.setDownloadAutoRefreshEnabled(false)
             }
             .task {
-                await model.refreshBridgeCapabilities(logOutput: false, suppressErrors: true)
+                await model.refreshBridgeCapabilitiesAndPreloadCategories(logOutput: false, suppressErrors: true)
                 model.startAutoRefresh()
                 await model.refreshStatus(logOutput: false, suppressErrors: true)
                 model.refreshDownloads()

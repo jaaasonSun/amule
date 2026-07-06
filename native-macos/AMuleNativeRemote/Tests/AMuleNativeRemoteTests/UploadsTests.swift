@@ -167,13 +167,31 @@ final class KadTests: XCTestCase {
 
 final class PreferencesTests: XCTestCase {
     func testDecodeConnectionPrefsEnvelope() throws {
-        let json = #"{"ok":true,"prefs_connection":{"max_dl":512,"max_ul":64}}"#
+        let json = #"{"ok":true,"prefs_connection":{"max_dl":512,"max_ul":64,"tcp_port":4662,"udp_port":4672,"udp_enabled":true,"ed2k_enabled":true,"kad_enabled":false,"incoming_dir":"/incoming","temp_dir":"/temp","shared_dirs":["/shared"],"server_update_url":"https://example.test/server.met","auto_update_servers":true,"dead_server_retries":3,"new_files_paused":true,"auto_download_priority":true,"preview_priority":false,"auto_upload_priority":true,"save_sources":true,"extract_metadata":false,"allocate_full_file_size":true,"check_free_space":true,"min_free_disk_space_mb":512,"create_sparse_files":true,"ip_filter_level":127,"filter_clients":true,"filter_servers":true,"webserver_enabled":true,"webserver_port":4711,"statistics_supported":false}}"#
         let data = try XCTUnwrap(json.data(using: .utf8))
 
         let decoded = try JSONDecoder().decode(BridgeEnvelope.self, from: data)
         XCTAssertTrue(decoded.ok)
         XCTAssertEqual(decoded.prefsConnection?.maxDownload, 512)
         XCTAssertEqual(decoded.prefsConnection?.maxUpload, 64)
+        XCTAssertEqual(decoded.prefsConnection?.tcpPort, 4662)
+        XCTAssertEqual(decoded.prefsConnection?.udpPort, 4672)
+        XCTAssertEqual(decoded.prefsConnection?.incomingDirectory, "/incoming")
+        XCTAssertEqual(decoded.prefsConnection?.sharedDirectories, ["/shared"])
+        XCTAssertEqual(decoded.prefsConnection?.serverUpdateURL, "https://example.test/server.met")
+        XCTAssertEqual(decoded.prefsConnection?.newFilesPaused, true)
+        XCTAssertEqual(decoded.prefsConnection?.autoDownloadPriority, true)
+        XCTAssertEqual(decoded.prefsConnection?.previewPriority, false)
+        XCTAssertEqual(decoded.prefsConnection?.autoUploadPriority, true)
+        XCTAssertEqual(decoded.prefsConnection?.saveSources, true)
+        XCTAssertEqual(decoded.prefsConnection?.extractMetadata, false)
+        XCTAssertEqual(decoded.prefsConnection?.allocateFullFileSize, true)
+        XCTAssertEqual(decoded.prefsConnection?.checkFreeSpace, true)
+        XCTAssertEqual(decoded.prefsConnection?.minFreeDiskSpaceMB, 512)
+        XCTAssertEqual(decoded.prefsConnection?.createSparseFiles, true)
+        XCTAssertEqual(decoded.prefsConnection?.ipFilterLevel, 127)
+        XCTAssertEqual(decoded.prefsConnection?.webServerPort, 4711)
+        XCTAssertEqual(decoded.prefsConnection?.statisticsSupported, false)
     }
 
     @MainActor
@@ -213,6 +231,85 @@ final class PreferencesTests: XCTestCase {
         model.setConnectionSpeedLimits(maxDL: "256", maxUL: "not-a-number")
         XCTAssertFalse(model.lastError.isEmpty)
         XCTAssertFalse(model.isBusy)
+    }
+
+    @MainActor
+    func testSetDirectoriesPrefsRejectsEmptyIncomingDirectory() {
+        let model = AppModel()
+        model.bridgeOps = ["prefs-connection-set"]
+
+        model.setDirectoriesPrefs(incoming: "", temp: "/temp", sharedDirectories: "/shared")
+
+        XCTAssertEqual(model.lastError, "Incoming directory is required.")
+        XCTAssertFalse(model.isBusy)
+    }
+
+    @MainActor
+    func testSetDirectoriesPrefsWritesOnlyDirectoriesGroup() async {
+        let bridge = FakeBridgeAdapter()
+        let model = AppModel(bridge: bridge)
+        model.bridgeOps = ["prefs-connection-get", "prefs-connection-set"]
+        model.shareHiddenFiles = true
+
+        model.setDirectoriesPrefs(incoming: "/incoming", temp: "/temp", sharedDirectories: "/shared/a\n/shared/b")
+        await waitForPreferenceWrite(in: model, bridge: bridge)
+
+        XCTAssertEqual(bridge.lastPrefsGroup, .directories)
+        XCTAssertEqual(bridge.lastPrefsSet?.incomingDirectory, "/incoming")
+        XCTAssertEqual(bridge.lastPrefsSet?.tempDirectory, "/temp")
+        XCTAssertEqual(bridge.lastPrefsSet?.sharedDirectories, ["/shared/a", "/shared/b"])
+        XCTAssertEqual(bridge.lastPrefsSet?.shareHiddenFiles, true)
+    }
+
+    @MainActor
+    func testSetFilePrefsRejectsInvalidMinFreeSpace() {
+        let model = AppModel()
+        model.bridgeOps = ["prefs-connection-set"]
+        model.minFreeDiskSpaceInput = "-1"
+
+        model.setFilePrefs()
+
+        XCTAssertEqual(model.lastError, "Minimum free disk space must be a non-negative integer.")
+        XCTAssertFalse(model.isBusy)
+    }
+
+    @MainActor
+    func testSetFilePrefsWritesOnlyFilesGroup() async {
+        let bridge = FakeBridgeAdapter()
+        let model = AppModel(bridge: bridge)
+        model.bridgeOps = ["prefs-connection-get", "prefs-connection-set"]
+        model.newFilesPaused = false
+        model.autoDownloadPriority = false
+        model.previewPriority = false
+        model.autoUploadPriority = false
+        model.saveSources = false
+        model.extractMetadata = false
+        model.allocateFullFileSize = false
+        model.checkFreeSpace = false
+        model.minFreeDiskSpaceInput = "256"
+        model.createSparseFiles = true
+
+        model.setFilePrefs()
+        await waitForPreferenceWrite(in: model, bridge: bridge)
+
+        XCTAssertEqual(bridge.lastPrefsGroup, .files)
+        XCTAssertEqual(bridge.lastPrefsSet?.newFilesPaused, false)
+        XCTAssertEqual(bridge.lastPrefsSet?.autoDownloadPriority, false)
+        XCTAssertEqual(bridge.lastPrefsSet?.previewPriority, false)
+        XCTAssertEqual(bridge.lastPrefsSet?.autoUploadPriority, false)
+        XCTAssertEqual(bridge.lastPrefsSet?.saveSources, false)
+        XCTAssertEqual(bridge.lastPrefsSet?.extractMetadata, false)
+        XCTAssertEqual(bridge.lastPrefsSet?.allocateFullFileSize, false)
+        XCTAssertEqual(bridge.lastPrefsSet?.checkFreeSpace, false)
+        XCTAssertEqual(bridge.lastPrefsSet?.minFreeDiskSpaceMB, 256)
+        XCTAssertEqual(bridge.lastPrefsSet?.createSparseFiles, true)
+    }
+
+    @MainActor
+    private func waitForPreferenceWrite(in model: AppModel, bridge: FakeBridgeAdapter) async {
+        for _ in 0..<100 where bridge.lastPrefsGroup == nil || model.isBusy {
+            await Task.yield()
+        }
     }
 }
 

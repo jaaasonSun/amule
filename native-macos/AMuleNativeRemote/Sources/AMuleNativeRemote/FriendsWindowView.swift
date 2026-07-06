@@ -16,10 +16,14 @@ private func LF2(_ key: String, _ args: CVarArg...) -> String {
 
 struct FriendsWindowView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var friendHash = ""
+    @State private var friendIP = ""
+    @State private var friendPort = ""
+    @State private var friendName = ""
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
+            HStack(spacing: 8) {
                 Button {
                     model.refreshFriends()
                 } label: {
@@ -27,6 +31,31 @@ struct FriendsWindowView: View {
                 }
                 .buttonStyle(.bordered)
                 .disabled(model.isBusy || !model.isBridgeOpSupported("friends"))
+
+                TextField("Hash", text: $friendHash)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 180)
+                    .disabled(model.isBusy || !model.isBridgeOpSupported("friend-add"))
+                TextField("IP", text: $friendIP)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 110)
+                    .disabled(model.isBusy || !model.isBridgeOpSupported("friend-add"))
+                TextField("Port", text: $friendPort)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 64)
+                    .disabled(model.isBusy || !model.isBridgeOpSupported("friend-add"))
+                TextField("Name", text: $friendName)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 110)
+                    .disabled(model.isBusy || !model.isBridgeOpSupported("friend-add"))
+                Button {
+                    model.addFriend(hash: friendHash, ip: friendIP, port: friendPort, name: friendName)
+                } label: {
+                    Label("Add", systemImage: "person.badge.plus")
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(model.isBusy || !model.isBridgeOpSupported("friend-add"))
+
                 Spacer()
             }
             .padding(.horizontal, 14)

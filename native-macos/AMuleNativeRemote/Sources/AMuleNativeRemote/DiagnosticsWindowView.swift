@@ -21,6 +21,7 @@ struct DiagnosticsWindowView: View {
         case sources = "Raw Src"
         case search = "Raw Search"
         case servers = "Raw Servers"
+        case serverInfo = "Server Info"
         case coreLog = "Core Log"
         case coreDebugLog = "Core Debug"
 
@@ -31,6 +32,9 @@ struct DiagnosticsWindowView: View {
 
     private var availableTabs: [DiagnosticsTab] {
         var tabs: [DiagnosticsTab] = [.log, .downloads, .sources, .search, .servers]
+        if model.isBridgeOpSupported("server-info") {
+            tabs.append(.serverInfo)
+        }
         if model.isBridgeOpSupported("log") {
             tabs.append(.coreLog)
         }
@@ -81,6 +85,14 @@ struct DiagnosticsWindowView: View {
                         .buttonStyle(.bordered)
                         .disabled(model.isBusy || !model.isBridgeOpSupported("debug-log"))
                     }
+
+                    if diagnosticsTab == .serverInfo {
+                        Button("Refresh") {
+                            model.refreshServerInfo()
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(model.isBusy || !model.isBridgeOpSupported("server-info"))
+                    }
                 }
 
                 ScrollView {
@@ -120,6 +132,8 @@ struct DiagnosticsWindowView: View {
             return model.lastSearchRawOutput.isEmpty ? L2("No raw search output captured yet.") : model.lastSearchRawOutput
         case .servers:
             return model.lastServersRawOutput.isEmpty ? L2("No raw server-list output captured yet.") : model.lastServersRawOutput
+        case .serverInfo:
+            return model.lastServerInfoRawOutput.isEmpty ? L2("No raw server-info output captured yet.") : model.lastServerInfoRawOutput
         case .coreLog:
             return model.coreLogLines.isEmpty ? L2("No core log lines captured yet.") : model.coreLogLines.joined(separator: "\n")
         case .coreDebugLog:
@@ -139,6 +153,8 @@ struct DiagnosticsWindowView: View {
             model.copySearchRawToClipboard()
         case .servers:
             model.copyServersRawToClipboard()
+        case .serverInfo:
+            model.pasteboardShare.writeString(model.lastServerInfoRawOutput)
         case .coreLog:
             model.copyCoreLogRawToClipboard()
         case .coreDebugLog:

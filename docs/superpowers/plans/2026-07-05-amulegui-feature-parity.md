@@ -159,6 +159,7 @@ git commit -m "test: capture amulegui parity operation baseline"
 - Modify: `native-macos/AMuleNativeRemote/SwiftEC/Sources/AMuleECProtocol/ECSupportedOps.swift`
 - Modify: `native-macos/AMuleNativeRemote/SwiftEC/Tests/AMuleECClientTests/ECOperationsTests.swift`
 - Test: `native-macos/AMuleNativeRemote/SwiftEC/Tests/AMuleECClientTests/AMuleGuiParityOperationCoverageTests.swift`
+- Test fixture: `native-macos/AMuleNativeRemote/SwiftEC/Tests/AMuleECProtocolTests/ECSupportedOpsTests.swift` (existing canonical `allOperations` fixture; update only because the advertised operation list changes)
 
 - [ ] **Step 1: Add failing packet-builder tests**
 
@@ -202,6 +203,8 @@ swift test --filter ECOperationsTests/testAmuleGuiParity
 ```
 
 Expected: compile errors for missing `stop`, `swapA4AF`, `downloadSetCategory`, `sharedFilePriority`, `sharedFileCommentRating`, `serverSetStatic`, `serverSetPriority`, `serverInfo`, `clearServerInfo`, and `resetLog`.
+
+Observed during implementation: the Task 2 packet-builder tests failed to compile before the builders existed, with missing `ECOperations` members for the new builders and missing server tag constants. This RED evidence was captured during the implementation turn, not split into a separate commit.
 
 - [ ] **Step 3: Add operation names**
 

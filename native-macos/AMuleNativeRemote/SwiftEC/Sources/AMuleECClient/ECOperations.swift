@@ -34,6 +34,12 @@ public struct ECCapabilityGate: Equatable, Sendable {
 }
 
 public enum ECOperations {
+    public enum A4AFSwapMode: Sendable, Equatable {
+        case toThis
+        case toThisAuto
+        case toAnyOther
+    }
+
     public enum OpCode {
         public static let noop: UInt8 = 0x01
         public static let failed: UInt8 = 0x05
@@ -42,8 +48,13 @@ public enum ECOperations {
         public static let statRequest: UInt8 = 0x0A
         public static let stats: UInt8 = 0x0C
         public static let addLink: UInt8 = 0x09
+        public static let sharedSetPriority: UInt8 = 0x11
+        public static let partFileSwapA4AFThis: UInt8 = 0x16
+        public static let partFileSwapA4AFThisAuto: UInt8 = 0x17
+        public static let partFileSwapA4AFOthers: UInt8 = 0x18
         public static let partFilePause: UInt8 = 0x19
         public static let partFileResume: UInt8 = 0x1A
+        public static let partFileStop: UInt8 = 0x1B
         public static let searchStart: UInt8 = 0x26
         public static let searchStop: UInt8 = 0x27
         public static let searchResults: UInt8 = 0x28
@@ -85,7 +96,13 @@ public enum ECOperations {
         public static let log: UInt8 = 0x38
         public static let getDebugLog: UInt8 = 0x36
         public static let debugLog: UInt8 = 0x39
+        public static let getServerInfo: UInt8 = 0x37
+        public static let serverInfo: UInt8 = 0x3A
+        public static let resetLog: UInt8 = 0x3B
+        public static let clearServerInfo: UInt8 = 0x3D
         public static let clearCompleted: UInt8 = 0x53
+        public static let sharedFileSetComment: UInt8 = 0x55
+        public static let serverSetStaticPriority: UInt8 = 0x56
         public static let friend: UInt8 = 0x57
         public static let connect: UInt8 = 0x4A
         public static let disconnect: UInt8 = 0x4B
@@ -111,16 +128,74 @@ public enum ECOperations {
         public static let server: UInt16 = 0x0500
         public static let serverName: UInt16 = 0x0501
         public static let serverAddress: UInt16 = 0x0503
+        public static let serverPriority: UInt16 = 0x0508
+        public static let serverStatic: UInt16 = 0x050A
         public static let serverIP: UInt16 = 0x050C
         public static let serverPort: UInt16 = 0x050D
         public static let searchType: UInt16 = 0x0701
         public static let searchName: UInt16 = 0x0702
+        public static let searchMinSize: UInt16 = 0x0703
+        public static let searchMaxSize: UInt16 = 0x0704
         public static let searchFileType: UInt16 = 0x0705
+        public static let searchExtension: UInt16 = 0x0706
+        public static let searchAvailability: UInt16 = 0x0707
         public static let selectPrefs: UInt16 = 0x1000
         public static let prefsConnections: UInt16 = 0x1300
         public static let connMaxDownload: UInt16 = 0x1303
         public static let connMaxUpload: UInt16 = 0x1304
+        public static let connTCPPort: UInt16 = 0x1306
+        public static let connUDPPort: UInt16 = 0x1307
+        public static let connUDPDisable: UInt16 = 0x1308
+        public static let networkED2K: UInt16 = 0x130D
+        public static let networkKademlia: UInt16 = 0x130E
+        public static let prefsRemoteControls: UInt16 = 0x1500
+        public static let webServerAutorun: UInt16 = 0x1501
+        public static let webServerPort: UInt16 = 0x1502
+        public static let webServerGuest: UInt16 = 0x1503
+        public static let webServerUseGzip: UInt16 = 0x1504
+        public static let webServerRefresh: UInt16 = 0x1505
+        public static let webServerTemplate: UInt16 = 0x1506
+        public static let prefsServers: UInt16 = 0x1700
+        public static let serversRemoveDead: UInt16 = 0x1701
+        public static let serversDeadServerRetries: UInt16 = 0x1702
+        public static let serversAutoUpdate: UInt16 = 0x1703
+        public static let serversAddFromServer: UInt16 = 0x1705
+        public static let serversAddFromClient: UInt16 = 0x1706
+        public static let serversUseScoreSystem: UInt16 = 0x1707
+        public static let serversSmartIDCheck: UInt16 = 0x1708
+        public static let serversSafeServerConnect: UInt16 = 0x1709
+        public static let serversAutoConnectStaticOnly: UInt16 = 0x170A
+        public static let serversManualHighPriority: UInt16 = 0x170B
         public static let serversUpdateURL: UInt16 = 0x170C
+        public static let prefsFiles: UInt16 = 0x1800
+        public static let filesNewPaused: UInt16 = 0x1803
+        public static let filesNewAutoDownloadPriority: UInt16 = 0x1804
+        public static let filesPreviewPriority: UInt16 = 0x1805
+        public static let filesNewAutoUploadPriority: UInt16 = 0x1806
+        public static let filesSaveSources: UInt16 = 0x180A
+        public static let filesExtractMetadata: UInt16 = 0x180B
+        public static let filesAllocateFullSize: UInt16 = 0x180C
+        public static let filesCheckFreeSpace: UInt16 = 0x180D
+        public static let filesMinFreeSpace: UInt16 = 0x180E
+        public static let filesCreateNormal: UInt16 = 0x180F
+        public static let prefsDirectories: UInt16 = 0x1A00
+        public static let directoriesIncoming: UInt16 = 0x1A01
+        public static let directoriesTemp: UInt16 = 0x1A02
+        public static let directoriesShared: UInt16 = 0x1A03
+        public static let directoriesShareHidden: UInt16 = 0x1A04
+        public static let prefsStatistics: UInt16 = 0x1B00
+        public static let prefsSecurity: UInt16 = 0x1C00
+        public static let securityCanSeeShares: UInt16 = 0x1C01
+        public static let ipFilterClients: UInt16 = 0x1C02
+        public static let ipFilterServers: UInt16 = 0x1C03
+        public static let ipFilterAutoUpdate: UInt16 = 0x1C04
+        public static let ipFilterUpdateURL: UInt16 = 0x1C05
+        public static let ipFilterLevel: UInt16 = 0x1C06
+        public static let ipFilterFilterLan: UInt16 = 0x1C07
+        public static let securityUseSecureIdent: UInt16 = 0x1C08
+        public static let securityObfuscationSupported: UInt16 = 0x1C09
+        public static let securityObfuscationRequested: UInt16 = 0x1C0A
+        public static let securityObfuscationRequired: UInt16 = 0x1C0B
         public static let kademliaUpdateURL: UInt16 = 0x1E01
         public static let knownFileXferred: UInt16 = 0x0401
         public static let knownFileXferredAll: UInt16 = 0x0402
@@ -132,6 +207,7 @@ public enum ECOperations {
         public static let knownFilePriority: UInt16 = 0x040B
         public static let knownFileComment: UInt16 = 0x040E
         public static let knownFileRating: UInt16 = 0x040F
+        public static let client: UInt16 = 0x0600
         public static let clientUploadTotal: UInt16 = 0x060A
         public static let clientDownloadTotal: UInt16 = 0x060B
         public static let clientUpSpeed: UInt16 = 0x060D
@@ -142,8 +218,10 @@ public enum ECOperations {
         public static let friendIP: UInt16 = 0x0803
         public static let friendPort: UInt16 = 0x0804
         public static let friendClient: UInt16 = 0x0805
+        public static let friendAdd: UInt16 = 0x0806
         public static let friendRemove: UInt16 = 0x0807
         public static let friendSlot: UInt16 = 0x0808
+        public static let friendShared: UInt16 = 0x0809
         public static let prefsCategories: UInt16 = 0x1100
         public static let category: UInt16 = 0x1101
         public static let categoryTitle: UInt16 = 0x1102
@@ -161,6 +239,24 @@ public enum ECOperations {
         public static let statsTreeNodeID: UInt16 = 0x1B09
     }
 
+    struct OmittedPreferenceTag: Equatable, Sendable {
+        let tag: UInt16
+        let symbol: String
+        let rationale: String
+    }
+
+    // Upstream exposes these EC_TAG_FILES_* values in CEC_Prefs_Packet, but the
+    // native remote intentionally models only safe remote settings. These are
+    // local integrity/trust or queue-automation behaviors and stay hidden until
+    // their remote UX and daemon-side side effects are explicitly designed.
+    static let omittedRemoteFilePreferenceTags: [OmittedPreferenceTag] = [
+        .init(tag: 0x1801, symbol: "EC_TAG_FILES_ICH_ENABLED", rationale: "ICH integrity behavior is a local core policy, not a routine remote GUI setting."),
+        .init(tag: 0x1802, symbol: "EC_TAG_FILES_AICH_TRUST", rationale: "AICH hash trust changes security posture and is outside the safe remote subset."),
+        .init(tag: 0x1807, symbol: "EC_TAG_FILES_UL_FULL_CHUNKS", rationale: "Upload full chunks affects sharing policy and is not part of the scoped amulegui parity UI."),
+        .init(tag: 0x1808, symbol: "EC_TAG_FILES_START_NEXT_PAUSED", rationale: "Start-next automation can change queue behavior beyond per-file preference parity."),
+        .init(tag: 0x1809, symbol: "EC_TAG_FILES_RESUME_SAME_CAT", rationale: "Resume-same-category automation depends on broader category workflow state."),
+    ]
+
     public enum SearchScope: UInt64 {
         case local = 0x00
         case global = 0x01
@@ -175,8 +271,38 @@ public enum ECOperations {
         }
     }
 
-    private static let prefsConnections: UInt64 = 0x04
-    private static let prefsCategories: UInt64 = 0x01
+    private static let prefsConnections: UInt64 = 0x00000004
+    private static let prefsCategories: UInt64 = 0x00000001
+    private static let prefsRemoteControls: UInt64 = 0x00000010
+    private static let prefsServers: UInt64 = 0x00000040
+    private static let prefsFiles: UInt64 = 0x00000080
+    private static let prefsDirectories: UInt64 = 0x00000200
+    private static let prefsStatistics: UInt64 = 0x00000400
+    private static let prefsSecurity: UInt64 = 0x00000800
+
+    public enum PreferencesGroup: Sendable {
+        case connection
+        case directories
+        case files
+        case servers
+        case security
+        case remoteControls
+        case statistics
+
+        var mask: UInt64 {
+            switch self {
+            case .connection: return prefsConnections
+            case .directories: return prefsDirectories
+            case .files: return prefsFiles
+            case .servers: return prefsServers
+            case .security: return prefsSecurity
+            case .remoteControls: return prefsRemoteControls
+            case .statistics: return prefsStatistics
+            }
+        }
+    }
+
+    private static let allRemotePreferenceGroups = prefsConnections | prefsFiles | prefsDirectories | prefsServers | prefsSecurity | prefsRemoteControls | prefsStatistics
 
     public static let readOnlyOperations: [String] = ECSupportedOps.allOperations
 
@@ -240,12 +366,29 @@ public enum ECOperations {
     }
 
     public static func search(scope: String, query: String, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try search(request: ECSearchRequest(scope: scope, query: query), gate: gate)
+    }
+
+    public static func search(request: ECSearchRequest, gate: ECCapabilityGate? = nil) throws -> ECPacket {
         try gate?.require(.search)
+        var children = [
+            ECTag(name: TagName.searchName, type: .string, value: .string(request.query)),
+            ECTag(name: TagName.searchFileType, type: .string, value: .string(request.fileType)),
+        ]
+        if !request.extension.isEmpty {
+            children.append(ECTag(name: TagName.searchExtension, type: .string, value: .string(request.extension)))
+        }
+        if request.availability > 0 {
+            children.append(ECTag.integer(name: TagName.searchAvailability, value: request.availability))
+        }
+        if request.minSize > 0 {
+            children.append(ECTag.integer(name: TagName.searchMinSize, value: request.minSize))
+        }
+        if request.maxSize > 0 {
+            children.append(ECTag.integer(name: TagName.searchMaxSize, value: request.maxSize))
+        }
         return ECPacket(opcode: OpCode.searchStart, tags: [
-            ECTag.integer(name: TagName.searchType, value: SearchScope(scope).rawValue, children: [
-                ECTag(name: TagName.searchName, type: .string, value: .string(query)),
-                ECTag(name: TagName.searchFileType, type: .string, value: .string("")),
-            ]),
+            ECTag.integer(name: TagName.searchType, value: SearchScope(request.scope).rawValue, children: children),
         ])
     }
 
@@ -284,6 +427,27 @@ public enum ECOperations {
         try partFileAction(opcode: OpCode.partFileResume, operation: .resume, hash: hash, gate: gate)
     }
 
+    public static func stop(hash: String, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try partFileAction(opcode: OpCode.partFileStop, operation: .downloadStop, hash: hash, gate: gate)
+    }
+
+    public static func swapA4AF(hash: String, mode: A4AFSwapMode, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        let opcode: UInt8
+        let operation: ECOperationName
+        switch mode {
+        case .toThis:
+            opcode = OpCode.partFileSwapA4AFThis
+            operation = .downloadA4AFThis
+        case .toThisAuto:
+            opcode = OpCode.partFileSwapA4AFThisAuto
+            operation = .downloadA4AFAuto
+        case .toAnyOther:
+            opcode = OpCode.partFileSwapA4AFOthers
+            operation = .downloadA4AFOthers
+        }
+        return try partFileAction(opcode: opcode, operation: operation, hash: hash, gate: gate)
+    }
+
     public static func cancel(hash: String, gate: ECCapabilityGate? = nil) throws -> ECPacket {
         try partFileAction(opcode: OpCode.partFileDelete, operation: .cancel, hash: hash, gate: gate)
     }
@@ -302,6 +466,33 @@ public enum ECOperations {
             ECTag(name: TagName.partFile, type: .hash16, value: .hash16(try hashData(hash)), children: [
                 ECTag.integer(name: TagName.partFilePriority, value: UInt64(max(0, value))),
             ]),
+        ])
+    }
+
+    public static func downloadSetCategory(hash: String, categoryID: Int, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.downloadSetCategory)
+        return ECPacket(opcode: OpCode.partFileSetCat, tags: [
+            ECTag(name: TagName.partFile, type: .hash16, value: .hash16(try hashData(hash)), children: [
+                ECTag.integer(name: TagName.partFileCategory, value: UInt64(max(0, categoryID))),
+            ]),
+        ])
+    }
+
+    public static func sharedFilePriority(hash: String, priority: Int, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.sharedFilePriority)
+        return ECPacket(opcode: OpCode.sharedSetPriority, tags: [
+            ECTag(name: TagName.partFile, type: .hash16, value: .hash16(try hashData(hash)), children: [
+                ECTag.integer(name: TagName.partFilePriority, value: UInt64(max(0, priority))),
+            ]),
+        ])
+    }
+
+    public static func sharedFileCommentRating(hash: String, comment: String, rating: Int, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.sharedFileCommentRating)
+        return ECPacket(opcode: OpCode.sharedFileSetComment, tags: [
+            ECTag(name: TagName.knownFile, type: .hash16, value: .hash16(try hashData(hash))),
+            ECTag(name: TagName.knownFileComment, type: .string, value: .string(comment)),
+            ECTag.integer(name: TagName.knownFileRating, value: UInt64(max(0, rating))),
         ])
     }
 
@@ -359,6 +550,32 @@ public enum ECOperations {
         ])
     }
 
+    public static func serverSetStatic(ecid: Int, isStatic: Bool, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.serverSetStatic)
+        return ECPacket(opcode: OpCode.serverSetStaticPriority, tags: [
+            ECTag.integer(name: TagName.server, value: UInt64(max(0, ecid))),
+            ECTag.integer(name: TagName.serverStatic, value: isStatic ? 1 : 0),
+        ])
+    }
+
+    public static func serverSetPriority(ecid: Int, priority: Int, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.serverSetPriority)
+        return ECPacket(opcode: OpCode.serverSetStaticPriority, tags: [
+            ECTag.integer(name: TagName.server, value: UInt64(max(0, ecid))),
+            ECTag.integer(name: TagName.serverPriority, value: UInt64(max(0, priority))),
+        ])
+    }
+
+    public static func serverInfo(gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.serverInfo)
+        return ECPacket(opcode: OpCode.getServerInfo)
+    }
+
+    public static func clearServerInfo(gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.clearServerInfo)
+        return ECPacket(opcode: OpCode.clearServerInfo)
+    }
+
     public static func kadStart(gate: ECCapabilityGate? = nil) throws -> ECPacket {
         try gate?.require(.kadStart)
         return ECPacket(opcode: OpCode.kadStart)
@@ -391,7 +608,7 @@ public enum ECOperations {
         try gate?.require(.prefsConnectionGet)
         return ECPacket(opcode: OpCode.getPreferences, tags: [
             ECTag.integer(name: TagName.detailLevel, value: DetailLevel.command.rawValue),
-            ECTag.integer(name: TagName.selectPrefs, value: prefsConnections),
+            ECTag.integer(name: TagName.selectPrefs, value: allRemotePreferenceGroups),
         ])
     }
 
@@ -401,9 +618,125 @@ public enum ECOperations {
         if let maxDownload { prefsChildren.append(ECTag.integer(name: TagName.connMaxDownload, value: UInt64(max(0, maxDownload)))) }
         if let maxUpload { prefsChildren.append(ECTag.integer(name: TagName.connMaxUpload, value: UInt64(max(0, maxUpload)))) }
         return ECPacket(opcode: OpCode.setPreferences, tags: [
+            ECTag.integer(name: TagName.detailLevel, value: DetailLevel.full.rawValue),
             ECTag.integer(name: TagName.selectPrefs, value: prefsConnections),
             ECTag(name: TagName.prefsConnections, type: .custom, children: prefsChildren),
         ])
+    }
+
+    public static func prefsConnectionSet(prefs: ECConnectionPrefs, group: PreferencesGroup, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.prefsConnectionSet)
+        return ECPacket(opcode: OpCode.setPreferences, tags: [
+            ECTag.integer(name: TagName.detailLevel, value: DetailLevel.full.rawValue),
+            ECTag.integer(name: TagName.selectPrefs, value: group.mask),
+            preferenceGroupTag(prefs: prefs, group: group),
+        ])
+    }
+
+    private static func preferenceGroupTag(prefs: ECConnectionPrefs, group: PreferencesGroup) -> ECTag {
+        switch group {
+        case .connection:
+            var children: [ECTag] = [
+                ECTag.integer(name: TagName.connMaxDownload, value: UInt64(max(0, prefs.maxDownload))),
+                ECTag.integer(name: TagName.connMaxUpload, value: UInt64(max(0, prefs.maxUpload))),
+            ]
+            if let tcpPort = prefs.tcpPort { children.append(ECTag.integer(name: TagName.connTCPPort, value: UInt64(max(0, tcpPort)))) }
+            if let udpPort = prefs.udpPort { children.append(ECTag.integer(name: TagName.connUDPPort, value: UInt64(max(0, udpPort)))) }
+            appendBool(prefs.udpEnabled.map { !$0 }, TagName.connUDPDisable, to: &children)
+            appendBool(prefs.ed2kEnabled, TagName.networkED2K, to: &children)
+            appendBool(prefs.kadEnabled, TagName.networkKademlia, to: &children)
+            return ECTag(name: TagName.prefsConnections, type: .custom, children: children)
+        case .directories:
+            var children: [ECTag] = []
+            if let incomingDirectory = prefs.incomingDirectory {
+                children.append(ECTag(name: TagName.directoriesIncoming, type: .string, value: .string(incomingDirectory)))
+            }
+            if let tempDirectory = prefs.tempDirectory {
+                children.append(ECTag(name: TagName.directoriesTemp, type: .string, value: .string(tempDirectory)))
+            }
+            if let sharedDirectories = prefs.sharedDirectories {
+                children.append(ECTag.integer(name: TagName.directoriesShared, value: UInt64(sharedDirectories.count), children: sharedDirectories.map {
+                    ECTag(name: TagName.string, type: .string, value: .string($0))
+                }))
+            }
+            if let shareHiddenFiles = prefs.shareHiddenFiles {
+                children.append(ECTag.integer(name: TagName.directoriesShareHidden, value: shareHiddenFiles ? 1 : 0))
+            }
+            return ECTag(name: TagName.prefsDirectories, type: .custom, children: children)
+        case .files:
+            var children: [ECTag] = []
+            appendBool(prefs.newFilesPaused, TagName.filesNewPaused, to: &children)
+            appendBool(prefs.autoDownloadPriority, TagName.filesNewAutoDownloadPriority, to: &children)
+            appendBool(prefs.previewPriority, TagName.filesPreviewPriority, to: &children)
+            appendBool(prefs.autoUploadPriority, TagName.filesNewAutoUploadPriority, to: &children)
+            appendBool(prefs.saveSources, TagName.filesSaveSources, to: &children)
+            appendBool(prefs.extractMetadata, TagName.filesExtractMetadata, to: &children)
+            appendBool(prefs.allocateFullFileSize, TagName.filesAllocateFullSize, to: &children)
+            appendBool(prefs.checkFreeSpace, TagName.filesCheckFreeSpace, to: &children)
+            if let minFreeDiskSpaceMB = prefs.minFreeDiskSpaceMB {
+                children.append(ECTag.integer(name: TagName.filesMinFreeSpace, value: UInt64(max(0, minFreeDiskSpaceMB))))
+            }
+            appendBool(prefs.createSparseFiles.map { !$0 }, TagName.filesCreateNormal, to: &children)
+            return ECTag(name: TagName.prefsFiles, type: .custom, children: children)
+        case .servers:
+            var children: [ECTag] = []
+            appendBool(prefs.removeDeadServers, TagName.serversRemoveDead, to: &children)
+            if let deadServerRetries = prefs.deadServerRetries {
+                children.append(ECTag.integer(name: TagName.serversDeadServerRetries, value: UInt64(max(0, deadServerRetries))))
+            }
+            appendBool(prefs.autoUpdateServers, TagName.serversAutoUpdate, to: &children)
+            appendBool(prefs.addServersFromServer, TagName.serversAddFromServer, to: &children)
+            appendBool(prefs.addServersFromClient, TagName.serversAddFromClient, to: &children)
+            appendBool(prefs.useServerPrioritySystem, TagName.serversUseScoreSystem, to: &children)
+            appendBool(prefs.smartIdCheck, TagName.serversSmartIDCheck, to: &children)
+            appendBool(prefs.safeServerConnect, TagName.serversSafeServerConnect, to: &children)
+            appendBool(prefs.autoConnectStaticOnly, TagName.serversAutoConnectStaticOnly, to: &children)
+            appendBool(prefs.manualHighPriority, TagName.serversManualHighPriority, to: &children)
+            if let serverUpdateURL = prefs.serverUpdateURL {
+                children.append(ECTag(name: TagName.serversUpdateURL, type: .string, value: .string(serverUpdateURL)))
+            }
+            return ECTag(name: TagName.prefsServers, type: .custom, children: children)
+        case .security:
+            var children: [ECTag] = []
+            appendBool(prefs.filterClients, TagName.ipFilterClients, to: &children)
+            appendBool(prefs.filterServers, TagName.ipFilterServers, to: &children)
+            appendBool(prefs.ipFilterAutoUpdate, TagName.ipFilterAutoUpdate, to: &children)
+            if let ipFilterUpdateURL = prefs.ipFilterUpdateURL {
+                children.append(ECTag(name: TagName.ipFilterUpdateURL, type: .string, value: .string(ipFilterUpdateURL)))
+            }
+            if let ipFilterLevel = prefs.ipFilterLevel {
+                children.append(ECTag.integer(name: TagName.ipFilterLevel, value: UInt64(max(0, ipFilterLevel))))
+            }
+            appendBool(prefs.filterLanIPs, TagName.ipFilterFilterLan, to: &children)
+            appendBool(prefs.secureIdentEnabled, TagName.securityUseSecureIdent, to: &children)
+            appendBool(prefs.obfuscationSupported, TagName.securityObfuscationSupported, to: &children)
+            appendBool(prefs.obfuscationRequested, TagName.securityObfuscationRequested, to: &children)
+            appendBool(prefs.obfuscationRequired, TagName.securityObfuscationRequired, to: &children)
+            return ECTag(name: TagName.prefsSecurity, type: .custom, children: children)
+        case .remoteControls:
+            var children: [ECTag] = []
+            appendBool(prefs.webServerEnabled, TagName.webServerAutorun, to: &children)
+            if let webServerPort = prefs.webServerPort {
+                children.append(ECTag.integer(name: TagName.webServerPort, value: UInt64(max(0, webServerPort))))
+            }
+            appendBool(prefs.webServerGuestEnabled, TagName.webServerGuest, to: &children)
+            appendBool(prefs.webServerUseGzip, TagName.webServerUseGzip, to: &children)
+            if let webServerRefreshSeconds = prefs.webServerRefreshSeconds {
+                children.append(ECTag.integer(name: TagName.webServerRefresh, value: UInt64(max(0, webServerRefreshSeconds))))
+            }
+            if let webServerTemplate = prefs.webServerTemplate {
+                children.append(ECTag(name: TagName.webServerTemplate, type: .string, value: .string(webServerTemplate)))
+            }
+            return ECTag(name: TagName.prefsRemoteControls, type: .custom, children: children)
+        case .statistics:
+            return ECTag(name: TagName.prefsStatistics, type: .custom, children: [])
+        }
+    }
+
+    private static func appendBool(_ value: Bool?, _ name: UInt16, to children: inout [ECTag]) {
+        if let value {
+            children.append(ECTag.integer(name: name, value: value ? 1 : 0))
+        }
     }
 
     public static func categories(gate: ECCapabilityGate? = nil) throws -> ECPacket {
@@ -417,6 +750,13 @@ public enum ECOperations {
         try gate?.require(.categoryCreate)
         return ECPacket(opcode: OpCode.createCategory, tags: [
             categoryTag(id: 0, name: name, path: path, comment: comment, color: color, priority: priority)
+        ])
+    }
+
+    public static func categoryUpdate(id: Int, name: String, path: String, comment: String, color: Int, priority: Int, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.categoryUpdate)
+        return ECPacket(opcode: OpCode.updateCategory, tags: [
+            categoryTag(id: id, name: name, path: path, comment: comment, color: color, priority: priority)
         ])
     }
 
@@ -438,11 +778,59 @@ public enum ECOperations {
         return ECPacket(opcode: OpCode.ipfilterUpdate, tags: tags.map { [$0] } ?? [])
     }
 
+    public static func resetLog(gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.resetLog)
+        return ECPacket(opcode: OpCode.resetLog)
+    }
+
     public static func friendRemove(friendID: Int, gate: ECCapabilityGate? = nil) throws -> ECPacket {
         try gate?.require(.friendRemove)
         return ECPacket(opcode: OpCode.friend, tags: [
             ECTag(name: TagName.friendRemove, type: .custom, children: [
                 ECTag.integer(name: TagName.friend, value: UInt64(max(0, friendID)))
+            ])
+        ])
+    }
+
+    public static func friendAdd(hash: String, ip: String, port: Int, name: String, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.friendAdd)
+        guard isValidMD4Hash(hash) else { throw ECOperationError.invalidHash(hash) }
+        guard (1...65535).contains(port) else {
+            throw ECOperationError.invalidServerEndpoint("\(ip):\(port)")
+        }
+        return ECPacket(opcode: OpCode.friend, tags: [
+            ECTag(name: TagName.friendAdd, type: .custom, children: [
+                ECTag(name: TagName.friendHash, type: .hash16, value: .hash16(try hashData(hash))),
+                ECTag.integer(name: TagName.friendIP, value: UInt64(try antiHostIPValue(ip))),
+                ECTag.integer(name: TagName.friendPort, value: UInt64(port)),
+                ECTag(name: TagName.friendName, type: .string, value: .string(name)),
+            ])
+        ])
+    }
+
+    public static func friendAdd(clientID: Int, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.friendAdd)
+        return ECPacket(opcode: OpCode.friend, tags: [
+            ECTag(name: TagName.friendAdd, type: .custom, children: [
+                ECTag.integer(name: TagName.client, value: UInt64(max(0, clientID)))
+            ])
+        ])
+    }
+
+    public static func friendRequestSharedList(friendID: Int, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.friendShared)
+        return ECPacket(opcode: OpCode.friend, tags: [
+            ECTag(name: TagName.friendShared, type: .custom, children: [
+                ECTag.integer(name: TagName.friend, value: UInt64(max(0, friendID)))
+            ])
+        ])
+    }
+
+    public static func friendRequestSharedList(clientID: Int, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.friendShared)
+        return ECPacket(opcode: OpCode.friend, tags: [
+            ECTag(name: TagName.friendShared, type: .custom, children: [
+                ECTag.integer(name: TagName.client, value: UInt64(max(0, clientID)))
             ])
         ])
     }
@@ -499,6 +887,17 @@ public enum ECOperations {
             index = next
         }
         return bytes
+    }
+
+    private static func antiHostIPValue(_ ip: String) throws -> UInt32 {
+        let parts = ip.split(separator: ".").compactMap { UInt8($0) }
+        guard parts.count == 4 else {
+            throw ECOperationError.invalidServerEndpoint(ip)
+        }
+        return UInt32(parts[0]) |
+            UInt32(parts[1]) << 8 |
+            UInt32(parts[2]) << 16 |
+            UInt32(parts[3]) << 24
     }
 
     private static func partFileAction(opcode: UInt8, operation: ECOperationName, hash: String, gate: ECCapabilityGate?) throws -> ECPacket {

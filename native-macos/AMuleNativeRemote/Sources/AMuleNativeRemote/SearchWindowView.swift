@@ -26,6 +26,7 @@ struct SearchWindowView: View {
     ]
     @State private var displayedSearchResults: [SearchResult] = []
     @State private var selectedSearchResultIDs: Set<SearchResult.ID> = []
+    @State private var showsAdvancedSearchOptions = false
 
     private var selectedSearchResults: [SearchResult] {
         displayedSearchResults.filter { selectedSearchResultIDs.contains($0.id) }
@@ -80,14 +81,18 @@ struct SearchWindowView: View {
     }
 
     private var baseSearchContent: some View {
-        SearchResultsOutlineView(
-            nodes: searchTree,
-            selection: $selectedSearchResultIDs,
-            sortDescriptors: $searchSortDescriptors,
-            autosaveName: searchOutlineAutosaveName
-        )
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .frame(minHeight: 320)
+        VStack(spacing: 0) {
+            advancedSearchOptions
+
+            SearchResultsOutlineView(
+                nodes: searchTree,
+                selection: $selectedSearchResultIDs,
+                sortDescriptors: $searchSortDescriptors,
+                autosaveName: searchOutlineAutosaveName
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .frame(minHeight: 320)
+        }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
@@ -128,10 +133,80 @@ struct SearchWindowView: View {
         .onChange(of: model.searchResults) {
             refreshDisplayedSearchResults()
         }
+        .onChange(of: model.searchOptions) {
+            refreshDisplayedSearchResults()
+        }
+    }
+
+    private var advancedSearchOptions: some View {
+        DisclosureGroup(isExpanded: $showsAdvancedSearchOptions) {
+            Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
+                GridRow {
+                    Text(L2("Type"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    TextField(L2("Any"), text: $model.searchOptions.fileType)
+                        .textFieldStyle(.roundedBorder)
+
+                    Text(L2("Extension"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    TextField(L2("Any"), text: $model.searchOptions.fileExtension)
+                        .textFieldStyle(.roundedBorder)
+
+                    Text(L2("Availability"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    TextField("0", text: $model.searchOptions.availabilityText)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 72)
+                }
+
+                GridRow {
+                    Text(L2("Min Size"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    TextField("0", text: $model.searchOptions.minSizeText)
+                        .textFieldStyle(.roundedBorder)
+
+                    Text(L2("Max Size"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    TextField("0", text: $model.searchOptions.maxSizeText)
+                        .textFieldStyle(.roundedBorder)
+
+                    Text(L2("Filter"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    TextField(L2("Visible Results"), text: $model.searchOptions.filterText)
+                        .textFieldStyle(.roundedBorder)
+                }
+
+                GridRow {
+                    Color.clear
+                        .gridCellUnsizedAxes([.horizontal, .vertical])
+                    Toggle(L2("Invert"), isOn: $model.searchOptions.invertFilter)
+                    Color.clear
+                        .gridCellUnsizedAxes([.horizontal, .vertical])
+                    Toggle(L2("Hide Known"), isOn: $model.searchOptions.hideKnownResults)
+                    Color.clear
+                        .gridCellUnsizedAxes([.horizontal, .vertical])
+                    Spacer(minLength: 0)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 8)
+        } label: {
+            Text(L2("Advanced Search"))
+                .font(.subheadline)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.bar)
     }
 
     private func refreshDisplayedSearchResults() {
-        displayedSearchResults = model.searchResults
+        displayedSearchResults = model.searchOptions.filteredResults(model.searchResults)
         let validIDs = Set(displayedSearchResults.map(\.id))
         selectedSearchResultIDs = selectedSearchResultIDs.intersection(validIDs)
     }
