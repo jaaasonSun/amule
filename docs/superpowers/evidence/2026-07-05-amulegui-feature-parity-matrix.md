@@ -11,8 +11,9 @@ Baseline: upstream `amulegui` / `CLIENT_GUI`.
 | Shared Files | `src/SharedFilesCtrl.cpp` | Upload priority/comment/rating/link variants | shared-file-priority/shared-file-comment-rating | Shared Files window | matched with native UI |
 | Servers | `src/amule-remote-gui.cpp` | Static server and priority | server-set-static/server-set-priority | eD2k window | matched with native UI |
 | Logs | `src/amule-remote-gui.cpp` | core/server log read and reset | log/debug-log/server-info/reset-log/clear-server-info | Diagnostics/Server Logs | matched with native UI |
-| Friends | `src/FriendListCtrl.cpp`, `src/amule-remote-gui.cpp`, `src/ExternalConn.cpp` | add/remove/details/friend slot; remote GUI sends shared-list request but daemon returns not implemented; message UI is present but remote chat send is not EC-backed in this branch | friends/friend-add/friend-remove/friend-slot; friend-shared disabled/unadvertised; no friend-message EC op verified | Friends window; message/shared-list actions not advertised | unsupported by daemon EC |
-| Preferences | `src/amule-remote-gui.h` | remote preference load/apply | prefs-* | Preferences window | matched with native UI |
+| Friends | `src/FriendListCtrl.cpp`, `src/amule-remote-gui.cpp` | supported list/add/remove/details/friend slot actions; daemon-backed manual QA not run | friends/friend-add/friend-remove/friend-slot | Friends window | deferred with reason |
+| Friends | `src/FriendListCtrl.cpp`, `src/ExternalConn.cpp` | shared-list request returns daemon not implemented; chat message UI has no verified CLIENT_GUI EC send operation | friend-shared disabled/unadvertised; no friend-message EC op verified | message/shared-list actions not advertised | unsupported by daemon EC |
+| Preferences | `src/amule-remote-gui.h` | remote preference load/apply source/UI present; daemon-backed mutation/corruption QA not run | prefs-* | Preferences window; deferred pending daemon-backed apply/reload QA | deferred with reason |
 
 Task 2 RED evidence: the packet-builder tests were run before the builders existed and failed to compile on missing `ECOperations` builder members and missing server tag constants. This was observed during the implementation turn and was not isolated into a separate commit.
 
