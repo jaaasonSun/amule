@@ -18,6 +18,7 @@
 		B20000010000000000000008 /* AppModel+Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000008 /* AppModel+Preferences.swift */; };
 		B20000010000000000000009 /* AppModel+Search.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000009 /* AppModel+Search.swift */; };
 		B20000010000000000000010 /* AppModel+Servers.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000010 /* AppModel+Servers.swift */; };
+		B20000010000000000000040 /* AppModel+SharedFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000041 /* AppModel+SharedFiles.swift */; };
 		B20000010000000000000011 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000011 /* AppModel.swift */; };
 		B20000010000000000000012 /* BridgeAdapterFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000012 /* BridgeAdapterFactory.swift */; };
 		B20000010000000000000013 /* CategoriesWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000013 /* CategoriesWindowView.swift */; };
@@ -34,11 +35,14 @@
 		B20000010000000000000024 /* MainToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000024 /* MainToolbar.swift */; };
 		B20000010000000000000039 /* MessagesWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000040 /* MessagesWindowView.swift */; };
 		B20000010000000000000025 /* PreferencesWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000025 /* PreferencesWindowView.swift */; };
+		B20000010000000000000041 /* PreviewHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000042 /* PreviewHelpers.swift */; };
+		B20000010000000000000042 /* SearchOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000043 /* SearchOptions.swift */; };
 		B20000010000000000000026 /* SearchPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000026 /* SearchPanel.swift */; };
 		B20000010000000000000027 /* SearchResultRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000027 /* SearchResultRow.swift */; };
 		B20000010000000000000028 /* SearchScopePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000028 /* SearchScopePicker.swift */; };
 		B20000010000000000000029 /* SearchWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000029 /* SearchWindowView.swift */; };
 		B20000010000000000000030 /* ServerConnectionStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000030 /* ServerConnectionStatusView.swift */; };
+		B20000010000000000000043 /* ServerLogsWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000044 /* ServerLogsWindowView.swift */; };
 		B20000010000000000000031 /* ServerManagementService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000031 /* ServerManagementService.swift */; };
 		B20000010000000000000032 /* ServerRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000032 /* ServerRowView.swift */; };
 		B20000010000000000000033 /* ServersWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000033 /* ServersWindowView.swift */; };
@@ -51,13 +55,20 @@
 		B20000011000000000000103 /* CompletedDownloadsRefreshTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000103 /* CompletedDownloadsRefreshTests.swift */; };
 		B20000011000000000000104 /* ContentViewFilterRegressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000104 /* ContentViewFilterRegressionTests.swift */; };
 		B20000011000000000000105 /* DownloadNameSuggestionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000105 /* DownloadNameSuggestionTests.swift */; };
+		B20000011000000000000114 /* DownloadParityActionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000114 /* DownloadParityActionTests.swift */; };
 		B20000011000000000000106 /* DownloadRowValueRegressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000106 /* DownloadRowValueRegressionTests.swift */; };
+		B20000011000000000000115 /* DownloadTableColumnLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000115 /* DownloadTableColumnLayoutTests.swift */; };
 		B20000011000000000000107 /* FakeBridgeAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000107 /* FakeBridgeAdapter.swift */; };
 		B20000011000000000000113 /* FriendsMessagesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000113 /* FriendsMessagesTests.swift */; };
 		B20000011000000000000108 /* IncomingLinksTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000108 /* IncomingLinksTests.swift */; };
+		B20000011000000000000116 /* PlatformModernizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000116 /* PlatformModernizationTests.swift */; };
 		B20000011000000000000109 /* PlatformServiceAdapterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000109 /* PlatformServiceAdapterTests.swift */; };
 		B20000011000000000000110 /* PlatformServiceStubs.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000110 /* PlatformServiceStubs.swift */; };
 		B20000011000000000000111 /* RenameRefreshBehaviorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000111 /* RenameRefreshBehaviorTests.swift */; };
+		B20000011000000000000117 /* SearchParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000117 /* SearchParityTests.swift */; };
+		B20000011000000000000118 /* ServersParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000118 /* ServersParityTests.swift */; };
+		B20000011000000000000119 /* SharedFilesParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000119 /* SharedFilesParityTests.swift */; };
+		B20000011000000000000120 /* StatsKadParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000120 /* StatsKadParityTests.swift */; };
 		B20000011000000000000112 /* UploadsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000112 /* UploadsTests.swift */; };
 		B20000012000000000000201 /* AMuleECClient in Frameworks */ = {isa = PBXBuildFile; productRef = B20000091000000000000201 /* AMuleECClient */; };
 		B20000012000000000000202 /* AMuleECBridgeAdapter in Frameworks */ = {isa = PBXBuildFile; productRef = B20000091000000000000202 /* AMuleECBridgeAdapter */; };
@@ -95,6 +106,7 @@
 		B20000000000000000000008 /* AppModel+Preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Preferences.swift"; sourceTree = "<group>"; };
 		B20000000000000000000009 /* AppModel+Search.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Search.swift"; sourceTree = "<group>"; };
 		B20000000000000000000010 /* AppModel+Servers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Servers.swift"; sourceTree = "<group>"; };
+		B20000000000000000000041 /* AppModel+SharedFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+SharedFiles.swift"; sourceTree = "<group>"; };
 		B20000000000000000000011 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		B20000000000000000000012 /* BridgeAdapterFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeAdapterFactory.swift; sourceTree = "<group>"; };
 		B20000000000000000000013 /* CategoriesWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoriesWindowView.swift; sourceTree = "<group>"; };
@@ -111,11 +123,14 @@
 		B20000000000000000000024 /* MainToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainToolbar.swift; sourceTree = "<group>"; };
 		B20000000000000000000040 /* MessagesWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagesWindowView.swift; sourceTree = "<group>"; };
 		B20000000000000000000025 /* PreferencesWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesWindowView.swift; sourceTree = "<group>"; };
+		B20000000000000000000042 /* PreviewHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewHelpers.swift; sourceTree = "<group>"; };
+		B20000000000000000000043 /* SearchOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchOptions.swift; sourceTree = "<group>"; };
 		B20000000000000000000026 /* SearchPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchPanel.swift; sourceTree = "<group>"; };
 		B20000000000000000000027 /* SearchResultRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResultRow.swift; sourceTree = "<group>"; };
 		B20000000000000000000028 /* SearchScopePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchScopePicker.swift; sourceTree = "<group>"; };
 		B20000000000000000000029 /* SearchWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchWindowView.swift; sourceTree = "<group>"; };
 		B20000000000000000000030 /* ServerConnectionStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerConnectionStatusView.swift; sourceTree = "<group>"; };
+		B20000000000000000000044 /* ServerLogsWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerLogsWindowView.swift; sourceTree = "<group>"; };
 		B20000000000000000000031 /* ServerManagementService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerManagementService.swift; sourceTree = "<group>"; };
 		B20000000000000000000032 /* ServerRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerRowView.swift; sourceTree = "<group>"; };
 		B20000000000000000000033 /* ServersWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServersWindowView.swift; sourceTree = "<group>"; };
@@ -134,13 +149,20 @@
 		B20000000000000000000103 /* CompletedDownloadsRefreshTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletedDownloadsRefreshTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000104 /* ContentViewFilterRegressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentViewFilterRegressionTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000105 /* DownloadNameSuggestionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadNameSuggestionTests.swift; sourceTree = "<group>"; };
+		B20000000000000000000114 /* DownloadParityActionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadParityActionTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000106 /* DownloadRowValueRegressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadRowValueRegressionTests.swift; sourceTree = "<group>"; };
+		B20000000000000000000115 /* DownloadTableColumnLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadTableColumnLayoutTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000107 /* FakeBridgeAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FakeBridgeAdapter.swift; sourceTree = "<group>"; };
 		B20000000000000000000113 /* FriendsMessagesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsMessagesTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000108 /* IncomingLinksTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomingLinksTests.swift; sourceTree = "<group>"; };
+		B20000000000000000000116 /* PlatformModernizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformModernizationTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000109 /* PlatformServiceAdapterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformServiceAdapterTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000110 /* PlatformServiceStubs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformServiceStubs.swift; sourceTree = "<group>"; };
 		B20000000000000000000111 /* RenameRefreshBehaviorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RenameRefreshBehaviorTests.swift; sourceTree = "<group>"; };
+		B20000000000000000000117 /* SearchParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchParityTests.swift; sourceTree = "<group>"; };
+		B20000000000000000000118 /* ServersParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServersParityTests.swift; sourceTree = "<group>"; };
+		B20000000000000000000119 /* SharedFilesParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedFilesParityTests.swift; sourceTree = "<group>"; };
+		B20000000000000000000120 /* StatsKadParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsKadParityTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000112 /* UploadsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadsTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -197,6 +219,7 @@
 				B20000000000000000000008 /* AppModel+Preferences.swift */,
 				B20000000000000000000009 /* AppModel+Search.swift */,
 				B20000000000000000000010 /* AppModel+Servers.swift */,
+				B20000000000000000000041 /* AppModel+SharedFiles.swift */,
 				B20000000000000000000011 /* AppModel.swift */,
 				B20000000000000000000012 /* BridgeAdapterFactory.swift */,
 				B20000000000000000000013 /* CategoriesWindowView.swift */,
@@ -213,11 +236,14 @@
 				B20000000000000000000024 /* MainToolbar.swift */,
 				B20000000000000000000040 /* MessagesWindowView.swift */,
 				B20000000000000000000025 /* PreferencesWindowView.swift */,
+				B20000000000000000000042 /* PreviewHelpers.swift */,
+				B20000000000000000000043 /* SearchOptions.swift */,
 				B20000000000000000000026 /* SearchPanel.swift */,
 				B20000000000000000000027 /* SearchResultRow.swift */,
 				B20000000000000000000028 /* SearchScopePicker.swift */,
 				B20000000000000000000029 /* SearchWindowView.swift */,
 				B20000000000000000000030 /* ServerConnectionStatusView.swift */,
+				B20000000000000000000044 /* ServerLogsWindowView.swift */,
 				B20000000000000000000031 /* ServerManagementService.swift */,
 				B20000000000000000000032 /* ServerRowView.swift */,
 				B20000000000000000000033 /* ServersWindowView.swift */,
@@ -238,13 +264,20 @@
 				B20000000000000000000103 /* CompletedDownloadsRefreshTests.swift */,
 				B20000000000000000000104 /* ContentViewFilterRegressionTests.swift */,
 				B20000000000000000000105 /* DownloadNameSuggestionTests.swift */,
+				B20000000000000000000114 /* DownloadParityActionTests.swift */,
 				B20000000000000000000106 /* DownloadRowValueRegressionTests.swift */,
+				B20000000000000000000115 /* DownloadTableColumnLayoutTests.swift */,
 				B20000000000000000000107 /* FakeBridgeAdapter.swift */,
 				B20000000000000000000113 /* FriendsMessagesTests.swift */,
 				B20000000000000000000108 /* IncomingLinksTests.swift */,
+				B20000000000000000000116 /* PlatformModernizationTests.swift */,
 				B20000000000000000000109 /* PlatformServiceAdapterTests.swift */,
 				B20000000000000000000110 /* PlatformServiceStubs.swift */,
 				B20000000000000000000111 /* RenameRefreshBehaviorTests.swift */,
+				B20000000000000000000117 /* SearchParityTests.swift */,
+				B20000000000000000000118 /* ServersParityTests.swift */,
+				B20000000000000000000119 /* SharedFilesParityTests.swift */,
+				B20000000000000000000120 /* StatsKadParityTests.swift */,
 				B20000000000000000000112 /* UploadsTests.swift */,
 			);
 			path = Tests/AMuleNativeRemoteTests;
@@ -391,6 +424,7 @@
 				B20000010000000000000008 /* AppModel+Preferences.swift in Sources */,
 				B20000010000000000000009 /* AppModel+Search.swift in Sources */,
 				B20000010000000000000010 /* AppModel+Servers.swift in Sources */,
+				B20000010000000000000040 /* AppModel+SharedFiles.swift in Sources */,
 				B20000010000000000000011 /* AppModel.swift in Sources */,
 				B20000010000000000000012 /* BridgeAdapterFactory.swift in Sources */,
 				B20000010000000000000013 /* CategoriesWindowView.swift in Sources */,
@@ -407,11 +441,14 @@
 				B20000010000000000000024 /* MainToolbar.swift in Sources */,
 				B20000010000000000000039 /* MessagesWindowView.swift in Sources */,
 				B20000010000000000000025 /* PreferencesWindowView.swift in Sources */,
+				B20000010000000000000041 /* PreviewHelpers.swift in Sources */,
+				B20000010000000000000042 /* SearchOptions.swift in Sources */,
 				B20000010000000000000026 /* SearchPanel.swift in Sources */,
 				B20000010000000000000027 /* SearchResultRow.swift in Sources */,
 				B20000010000000000000028 /* SearchScopePicker.swift in Sources */,
 				B20000010000000000000029 /* SearchWindowView.swift in Sources */,
 				B20000010000000000000030 /* ServerConnectionStatusView.swift in Sources */,
+				B20000010000000000000043 /* ServerLogsWindowView.swift in Sources */,
 				B20000010000000000000031 /* ServerManagementService.swift in Sources */,
 				B20000010000000000000032 /* ServerRowView.swift in Sources */,
 				B20000010000000000000033 /* ServersWindowView.swift in Sources */,
@@ -431,13 +468,20 @@
 				B20000011000000000000103 /* CompletedDownloadsRefreshTests.swift in Sources */,
 				B20000011000000000000104 /* ContentViewFilterRegressionTests.swift in Sources */,
 				B20000011000000000000105 /* DownloadNameSuggestionTests.swift in Sources */,
+				B20000011000000000000114 /* DownloadParityActionTests.swift in Sources */,
 				B20000011000000000000106 /* DownloadRowValueRegressionTests.swift in Sources */,
+				B20000011000000000000115 /* DownloadTableColumnLayoutTests.swift in Sources */,
 				B20000011000000000000107 /* FakeBridgeAdapter.swift in Sources */,
 				B20000011000000000000113 /* FriendsMessagesTests.swift in Sources */,
 				B20000011000000000000108 /* IncomingLinksTests.swift in Sources */,
+				B20000011000000000000116 /* PlatformModernizationTests.swift in Sources */,
 				B20000011000000000000109 /* PlatformServiceAdapterTests.swift in Sources */,
 				B20000011000000000000110 /* PlatformServiceStubs.swift in Sources */,
 				B20000011000000000000111 /* RenameRefreshBehaviorTests.swift in Sources */,
+				B20000011000000000000117 /* SearchParityTests.swift in Sources */,
+				B20000011000000000000118 /* ServersParityTests.swift in Sources */,
+				B20000011000000000000119 /* SharedFilesParityTests.swift in Sources */,
+				B20000011000000000000120 /* StatsKadParityTests.swift in Sources */,
 				B20000011000000000000112 /* UploadsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
