@@ -30,6 +30,8 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
     var lastServerPriority: Int?
     var lastFriendAdd: (hash: String, ip: String, port: Int, name: String)?
     var lastFriendSharedListID: Int?
+    var lastPrefsSet: BridgeConnectionPrefsPayload?
+    var lastPrefsGroup: ECOperations.PreferencesGroup?
     var serverInfoResult: (BridgeCoreLogPayload, String) = (
         BridgeCoreLogPayload(kind: "server-info", lines: ["server log"]),
         #"{"ok":true,"log":{"kind":"server-info","lines":["server log"]}}"#
@@ -150,6 +152,12 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
         (BridgeConnectionPrefsPayload(maxDownload: 0, maxUpload: 0), #"{"ok":true,"prefs_connection":{"max_dl":0,"max_ul":0}}"#)
     }
     func prefsConnectionSet(maxDownload: Int, maxUpload: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func prefsConnectionSet(prefs: BridgeConnectionPrefsPayload, group: ECOperations.PreferencesGroup, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        invokedOperations.append("prefs-connection-set")
+        lastPrefsSet = prefs
+        lastPrefsGroup = group
+        return ("ok", messageRaw)
+    }
     func kadStart(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func kadStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func kadBootstrap(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }

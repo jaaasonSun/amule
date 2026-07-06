@@ -55,7 +55,7 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertEqual(try ECOperations.serverUpdateFromURL(url: "https://example.test/server.met").tags.first?.name, 0x170C)
         XCTAssertEqual(try ECOperations.kadUpdateFromURL(url: "https://example.test/nodes.dat").tags.first?.name, 0x1E01)
         XCTAssertEqual(try ECOperations.prefsConnectionGet().opcode, 0x3F)
-        XCTAssertEqual(try ECOperations.prefsConnectionGet().tags.first { $0.name == 0x1000 }?.value, .uint(0x04))
+        XCTAssertEqual(try ECOperations.prefsConnectionGet().tags.first { $0.name == 0x1000 }?.value, .uint(0x00000E54))
         let prefsSet = try ECOperations.prefsConnectionSet(maxDownload: 512, maxUpload: 64)
         XCTAssertEqual(prefsSet.opcode, 0x40)
         XCTAssertNil(prefsSet.tags.first { $0.name == 0x0004 })

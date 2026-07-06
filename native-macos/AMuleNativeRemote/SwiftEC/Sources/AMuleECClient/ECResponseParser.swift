@@ -80,9 +80,51 @@ public enum ECResponseParser {
         public static let searchFile: UInt16 = 0x0700
         public static let searchStatus: UInt16 = 0x0708
         public static let searchParent: UInt16 = 0x0709
+        public static let string: UInt16 = 0x0000
         public static let prefsConnections: UInt16 = 0x1300
         public static let connMaxDownload: UInt16 = 0x1303
         public static let connMaxUpload: UInt16 = 0x1304
+        public static let connTCPPort: UInt16 = 0x1306
+        public static let connUDPPort: UInt16 = 0x1307
+        public static let connUDPDisable: UInt16 = 0x1308
+        public static let networkED2K: UInt16 = 0x130D
+        public static let networkKademlia: UInt16 = 0x130E
+        public static let prefsRemoteControls: UInt16 = 0x1500
+        public static let webServerAutorun: UInt16 = 0x1501
+        public static let webServerPort: UInt16 = 0x1502
+        public static let webServerGuest: UInt16 = 0x1503
+        public static let webServerUseGzip: UInt16 = 0x1504
+        public static let webServerRefresh: UInt16 = 0x1505
+        public static let webServerTemplate: UInt16 = 0x1506
+        public static let prefsServers: UInt16 = 0x1700
+        public static let serversRemoveDead: UInt16 = 0x1701
+        public static let serversDeadServerRetries: UInt16 = 0x1702
+        public static let serversAutoUpdate: UInt16 = 0x1703
+        public static let serversAddFromServer: UInt16 = 0x1705
+        public static let serversAddFromClient: UInt16 = 0x1706
+        public static let serversUseScoreSystem: UInt16 = 0x1707
+        public static let serversSmartIDCheck: UInt16 = 0x1708
+        public static let serversSafeServerConnect: UInt16 = 0x1709
+        public static let serversAutoConnectStaticOnly: UInt16 = 0x170A
+        public static let serversManualHighPriority: UInt16 = 0x170B
+        public static let serversUpdateURL: UInt16 = 0x170C
+        public static let prefsDirectories: UInt16 = 0x1A00
+        public static let directoriesIncoming: UInt16 = 0x1A01
+        public static let directoriesTemp: UInt16 = 0x1A02
+        public static let directoriesShared: UInt16 = 0x1A03
+        public static let directoriesShareHidden: UInt16 = 0x1A04
+        public static let prefsStatistics: UInt16 = 0x1B00
+        public static let prefsSecurity: UInt16 = 0x1C00
+        public static let ipFilterClients: UInt16 = 0x1C02
+        public static let ipFilterServers: UInt16 = 0x1C03
+        public static let ipFilterAutoUpdate: UInt16 = 0x1C04
+        public static let ipFilterUpdateURL: UInt16 = 0x1C05
+        public static let ipFilterLevel: UInt16 = 0x1C06
+        public static let ipFilterFilterLan: UInt16 = 0x1C07
+        public static let securityUseSecureIdent: UInt16 = 0x1C08
+        public static let securityObfuscationSupported: UInt16 = 0x1C09
+        public static let securityObfuscationRequested: UInt16 = 0x1C0A
+        public static let securityObfuscationRequired: UInt16 = 0x1C0B
         public static let client: UInt16 = 0x0600
         public static let clientSoftware: UInt16 = 0x0601
         public static let clientName: UInt16 = 0x0100
@@ -470,13 +512,66 @@ public enum ECResponseParser {
 
     public static func parseConnectionPrefs(_ packet: ECPacket) throws -> ECConnectionPrefs {
         try requireOpcode(packet, ECOperations.OpCode.setPreferences)
-        guard let prefs = packet.tags.first(named: TagName.prefsConnections) else {
+        let connection = packet.tags.first(named: TagName.prefsConnections)
+        let directories = packet.tags.first(named: TagName.prefsDirectories)
+        let servers = packet.tags.first(named: TagName.prefsServers)
+        let security = packet.tags.first(named: TagName.prefsSecurity)
+        let remoteControls = packet.tags.first(named: TagName.prefsRemoteControls)
+        let statistics = packet.tags.first(named: TagName.prefsStatistics)
+        guard connection != nil || directories != nil || servers != nil || security != nil || remoteControls != nil || statistics != nil else {
             throw ECResponseParserError.missingPreferences
         }
-        guard let maxDL = prefs.child(named: TagName.connMaxDownload), let maxUL = prefs.child(named: TagName.connMaxUpload) else {
-            throw ECResponseParserError.missingPreferences
-        }
-        return ECConnectionPrefs(maxDownload: maxDL.intValue, maxUpload: maxUL.intValue)
+        let hasConnectionNetworkFields = connection.map {
+            $0.child(named: TagName.connTCPPort) != nil ||
+                $0.child(named: TagName.connUDPPort) != nil ||
+                $0.child(named: TagName.connUDPDisable) != nil ||
+                $0.child(named: TagName.networkED2K) != nil ||
+                $0.child(named: TagName.networkKademlia) != nil
+        } ?? false
+        return ECConnectionPrefs(
+            maxDownload: connection?.child(named: TagName.connMaxDownload)?.intValue ?? 0,
+            maxUpload: connection?.child(named: TagName.connMaxUpload)?.intValue ?? 0,
+            tcpPort: connection?.child(named: TagName.connTCPPort)?.intValue,
+            udpPort: connection?.child(named: TagName.connUDPPort)?.intValue,
+            udpEnabled: hasConnectionNetworkFields ? connection.map { $0.child(named: TagName.connUDPDisable) == nil } : nil,
+            ed2kEnabled: hasConnectionNetworkFields ? connection.map { $0.child(named: TagName.networkED2K) != nil } : nil,
+            kadEnabled: hasConnectionNetworkFields ? connection.map { $0.child(named: TagName.networkKademlia) != nil } : nil,
+            incomingDirectory: directories?.child(named: TagName.directoriesIncoming)?.stringValue,
+            tempDirectory: directories?.child(named: TagName.directoriesTemp)?.stringValue,
+            sharedDirectories: directories?.child(named: TagName.directoriesShared)?.children.compactMap(\.stringValue),
+            shareHiddenFiles: directories?.child(named: TagName.directoriesShareHidden).map { $0.intValue != 0 },
+            serverUpdateURL: servers?.child(named: TagName.serversUpdateURL)?.stringValue,
+            removeDeadServers: servers.map { $0.child(named: TagName.serversRemoveDead) != nil },
+            deadServerRetries: servers?.child(named: TagName.serversDeadServerRetries)?.intValue,
+            autoUpdateServers: servers.map { $0.child(named: TagName.serversAutoUpdate) != nil },
+            addServersFromServer: servers.map { $0.child(named: TagName.serversAddFromServer) != nil },
+            addServersFromClient: servers.map { $0.child(named: TagName.serversAddFromClient) != nil },
+            useServerPrioritySystem: servers.map { $0.child(named: TagName.serversUseScoreSystem) != nil },
+            smartIdCheck: servers.map { $0.child(named: TagName.serversSmartIDCheck) != nil },
+            safeServerConnect: servers.map { $0.child(named: TagName.serversSafeServerConnect) != nil },
+            autoConnectStaticOnly: servers.map { $0.child(named: TagName.serversAutoConnectStaticOnly) != nil },
+            manualHighPriority: servers.map { $0.child(named: TagName.serversManualHighPriority) != nil },
+            ipFilterLevel: security?.child(named: TagName.ipFilterLevel)?.intValue,
+            filterClients: security.map { $0.child(named: TagName.ipFilterClients) != nil },
+            filterServers: security.map { $0.child(named: TagName.ipFilterServers) != nil },
+            ipFilterAutoUpdate: security.map { $0.child(named: TagName.ipFilterAutoUpdate) != nil },
+            ipFilterUpdateURL: security?.child(named: TagName.ipFilterUpdateURL)?.stringValue,
+            filterLanIPs: security.map { $0.child(named: TagName.ipFilterFilterLan) != nil },
+            secureIdentEnabled: security.map { $0.child(named: TagName.securityUseSecureIdent) != nil },
+            obfuscationSupported: security.map { $0.child(named: TagName.securityObfuscationSupported) != nil },
+            obfuscationRequested: security.map { $0.child(named: TagName.securityObfuscationRequested) != nil },
+            obfuscationRequired: security.map { $0.child(named: TagName.securityObfuscationRequired) != nil },
+            webServerEnabled: remoteControls.map { $0.child(named: TagName.webServerAutorun) != nil },
+            webServerPort: remoteControls?.child(named: TagName.webServerPort)?.intValue,
+            webServerGuestEnabled: remoteControls.map { $0.child(named: TagName.webServerGuest) != nil },
+            webServerUseGzip: remoteControls.map { $0.child(named: TagName.webServerUseGzip) != nil },
+            webServerRefreshSeconds: remoteControls?.child(named: TagName.webServerRefresh)?.intValue,
+            webServerTemplate: remoteControls?.child(named: TagName.webServerTemplate)?.stringValue,
+            remoteAuthMetadata: nil,
+            statisticsSupported: false,
+            statsGraphUpdateInterval: nil,
+            statsDisplayLimit: nil
+        )
     }
 
     public static func validateSharedFilesUpdate(_ packet: ECPacket) throws {

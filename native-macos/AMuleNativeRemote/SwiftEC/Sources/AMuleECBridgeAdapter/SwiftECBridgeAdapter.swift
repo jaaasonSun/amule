@@ -215,6 +215,10 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
         try await mutation(try ECOperations.prefsConnectionSet(maxDownload: maxDownload, maxUpload: maxUpload, gate: capabilityGate), message: "Connection speed limits updated", config: config)
     }
 
+    public func prefsConnectionSet(prefs: BridgeConnectionPrefsPayload, group: ECOperations.PreferencesGroup, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await mutation(try ECOperations.prefsConnectionSet(prefs: prefs, group: group, gate: capabilityGate), message: "Remote preferences updated", config: config)
+    }
+
     public func cancel(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await mutation(try ECOperations.cancel(hash: hash, gate: capabilityGate), message: "Cancel requested", config: config)
     }
@@ -592,6 +596,7 @@ public protocol BridgeProtocol: Sendable {
     func serverSetPriority(ecid: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func prefsConnectionGet(config: AMuleConnectionConfig) async throws -> (BridgeConnectionPrefsPayload, String)
     func prefsConnectionSet(maxDownload: Int, maxUpload: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func prefsConnectionSet(prefs: BridgeConnectionPrefsPayload, group: ECOperations.PreferencesGroup, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func cancel(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func servers(config: AMuleConnectionConfig) async throws -> ([BridgeServerPayload], String)
     func sources(hash: String, config: AMuleConnectionConfig) async throws -> ([BridgeDownloadSourcePayload], String)
