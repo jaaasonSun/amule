@@ -28,8 +28,11 @@ extension AppModel {
         await refreshCategoriesIfSupported(logOutput: false, suppressErrors: true)
     }
 
+    func requestConnectionSheet() {
+        connectionSheetRequestID &+= 1
+    }
+
     func refreshCategoriesIfSupported(logOutput: Bool = false, suppressErrors: Bool = true) async {
-        guard isBridgeOpSupported("categories") else { return }
         try? await refreshCategoriesNow(logOutput: logOutput, suppressErrors: suppressErrors)
     }
 
@@ -101,6 +104,13 @@ extension AppModel {
 
     func resetLog() {
         outputLog = ""
+        guard isSessionConnected, isBridgeOpSupported("log") else { return }
+        run(label: "reset-log") {
+            let (_, raw) = try await self.bridge.resetLog(config: self.config)
+            await MainActor.run {
+                self.appendLog("$ reset-log\n\(raw)")
+            }
+        }
     }
 
     func copyLogToClipboard() {
@@ -151,9 +161,6 @@ extension AppModel {
                 try await work()
             } catch {
                 await MainActor.run {
-                    if self.showHUD, self.hudDismissTask == nil {
-                        self.hideHUD()
-                    }
                     self.lastError = error.localizedDescription
                     self.appendLog("! \(label) failed\n\(error.localizedDescription)")
                 }

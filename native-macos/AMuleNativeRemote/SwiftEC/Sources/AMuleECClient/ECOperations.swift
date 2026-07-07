@@ -45,9 +45,13 @@ public enum ECOperations {
         public static let failed: UInt8 = 0x05
         public static let strings: UInt8 = 0x06
         public static let miscData: UInt8 = 0x07
+        public static let shutdown: UInt8 = 0x08
         public static let statRequest: UInt8 = 0x0A
+        public static let getConnectionState: UInt8 = 0x0B
         public static let stats: UInt8 = 0x0C
         public static let addLink: UInt8 = 0x09
+        public static let getLastLogEntry: UInt8 = 0x3E
+        public static let resetDebugLog: UInt8 = 0x3C
         public static let sharedSetPriority: UInt8 = 0x11
         public static let partFileSwapA4AFThis: UInt8 = 0x16
         public static let partFileSwapA4AFThisAuto: UInt8 = 0x17
@@ -59,6 +63,7 @@ public enum ECOperations {
         public static let searchStop: UInt8 = 0x27
         public static let searchResults: UInt8 = 0x28
         public static let searchProgress: UInt8 = 0x29
+        public static let clientSwapToAnotherFile: UInt8 = 0x2A
         public static let downloadSearchResult: UInt8 = 0x2A
         public static let getDownloadQueue: UInt8 = 0x0D
         public static let downloadQueue: UInt8 = 0x1F
@@ -140,6 +145,7 @@ public enum ECOperations {
         public static let searchExtension: UInt16 = 0x0706
         public static let searchAvailability: UInt16 = 0x0707
         public static let selectPrefs: UInt16 = 0x1000
+        public static let prefsGeneral: UInt16 = 0x1200
         public static let prefsConnections: UInt16 = 0x1300
         public static let connMaxDownload: UInt16 = 0x1303
         public static let connMaxUpload: UInt16 = 0x1304
@@ -148,6 +154,7 @@ public enum ECOperations {
         public static let connUDPDisable: UInt16 = 0x1308
         public static let networkED2K: UInt16 = 0x130D
         public static let networkKademlia: UInt16 = 0x130E
+        public static let prefsMessageFilter: UInt16 = 0x1400
         public static let prefsRemoteControls: UInt16 = 0x1500
         public static let webServerAutorun: UInt16 = 0x1501
         public static let webServerPort: UInt16 = 0x1502
@@ -155,6 +162,7 @@ public enum ECOperations {
         public static let webServerUseGzip: UInt16 = 0x1504
         public static let webServerRefresh: UInt16 = 0x1505
         public static let webServerTemplate: UInt16 = 0x1506
+        public static let prefsOnlineSignature: UInt16 = 0x1600
         public static let prefsServers: UInt16 = 0x1700
         public static let serversRemoveDead: UInt16 = 0x1701
         public static let serversDeadServerRetries: UInt16 = 0x1702
@@ -178,6 +186,7 @@ public enum ECOperations {
         public static let filesCheckFreeSpace: UInt16 = 0x180D
         public static let filesMinFreeSpace: UInt16 = 0x180E
         public static let filesCreateNormal: UInt16 = 0x180F
+        public static let prefsCoreTweaks: UInt16 = 0x1D00
         public static let prefsDirectories: UInt16 = 0x1A00
         public static let directoriesIncoming: UInt16 = 0x1A01
         public static let directoriesTemp: UInt16 = 0x1A02
@@ -196,6 +205,7 @@ public enum ECOperations {
         public static let securityObfuscationSupported: UInt16 = 0x1C09
         public static let securityObfuscationRequested: UInt16 = 0x1C0A
         public static let securityObfuscationRequired: UInt16 = 0x1C0B
+        public static let prefsKademlia: UInt16 = 0x1E00
         public static let kademliaUpdateURL: UInt16 = 0x1E01
         public static let knownFileXferred: UInt16 = 0x0401
         public static let knownFileXferredAll: UInt16 = 0x0402
@@ -273,12 +283,17 @@ public enum ECOperations {
 
     private static let prefsConnections: UInt64 = 0x00000004
     private static let prefsCategories: UInt64 = 0x00000001
+    private static let prefsGeneral: UInt64 = 0x00000002
+    private static let prefsMessageFilter: UInt64 = 0x00000008
     private static let prefsRemoteControls: UInt64 = 0x00000010
+    private static let prefsOnlineSignature: UInt64 = 0x00000020
     private static let prefsServers: UInt64 = 0x00000040
     private static let prefsFiles: UInt64 = 0x00000080
+    private static let prefsCoreTweaks: UInt64 = 0x00001000
     private static let prefsDirectories: UInt64 = 0x00000200
     private static let prefsStatistics: UInt64 = 0x00000400
     private static let prefsSecurity: UInt64 = 0x00000800
+    private static let prefsKademlia: UInt64 = 0x00002000
 
     public enum PreferencesGroup: Sendable {
         case connection
@@ -302,7 +317,7 @@ public enum ECOperations {
         }
     }
 
-    private static let allRemotePreferenceGroups = prefsConnections | prefsFiles | prefsDirectories | prefsServers | prefsSecurity | prefsRemoteControls | prefsStatistics
+    private static let allRemotePreferenceGroups = prefsGeneral | prefsConnections | prefsMessageFilter | prefsRemoteControls | prefsOnlineSignature | prefsServers | prefsFiles | prefsCoreTweaks | prefsDirectories | prefsStatistics | prefsSecurity | prefsKademlia
 
     public static let readOnlyOperations: [String] = ECSupportedOps.allOperations
 
@@ -343,6 +358,26 @@ public enum ECOperations {
     public static func log(debug: Bool = false, gate: ECCapabilityGate? = nil) throws -> ECPacket {
         try gate?.require(debug ? .debugLog : .log)
         return ECPacket(opcode: debug ? OpCode.getDebugLog : OpCode.getLog)
+    }
+
+    public static func shutdown(gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.shutdown)
+        return ECPacket(opcode: OpCode.shutdown)
+    }
+
+    public static func resetDebugLog(gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.resetDebugLog)
+        return ECPacket(opcode: OpCode.resetDebugLog)
+    }
+
+    public static func lastLogEntry(gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.lastLogEntry)
+        return ECPacket(opcode: OpCode.getLastLogEntry)
+    }
+
+    public static func connectionState(gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.connectionState)
+        return ECPacket(opcode: OpCode.getConnectionState)
     }
 
     public static func sourcesQueueLookup(gate: ECCapabilityGate? = nil) throws -> ECPacket {
@@ -411,6 +446,13 @@ public enum ECOperations {
             ECTag(name: TagName.partFile, type: .hash16, value: .hash16(try hashData(hash)), children: [
                 ECTag.integer(name: TagName.partFileCategory, value: 0),
             ]),
+        ])
+    }
+
+    public static func swapClientToAnotherFile(hash: String, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+        try gate?.require(.clientSwapToAnotherFile)
+        return ECPacket(opcode: OpCode.clientSwapToAnotherFile, tags: [
+            ECTag(name: TagName.client, type: .hash16, value: .hash16(try hashData(hash)))
         ])
     }
 

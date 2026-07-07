@@ -1,17 +1,25 @@
 # SwiftEC Operations Reference
 
-Complete reference for all 23 operations supported by SwiftEC.
+Complete reference for the SwiftEC operation surface. SwiftEC advertises approximately 57 bridge operations across fourteen major categories. The canonical list lives in `Sources/AMuleECProtocol/ECSupportedOps.swift` and should be treated as the source of truth. This document describes the categories and provides detailed examples for the most common operations.
 
 ## Operation Categories
 
-| Category | Operations | Description |
-|----------|-----------|-------------|
-| **Info** | capabilities, status | Bridge and connection information |
-| **Read** | downloads, sources, servers | Data retrieval operations |
-| **Action** | search, searchStop, download, addLink, pause, resume | File and transfer actions |
-| **Network** | connect, disconnect, serverConnect, serverDisconnect | Network management |
-| **Management** | serverAdd, serverRemove | Server list management |
-| **Prefs** | prefsConnectionGet, prefsConnectionSet | Preferences access |
+| Category | Representative Operations | Description |
+|----------|--------------------------|-------------|
+| **Info** | capabilities, status, shutdown, connection-state | Bridge, connection, and daemon information |
+| **Read** | downloads, sources, servers, uploads, shared-files, categories, friends, stats-tree, stats-graphs | Data retrieval operations |
+| **Action** | search, search-stop, download, add-link, pause, resume, stop, cancel, priority, rename, clear-completed, download-set-category | File and transfer actions |
+| **Network** | connect, disconnect, server-connect, server-disconnect | Network management |
+| **Server Management** | server-add, server-remove, server-update-from-url, server-set-static, server-set-priority, server-info, clear-server-info | Server list and configuration |
+| **Kad** | kad-start, kad-stop, kad-bootstrap, kad-update-from-url | Kademlia DHT management |
+| **Shared Files** | shared-files-reload, shared-file-priority, shared-file-comment-rating | Shared file management |
+| **Preferences** | prefs-connection-get, prefs-connection-set | Preferences access across 12 remote groups |
+| **Categories** | category-create, category-update, category-delete | Download category management |
+| **Friends** | friend-add, friend-remove, friend-slot | Friend list management |
+| **Logs** | log, debug-log, reset-log, last-log-entry, reset-debug-log, server-info, clear-server-info | Log and server info access |
+| **IP Filter** | ipfilter-reload, ipfilter-update | IP filter management |
+| **Link Intake** | add-link | ED2K and magnet link intake |
+| **Admin** | shutdown | Daemon shutdown |
 
 ---
 
@@ -647,34 +655,187 @@ func prefsConnectionSet(maxDownload: Int, maxUpload: Int, config: AMuleConnectio
 
 ---
 
+## Downloads Management
+
+Beyond pause and resume, SwiftEC supports a full suite of download control operations.
+
+**Stop** (`download-stop`) halts a transfer permanently.
+**Cancel** (`cancel`) removes a download from the queue.
+**Priority** (`priority`) changes the transfer priority level.
+**Rename** (`rename`) changes the destination filename.
+**A4AF Swap** (`download-a4af-this`, `download-a4af-auto`, `download-a4af-others`) swaps an asked-for-another-file source between targets.
+**Clear Completed** (`clear-completed`) removes finished transfers from the queue.
+**Set Category** (`download-set-category`) assigns a download to a category.
+
+---
+
+## Server Management
+
+Beyond add and remove, the server surface includes connect, disconnect, update from URL, static flag toggling, priority setting, and server info logging.
+
+**Server Update from URL** (`server-update-from-url`) fetches a fresh server list.
+**Server Set Static** (`server-set-static`) marks a server as static.
+**Server Set Priority** (`server-set-priority`) changes a server priority.
+**Server Info** (`server-info`) retrieves server log information.
+**Clear Server Info** (`clear-server-info`) clears the server info log.
+
+---
+
+## Kad Operations
+
+Kademlia DHT management covers start, stop, bootstrap, and update.
+
+**Kad Start** (`kad-start`) brings the DHT online.
+**Kad Stop** (`kad-stop`) shuts the DHT down.
+**Kad Bootstrap** (`kad-bootstrap`) seeds the DHT from a known host and port.
+**Kad Update from URL** (`kad-update-from-url`) refreshes the nodes list from a remote URL.
+
+---
+
+## Shared Files Operations
+
+Shared file management covers listing, reloading, priority, and metadata.
+
+**Shared Files** (`shared-files`) lists files currently shared by the daemon.
+**Shared Files Reload** (`shared-files-reload`) rescans the shared directories.
+**Shared File Priority** (`shared-file-priority`) changes the upload priority of a shared file.
+**Shared File Comment/Rating** (`shared-file-comment-rating`) sets a comment and rating on a shared file.
+
+---
+
+## Categories Operations
+
+Download category management covers create, update, and delete.
+
+**Categories** (`categories`) lists existing categories.
+**Category Create** (`category-create`) adds a new category with name, path, comment, color, and priority.
+**Category Update** (`category-update`) modifies an existing category.
+**Category Delete** (`category-delete`) removes a category.
+
+---
+
+## Friends Operations
+
+Friend list management covers add, remove, and slot control.
+
+**Friends** (`friends`) lists current friends.
+**Friend Add** (`friend-add`) adds a friend by hash, IP, port, and name.
+**Friend Remove** (`friend-remove`) removes a friend.
+**Friend Slot** (`friend-slot`) grants or revokes an upload slot for a friend.
+
+---
+
+## Stats Operations
+
+Statistics retrieval covers tree and graph data.
+
+**Stats Tree** (`stats-tree`) returns a hierarchical statistics tree.
+**Stats Graphs** (`stats-graphs`) returns historical graph data for bandwidth and connections.
+
+---
+
+## Logs Operations
+
+Log access covers core logs, debug logs, server info, and reset operations.
+
+**Log** (`log`) retrieves the main application log.
+**Debug Log** (`debug-log`) retrieves the debug log.
+**Last Log Entry** (`last-log-entry`) fetches the most recent log line.
+**Reset Log** (`reset-log`) clears the main log.
+**Reset Debug Log** (`reset-debuglog`) clears the debug log.
+**Server Info** (`server-info`) retrieves server-specific log output.
+**Clear Server Info** (`clear-server-info`) clears the server info log.
+
+---
+
+## IP Filter Operations
+
+IP filter management covers reload and remote update.
+
+**IP Filter Reload** (`ipfilter-reload`) reloads the local IP filter list.
+**IP Filter Update** (`ipfilter-update`) downloads and applies an updated IP filter from a URL.
+
+---
+
+## Admin Operations
+
+**Shutdown** (`shutdown`) requests a graceful daemon shutdown.
+
+---
+
 ## Operation Codes
 
-Reference table of EC protocol opcodes used internally:
+Reference table of EC protocol opcodes used internally. Several opcodes serve dual purposes depending on context.
 
 | Opcode | Hex | Operation |
 |--------|-----|-----------|
+| 0x01 | 1 | noop |
+| 0x05 | 5 | failed |
+| 0x06 | 6 | strings |
+| 0x07 | 7 | miscData |
 | 0x09 | 9 | addLink |
-| 0x0A | 10 | statRequest |
-| 0x0D | 13 | getDownloadQueue |
+| 0x0A | 10 | shutdown / statRequest |
+| 0x0C | 12 | stats |
+| 0x0D | 13 | getConnectionState / getDownloadQueue |
+| 0x0E | 14 | getLastLogEntry / getUploadQueue |
+| 0x10 | 16 | getSharedFiles |
+| 0x11 | 17 | sharedSetPriority |
+| 0x12 | 18 | resetDebugLog |
+| 0x16 | 22 | partFileSwapA4AFThis |
+| 0x17 | 23 | partFileSwapA4AFThisAuto |
+| 0x18 | 24 | partFileSwapA4AFOthers |
 | 0x19 | 25 | partFilePause |
 | 0x1A | 26 | partFileResume |
+| 0x1B | 27 | partFileStop |
+| 0x1C | 28 | partFilePrioSet |
+| 0x1D | 29 | partFileDelete |
+| 0x1E | 30 | partFileSetCat |
 | 0x1F | 31 | downloadQueue |
+| 0x20 | 32 | uploadQueue |
+| 0x22 | 34 | sharedFiles |
+| 0x23 | 35 | sharedFilesReload |
+| 0x25 | 37 | renameFile |
 | 0x26 | 38 | searchStart |
 | 0x27 | 39 | searchStop |
 | 0x28 | 40 | searchResults |
 | 0x29 | 41 | searchProgress |
-| 0x2A | 42 | downloadSearchResult |
+| 0x2A | 42 | clientSwapToAnotherFile / downloadSearchResult |
+| 0x2B | 43 | ipfilterReload |
 | 0x2C | 44 | getServerList |
 | 0x2D | 45 | serverList |
 | 0x2E | 46 | serverDisconnect |
 | 0x2F | 47 | serverConnect |
 | 0x30 | 48 | serverRemove |
 | 0x31 | 49 | serverAdd |
+| 0x32 | 50 | serverUpdateFromURL |
+| 0x35 | 53 | getLog |
+| 0x36 | 54 | getDebugLog |
+| 0x37 | 55 | getServerInfo |
+| 0x38 | 56 | log |
+| 0x39 | 57 | debugLog |
+| 0x3B | 59 | resetLog |
+| 0x3D | 61 | clearServerInfo |
 | 0x3F | 63 | getPreferences |
 | 0x40 | 64 | setPreferences |
+| 0x41 | 65 | createCategory |
+| 0x42 | 66 | updateCategory |
+| 0x43 | 67 | deleteCategory |
+| 0x44 | 68 | getStatsGraphs |
+| 0x45 | 69 | statsGraphs |
+| 0x46 | 70 | getStatsTree |
+| 0x47 | 71 | statsTree |
+| 0x48 | 72 | kadStart |
+| 0x49 | 73 | kadStop |
 | 0x4A | 74 | connect |
 | 0x4B | 75 | disconnect |
+| 0x4D | 77 | kadUpdateFromURL |
+| 0x4E | 78 | kadBootstrapFromIP |
+| 0x51 | 81 | ipfilterUpdate |
 | 0x52 | 82 | getUpdate |
+| 0x53 | 83 | clearCompleted |
+| 0x55 | 85 | sharedFileSetComment |
+| 0x56 | 86 | serverSetStaticPriority |
+| 0x57 | 87 | friend |
 
 ## Error Handling
 

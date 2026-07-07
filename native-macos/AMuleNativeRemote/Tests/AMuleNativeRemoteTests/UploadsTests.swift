@@ -1,4 +1,7 @@
 import XCTest
+import AMuleECBridgeAdapter
+import AMuleECClient
+import SharedModels
 
 @testable import AMuleNativeRemote
 
@@ -42,9 +45,40 @@ final class UploadsTests: XCTestCase {
     }
 }
 
+final class ConnectionStateTests: XCTestCase {
+    @MainActor
+    func testRefreshConnectionStateIsGatedAndDoesNotSetLastError() {
+        let model = AppModel()
+        model.lastError = "previous"
+        model.bridgeOps = ["status", "downloads", "capabilities"]
+
+        XCTAssertFalse(model.isBridgeOpSupported("connection-state"))
+
+        model.refreshConnectionState()
+        XCTAssertEqual(model.lastError, "previous")
+        XCTAssertFalse(model.isBusy)
+    }
+
+    @MainActor
+    func testRefreshConnectionStateCallsBridgeAndUpdatesModel() async {
+        let bridge = FakeBridgeAdapter()
+        let model = AppModel(bridge: bridge)
+        model.bridgeOps = ["connection-state"]
+
+        model.refreshConnectionState()
+        for _ in 0..<100 where model.isBusy || !bridge.invokedOperations.contains("connection-state") {
+            await Task.yield()
+        }
+
+        XCTAssertEqual(model.lastError, "")
+        XCTAssertNotNil(model.connectionState)
+        XCTAssertFalse(model.isBusy)
+    }
+}
+
 final class SharedFilesTests: XCTestCase {
     func testDecodeSharedFilesEnvelope() throws {
-        let json = #"{"ok":true,"shared_files":[{"hash":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","name":"File A","path":"/tmp/file-a.bin","size":1234,"ed2k_link":"ed2k://|file|file-a.bin|1234|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|/","priority":10,"requests":1,"requests_all":5,"accepts":1,"accepts_all":4,"xferred":100,"xferred_all":200,"comment":"hello","rating":4},{"hash":"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB","name":"File B","path":"/tmp/file-b.bin","size":42,"ed2k_link":"","priority":5,"requests":0,"requests_all":0,"accepts":0,"accepts_all":0,"xferred":0,"xferred_all":0}]}"#
+        let json = #"{"ok":true,"shared_files":[{"hash":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","name":"File A","path":"/tmp/file-a.bin","size":1234,"ed2k_link":"ed2k://|file|file-a.bin|1234|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|/","priority":10,"requests":1,"requests_all":5,"accepts":1,"accepts_all":4,"xferred":100,"xferred_all":200,"comment":"hello","rating":4,"aich_master_hash":"","on_queue":0,"complete_sources":0,"complete_sources_low":0,"complete_sources_high":0},{"hash":"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB","name":"File B","path":"/tmp/file-b.bin","size":42,"ed2k_link":"","priority":5,"requests":0,"requests_all":0,"accepts":0,"accepts_all":0,"xferred":0,"xferred_all":0,"aich_master_hash":"","on_queue":0,"complete_sources":0,"complete_sources_low":0,"complete_sources_high":0}]}"#
         let data = try XCTUnwrap(json.data(using: .utf8))
 
         let decoded = try JSONDecoder().decode(BridgeEnvelope.self, from: data)
@@ -118,6 +152,30 @@ final class CoreLogTests: XCTestCase {
 
         XCTAssertFalse(model.isBridgeOpSupported("debug-log"))
         model.refreshCoreDebugLog()
+        XCTAssertEqual(model.lastError, "previous")
+        XCTAssertFalse(model.isBusy)
+    }
+
+    @MainActor
+    func testLastLogEntryGatingDoesNotSetLastError() {
+        let model = AppModel()
+        model.lastError = "previous"
+        model.bridgeOps = ["status", "downloads", "capabilities"]
+
+        XCTAssertFalse(model.isBridgeOpSupported("last-log-entry"))
+        model.refreshLastLogEntry()
+        XCTAssertEqual(model.lastError, "previous")
+        XCTAssertFalse(model.isBusy)
+    }
+
+    @MainActor
+    func testResetDebugLogGatingDoesNotSetLastError() {
+        let model = AppModel()
+        model.lastError = "previous"
+        model.bridgeOps = ["status", "downloads", "capabilities"]
+
+        XCTAssertFalse(model.isBridgeOpSupported("reset-debug-log"))
+        model.resetDebugLog()
         XCTAssertEqual(model.lastError, "previous")
         XCTAssertFalse(model.isBusy)
     }
@@ -327,13 +385,19 @@ final class RemainingParityTests: XCTestCase {
     }
 
     @MainActor
-    func testCategoriesGatingDoesNotSetLastError() {
-        let model = AppModel()
-        model.lastError = "previous"
+    func testRefreshCategoriesReadsWithoutAdvertisedCapability() async {
+        let bridge = FakeBridgeAdapter()
+        bridge.categoriesResult = ([BridgeCategoryPayload(id: 5, title: "Music", path: "", comment: "", color: 0, priority: 0)], #"{"ok":true,"categories":[{"id":5,"title":"Music"}]}"#)
+        let model = AppModel(bridge: bridge)
         model.bridgeOps = ["status", "downloads"]
 
         model.refreshCategories()
-        XCTAssertEqual(model.lastError, "previous")
+        for _ in 0..<100 where model.isBusy || !bridge.invokedOperations.contains("categories") {
+            await Task.yield()
+        }
+
+        XCTAssertEqual(model.lastError, "")
+        XCTAssertEqual(model.categories.map(\.title), ["Music"])
         XCTAssertFalse(model.isBusy)
     }
 

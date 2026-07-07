@@ -8,8 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		B20000010000000000000001 /* AddLinksHUDView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* AddLinksHUDView.swift */; };
-		B20000010000000000000002 /* AddLinksWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000002 /* AddLinksWindowView.swift */; };
 		B20000010000000000000003 /* AMuleNativeRemoteApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000003 /* AMuleNativeRemoteApp.swift */; };
+		B20000010000000000000044 /* AppModel+Admin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000045 /* AppModel+Admin.swift */; };
 		B20000010000000000000004 /* AppModel+Bridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000004 /* AppModel+Bridge.swift */; };
 		B20000010000000000000005 /* AppModel+Connection.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000005 /* AppModel+Connection.swift */; };
 		B20000010000000000000006 /* AppModel+Downloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000006 /* AppModel+Downloads.swift */; };
@@ -49,7 +49,6 @@
 		B20000010000000000000034 /* SharedFilesWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000034 /* SharedFilesWindowView.swift */; };
 		B20000010000000000000035 /* StatsWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000035 /* StatsWindowView.swift */; };
 		B20000010000000000000036 /* UploadsWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000036 /* UploadsWindowView.swift */; };
-		B20000010000000000000037 /* WindowVisualStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000037 /* WindowVisualStyle.swift */; };
 		B20000011000000000000101 /* BridgeEnvelopeFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000101 /* BridgeEnvelopeFixtures.swift */; };
 		B20000011000000000000102 /* CapabilitiesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000102 /* CapabilitiesTests.swift */; };
 		B20000011000000000000103 /* CompletedDownloadsRefreshTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000103 /* CompletedDownloadsRefreshTests.swift */; };
@@ -96,8 +95,8 @@
 
 /* Begin PBXFileReference section */
 		B20000000000000000000001 /* AddLinksHUDView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddLinksHUDView.swift; sourceTree = "<group>"; };
-		B20000000000000000000002 /* AddLinksWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddLinksWindowView.swift; sourceTree = "<group>"; };
 		B20000000000000000000003 /* AMuleNativeRemoteApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AMuleNativeRemoteApp.swift; sourceTree = "<group>"; };
+		B20000000000000000000045 /* AppModel+Admin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Admin.swift"; sourceTree = "<group>"; };
 		B20000000000000000000004 /* AppModel+Bridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Bridge.swift"; sourceTree = "<group>"; };
 		B20000000000000000000005 /* AppModel+Connection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Connection.swift"; sourceTree = "<group>"; };
 		B20000000000000000000006 /* AppModel+Downloads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Downloads.swift"; sourceTree = "<group>"; };
@@ -137,7 +136,6 @@
 		B20000000000000000000034 /* SharedFilesWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedFilesWindowView.swift; sourceTree = "<group>"; };
 		B20000000000000000000035 /* StatsWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsWindowView.swift; sourceTree = "<group>"; };
 		B20000000000000000000036 /* UploadsWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadsWindowView.swift; sourceTree = "<group>"; };
-		B20000000000000000000037 /* WindowVisualStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowVisualStyle.swift; sourceTree = "<group>"; };
 		B20000000000000000000038 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B20000000000000000000050 /* aMule Remote.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "aMule Remote.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		B20000000000000000000051 /* AMuleNativeRemoteTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AMuleNativeRemoteTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -209,8 +207,8 @@
 			isa = PBXGroup;
 			children = (
 				B20000000000000000000001 /* AddLinksHUDView.swift */,
-				B20000000000000000000002 /* AddLinksWindowView.swift */,
 				B20000000000000000000003 /* AMuleNativeRemoteApp.swift */,
+				B20000000000000000000045 /* AppModel+Admin.swift */,
 				B20000000000000000000004 /* AppModel+Bridge.swift */,
 				B20000000000000000000005 /* AppModel+Connection.swift */,
 				B20000000000000000000006 /* AppModel+Downloads.swift */,
@@ -250,7 +248,6 @@
 				B20000000000000000000034 /* SharedFilesWindowView.swift */,
 				B20000000000000000000035 /* StatsWindowView.swift */,
 				B20000000000000000000036 /* UploadsWindowView.swift */,
-				B20000000000000000000037 /* WindowVisualStyle.swift */,
 				B20000000000000000000038 /* Info.plist */,
 			);
 			path = Sources/AMuleNativeRemote;
@@ -414,8 +411,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				B20000010000000000000001 /* AddLinksHUDView.swift in Sources */,
-				B20000010000000000000002 /* AddLinksWindowView.swift in Sources */,
 				B20000010000000000000003 /* AMuleNativeRemoteApp.swift in Sources */,
+				B20000010000000000000044 /* AppModel+Admin.swift in Sources */,
 				B20000010000000000000004 /* AppModel+Bridge.swift in Sources */,
 				B20000010000000000000005 /* AppModel+Connection.swift in Sources */,
 				B20000010000000000000006 /* AppModel+Downloads.swift in Sources */,
@@ -455,7 +452,6 @@
 				B20000010000000000000034 /* SharedFilesWindowView.swift in Sources */,
 				B20000010000000000000035 /* StatsWindowView.swift in Sources */,
 				B20000010000000000000036 /* UploadsWindowView.swift in Sources */,
-				B20000010000000000000037 /* WindowVisualStyle.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -3,6 +3,13 @@ import SharedModels
 import SharedServices
 
 extension AppModel {
+    func refreshConnectionState() {
+        guard isBridgeOpSupported("connection-state") else { return }
+        run(label: "connection-state") {
+            try await self.refreshConnectionStateNow()
+        }
+    }
+
     func refreshUploads() {
         guard isBridgeOpSupported("uploads") else { return }
         run(label: "uploads") {
@@ -44,8 +51,24 @@ extension AppModel {
         }
     }
 
+    func refreshLastLogEntry() {
+        guard isBridgeOpSupported("last-log-entry") else { return }
+        run(label: "last-log-entry") {
+            try await self.refreshLastLogEntryNow()
+        }
+    }
+
+    func resetDebugLog() {
+        guard isBridgeOpSupported("reset-debug-log") else { return }
+        run(label: "reset-debug-log") {
+            try await self.bridge.resetDebugLog(config: self.config)
+            await MainActor.run {
+                self.appendLog("$ reset-debug-log")
+            }
+        }
+    }
+
     func refreshCategories() {
-        guard isBridgeOpSupported("categories") else { return }
         run(label: "categories") {
             try await self.refreshCategoriesNow()
         }
@@ -71,9 +94,32 @@ extension AppModel {
             await MainActor.run {
                 self.appendLog("$ category-create --name \(trimmed)\n\(raw)")
             }
-            if self.isBridgeOpSupported("categories") {
-                try await self.refreshCategoriesNow(logOutput: false, suppressErrors: true)
+            try await self.refreshCategoriesNow(logOutput: false, suppressErrors: true)
+        }
+    }
+
+    func updateCategory(id: Int, name: String, path: String, comment: String, color: Int, priority: Int) {
+        guard isBridgeOpSupported("category-update") else { return }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            lastError = L3("Category name is required.")
+            return
+        }
+
+        run(label: "category-update") {
+            let (_, raw) = try await self.bridge.categoryUpdate(
+                id: id,
+                name: trimmed,
+                path: path,
+                comment: comment,
+                color: color,
+                priority: priority,
+                config: self.config
+            )
+            await MainActor.run {
+                self.appendLog("$ category-update --category \(id) --name \(trimmed)\n\(raw)")
             }
+            try await self.refreshCategoriesNow(logOutput: false, suppressErrors: true)
         }
     }
 
@@ -84,9 +130,7 @@ extension AppModel {
             await MainActor.run {
                 self.appendLog("$ category-delete --category \(id)\n\(raw)")
             }
-            if self.isBridgeOpSupported("categories") {
-                try await self.refreshCategoriesNow(logOutput: false, suppressErrors: true)
-            }
+            try await self.refreshCategoriesNow(logOutput: false, suppressErrors: true)
         }
     }
 
@@ -171,6 +215,26 @@ extension AppModel {
         }
     }
 
+    func refreshConnectionStateNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
+        do {
+            let (payload, raw) = try await bridge.connectionState(config: config)
+            await MainActor.run {
+                self.connectionState = payload
+                self.lastConnectionStateRawOutput = raw
+                if logOutput {
+                    self.appendLog("$ connection-state\n\(raw)")
+                }
+            }
+        } catch {
+            await MainActor.run {
+                if !suppressErrors {
+                    self.lastError = error.localizedDescription
+                }
+            }
+            throw error
+        }
+    }
+
     func refreshUploadsNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
         do {
             let (payload, raw) = try await bridge.uploads(config: config)
@@ -239,6 +303,25 @@ extension AppModel {
                 self.lastCoreDebugLogRawOutput = raw
                 if logOutput {
                     self.appendLog("$ debug-log\n\(raw)")
+                }
+            }
+        } catch {
+            await MainActor.run {
+                if !suppressErrors {
+                    self.lastError = error.localizedDescription
+                }
+            }
+            throw error
+        }
+    }
+
+    func refreshLastLogEntryNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
+        do {
+            let text = try await bridge.lastLogEntry(config: config)
+            await MainActor.run {
+                self.lastLogEntryText = text
+                if logOutput {
+                    self.appendLog("$ last-log-entry\n\(text)")
                 }
             }
         } catch {

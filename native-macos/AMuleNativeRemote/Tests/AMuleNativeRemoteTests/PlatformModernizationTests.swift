@@ -48,12 +48,8 @@ final class PlatformModernizationTests: XCTestCase {
     }
 
     func testWindowGlassUsesPublicAPIsOnly() throws {
-        let text = try read("Sources/AMuleNativeRemote/WindowVisualStyle.swift")
-        XCTAssertFalse(text.contains("NSClassFromString(\"NSGlassEffectView\")"))
-        XCTAssertFalse(text.contains("NSSelectorFromString(\"setState:\")"))
-        XCTAssertFalse(text.contains("NSSelectorFromString(\"setInteractive:\")"))
-        XCTAssertFalse(text.contains("setValue(1, forKey: \"state\")"))
-        XCTAssertFalse(text.contains("setValue(true, forKey: \"interactive\")"))
+        let url = packageRoot.appendingPathComponent("Sources/AMuleNativeRemote/WindowVisualStyle.swift")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path), "WindowVisualStyle.swift should not exist — custom glass/chrome code must be removed")
     }
 
     func testMacOSWindowsUseNativeWindowChrome() throws {

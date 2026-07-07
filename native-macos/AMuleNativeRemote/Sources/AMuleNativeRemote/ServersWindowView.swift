@@ -32,10 +32,29 @@ struct ServersWindowView: View {
     @State private var showingImportServerMetSheet = false
     @State private var showingKadBootstrapSheet = false
     @State private var showingKadNodesSheet = false
+    @State private var showShutdownConfirmation = false
 
     private var selectedServer: ServerItem? {
         guard let selectedServerID else { return nil }
         return displayedServers.first(where: { $0.id == selectedServerID })
+    }
+
+    private var footerKadStatusText: String {
+        let summary = NetworkStatusSummary(status: model.status)
+        return LF2("Kad: %@", localizedConnectionStatusText(for: summary.kad))
+    }
+
+    private var footerEd2kStatusText: String {
+        NetworkStatusSummary(status: model.status).ed2k
+    }
+
+    private var footerServerCountText: String {
+        LF2("%lld server(s)", Int64(displayedServers.count))
+    }
+
+    private var footerSelectedServerDescription: String? {
+        guard let selectedServer else { return nil }
+        return selectedServer.description.isEmpty ? "-" : selectedServer.description
     }
 
     @ToolbarContentBuilder
@@ -45,17 +64,17 @@ struct ServersWindowView: View {
                 Button {
                     showingAddServerSheet = true
                 } label: {
-                    Label("Add", systemImage: "plus")
+                    Label(L2("Add"), systemImage: "plus")
                 }
-                .help("Add Server")
+                .help(L2("Add Server"))
                 .disabled(model.isBusy)
 
                 Button {
                     model.refreshServers()
                 } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
+                    Label(L2("Refresh"), systemImage: "arrow.clockwise")
                 }
-                .help("Refresh Servers")
+                .help(L2("Refresh Servers"))
                 .disabled(model.isBusy)
 
                 Button {
@@ -63,9 +82,9 @@ struct ServersWindowView: View {
                         model.removeServer(selectedServer)
                     }
                 } label: {
-                    Label("Remove", systemImage: "trash")
+                    Label(L2("Remove"), systemImage: "trash")
                 }
-                .help("Remove Selected Server")
+                .help(L2("Remove Selected Server"))
                 .disabled(model.isBusy || selectedServer == nil)
             }
             .controlGroupStyle(.navigation)
@@ -75,9 +94,9 @@ struct ServersWindowView: View {
             Button {
                 showingImportServerMetSheet = true
             } label: {
-                Label("Import .met", systemImage: "arrow.down.circle")
+                Label(L2("Import .met"), systemImage: "arrow.down.circle")
             }
-            .help("Import server list from URL")
+            .help(L2("Import server list from URL"))
             .disabled(model.isBusy)
         }
 
@@ -86,14 +105,14 @@ struct ServersWindowView: View {
                 Button {
                     model.startKad()
                 } label: {
-                    Label("Start Kad", systemImage: "play.fill")
+                    Label(L2("Start Kad"), systemImage: "play.fill")
                 }
                 .disabled(model.isBusy || !model.isBridgeOpSupported("kad-start"))
 
                 Button {
                     model.stopKad()
                 } label: {
-                    Label("Stop Kad", systemImage: "stop.fill")
+                    Label(L2("Stop Kad"), systemImage: "stop.fill")
                 }
                 .disabled(model.isBusy || !model.isBridgeOpSupported("kad-stop"))
 
@@ -102,20 +121,20 @@ struct ServersWindowView: View {
                 Button {
                     showingKadBootstrapSheet = true
                 } label: {
-                    Label("Bootstrap...", systemImage: "point.3.filled.connected.trianglepath.dotted")
+                    Label(L2("Bootstrap..."), systemImage: "point.3.filled.connected.trianglepath.dotted")
                 }
                 .disabled(model.isBusy || !model.isBridgeOpSupported("kad-bootstrap"))
 
                 Button {
                     showingKadNodesSheet = true
                 } label: {
-                    Label("Update nodes.dat...", systemImage: "arrow.down.circle")
+                    Label(L2("Update nodes.dat..."), systemImage: "arrow.down.circle")
                 }
                 .disabled(model.isBusy || !model.isBridgeOpSupported("kad-update-from-url"))
             } label: {
-                Label("Kad", systemImage: "point.3.filled.connected.trianglepath.dotted")
+                Label(L2("Kad"), systemImage: "point.3.filled.connected.trianglepath.dotted")
             }
-            .help("Kad controls")
+            .help(L2("Kad controls"))
         }
 
         ToolbarItem(placement: .primaryAction) {
@@ -123,20 +142,34 @@ struct ServersWindowView: View {
                 Button {
                     model.connectServer(selectedServer)
                 } label: {
-                    Label("Connect", systemImage: "link")
+                    Label(L2("Connect"), systemImage: "link")
                 }
-                .help("Connect Selected Server")
+                .help(L2("Connect Selected Server"))
                 .disabled(model.isBusy || selectedServer == nil)
 
                 Button {
                     model.disconnectServer()
                 } label: {
-                    Label("Disconnect", systemImage: "minus.circle")
+                    Label(L2("Disconnect"), systemImage: "minus.circle")
                 }
-                .help("Disconnect Current Server")
+                .help(L2("Disconnect Current Server"))
                 .disabled(model.isBusy)
             }
             .controlGroupStyle(.navigation)
+        }
+
+        ToolbarItem(placement: .primaryAction) {
+            Menu {
+                Button {
+                    showShutdownConfirmation = true
+                } label: {
+                    Label(L2("Shut Down Daemon"), systemImage: "power")
+                }
+                .disabled(model.isBusy || !model.isBridgeOpSupported("shutdown"))
+            } label: {
+                Label(L2("Server"), systemImage: "server.rack")
+            }
+            .help(L2("Server administration"))
         }
     }
 
@@ -150,6 +183,43 @@ struct ServersWindowView: View {
     }
 
     private var baseServersContent: some View {
+        serversContentWithLifecycle
+            .modifier(ServersSheetPresenter(
+                model: model,
+                showingAddServerSheet: $showingAddServerSheet,
+                showingImportServerMetSheet: $showingImportServerMetSheet,
+                showingKadBootstrapSheet: $showingKadBootstrapSheet,
+                showingKadNodesSheet: $showingKadNodesSheet
+            ))
+    }
+
+    private var serversContentWithLifecycle: some View {
+        serversLayout
+            .toolbar { serversToolbar }
+            .alert(L2("Shut Down Daemon?"), isPresented: $showShutdownConfirmation) {
+                Button(L2("Cancel"), role: .cancel) {}
+                Button(L2("Shut Down"), role: .destructive) {
+                    model.shutdownDaemon()
+                }
+            } message: {
+                Text(L2("This will permanently shut down the remote aMule daemon. You will need to restart it manually."))
+            }
+            .task {
+                refreshDisplayedServers()
+                model.refreshServers()
+            }
+            .onChange(of: model.servers) {
+                refreshDisplayedServers()
+            }
+            .onChange(of: serverSortOrder) {
+                refreshDisplayedServers()
+            }
+            .onChange(of: model.status.ed2k) {
+                refreshDisplayedServers()
+            }
+    }
+
+    private var serversLayout: some View {
         VStack(spacing: 0) {
             ServersTableView(
                 servers: displayedServers,
@@ -158,93 +228,24 @@ struct ServersWindowView: View {
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .scrollContentBackground(.hidden)
-            .background(
-                ServersTableAutosaveConfigurator(
-                    autosaveName: "AMuleNativeRemote.ServersTable"
-                )
-            )
 
             Divider()
-            HStack(spacing: 8) {
-                if let selectedServer {
-                    Text("Description:")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(selectedServer.description.isEmpty ? "-" : selectedServer.description)
-                        .font(.caption)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-                Spacer()
-                let summary = NetworkStatusSummary(status: model.status)
-                ServerConnectionStatusView(statusText: summary.ed2k)
-                Text("Kad: \(localizedConnectionStatusText(for: summary.kad))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(LF2("%lld server(s)", Int64(displayedServers.count)))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 6)
+            ServersFooterView(
+                selectedServerDescription: footerSelectedServerDescription,
+                ed2kStatusText: footerEd2kStatusText,
+                kadStatusText: footerKadStatusText,
+                serverCountText: footerServerCountText
+            )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .toolbar { serversToolbar }
-        .task {
-            refreshDisplayedServers()
-            model.refreshServers()
-        }
-        .onChange(of: model.servers) {
-            refreshDisplayedServers()
-        }
-        .onChange(of: serverSortOrder) {
-            refreshDisplayedServers()
-        }
-        .onChange(of: model.status.ed2k) {
-            refreshDisplayedServers()
-        }
-        .sheet(isPresented: $showingAddServerSheet) {
-            AddServerSheetView(isBusy: model.isBusy) { address, name in
-                model.serverAddressInput = address
-                model.serverNameInput = name
-                model.addServer()
-                showingAddServerSheet = false
-            }
-            .presentationDetents([.height(220)])
-            .presentationDragIndicator(.hidden)
-        }
-        .sheet(isPresented: $showingImportServerMetSheet) {
-            ImportServerMetSheetView(isBusy: model.isBusy) { url in
-                model.updateServerListFromURL(url)
-                showingImportServerMetSheet = false
-            }
-            .presentationDetents([.height(200)])
-            .presentationDragIndicator(.hidden)
-        }
-        .sheet(isPresented: $showingKadBootstrapSheet) {
-            KadBootstrapSheetView(isBusy: model.isBusy) { ip, port in
-                model.bootstrapKad(ip: ip, port: port)
-                showingKadBootstrapSheet = false
-            }
-            .presentationDetents([.height(210)])
-            .presentationDragIndicator(.hidden)
-        }
-        .sheet(isPresented: $showingKadNodesSheet) {
-            KadNodesURLSheetView(isBusy: model.isBusy) { url in
-                model.updateKadNodesFromURL(url)
-                showingKadNodesSheet = false
-            }
-            .presentationDetents([.height(200)])
-            .presentationDragIndicator(.hidden)
-        }
     }
 
     @ViewBuilder
     private func serverContextMenu(_ item: ServerItem) -> some View {
-        Button("Connect") {
+        Button(L2("Connect")) {
             model.connectServer(item)
         }
-        Button("Remove") {
+        Button(L2("Remove")) {
             model.removeServer(item)
         }
     }
@@ -288,6 +289,75 @@ struct ServersWindowView: View {
     }
 }
 
+private struct ServersFooterView: View {
+    let selectedServerDescription: String?
+    let ed2kStatusText: String
+    let kadStatusText: String
+    let serverCountText: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if let selectedServerDescription {
+                Text(L2("Description:"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(selectedServerDescription)
+                    .font(.caption)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            Spacer()
+            ServerConnectionStatusView(statusText: ed2kStatusText)
+            Text(kadStatusText)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(serverCountText)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 6)
+    }
+}
+
+private struct ServersSheetPresenter: ViewModifier {
+    @ObservedObject var model: AppModel
+    @Binding var showingAddServerSheet: Bool
+    @Binding var showingImportServerMetSheet: Bool
+    @Binding var showingKadBootstrapSheet: Bool
+    @Binding var showingKadNodesSheet: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .sheet(isPresented: $showingAddServerSheet) {
+                AddServerSheetView(isBusy: model.isBusy) { address, name in
+                    model.serverAddressInput = address
+                    model.serverNameInput = name
+                    model.addServer()
+                    showingAddServerSheet = false
+                }
+            }
+            .sheet(isPresented: $showingImportServerMetSheet) {
+                ImportServerMetSheetView(isBusy: model.isBusy) { url in
+                    model.updateServerListFromURL(url)
+                    showingImportServerMetSheet = false
+                }
+            }
+            .sheet(isPresented: $showingKadBootstrapSheet) {
+                KadBootstrapSheetView(isBusy: model.isBusy) { ip, port in
+                    model.bootstrapKad(ip: ip, port: port)
+                    showingKadBootstrapSheet = false
+                }
+            }
+            .sheet(isPresented: $showingKadNodesSheet) {
+                KadNodesURLSheetView(isBusy: model.isBusy) { url in
+                    model.updateKadNodesFromURL(url)
+                    showingKadNodesSheet = false
+                }
+            }
+    }
+}
+
 private struct ServersTableView: View {
     @EnvironmentObject private var model: AppModel
 
@@ -297,56 +367,56 @@ private struct ServersTableView: View {
 
     var body: some View {
         Table(servers, selection: $selectedServerID, sortOrder: $sortOrder) {
-            TableColumn("Name", value: \.name) { item in
+            TableColumn(L2("Name"), value: \.name) { item in
                 let connected = isConnectedServer(item)
                 let row = ServerRowView.name(item: item, isConnected: connected)
                 return row.contextMenu { serverContextMenu(item) }
             }
             .width(min: 180, ideal: 220, max: 420)
 
-            TableColumn("Address", value: \.endpointText) { item in
+            TableColumn(L2("Address"), value: \.endpointText) { item in
                 let row = ServerRowView.text(item.endpointText)
                 return row.contextMenu { serverContextMenu(item) }
             }
             .width(170)
 
-            TableColumn("Users", value: \.users) { item in
+            TableColumn(L2("Users"), value: \.users) { item in
                 let row = ServerRowView.text(item.usersText)
                 return row.contextMenu { serverContextMenu(item) }
             }
             .width(95)
 
-            TableColumn("Files", value: \.files) { item in
+            TableColumn(L2("Files"), value: \.files) { item in
                 let row = ServerRowView.number(item.files)
                 return row.contextMenu { serverContextMenu(item) }
             }
             .width(90)
 
-            TableColumn("Ping", value: \.ping) { item in
+            TableColumn(L2("Ping"), value: \.ping) { item in
                 let row = ServerRowView.ping(item.ping)
                 return row.contextMenu { serverContextMenu(item) }
             }
             .width(90)
 
-            TableColumn("Failed", value: \.failed) { item in
+            TableColumn(L2("Failed"), value: \.failed) { item in
                 let row = ServerRowView.number(item.failed)
                 return row.contextMenu { serverContextMenu(item) }
             }
             .width(75)
 
-            TableColumn("Version", value: \.version) { item in
+            TableColumn(L2("Version"), value: \.version) { item in
                 let row = ServerRowView.text(item.version)
                 return row.contextMenu { serverContextMenu(item) }
             }
             .width(90)
 
-            TableColumn("Prio", value: \.priority) { item in
+            TableColumn(L2("Prio"), value: \.priority) { item in
                 let row = ServerRowView.number(item.priority)
                 return row.contextMenu { serverContextMenu(item) }
             }
             .width(70)
 
-            TableColumn("Static") { item in
+            TableColumn(L2("Static")) { item in
                 let row = ServerRowView.isStatic(item.isStatic)
                 return row.contextMenu { serverContextMenu(item) }
             }
@@ -356,25 +426,25 @@ private struct ServersTableView: View {
 
     private func serverContextMenu(_ item: ServerItem) -> some View {
         return Group {
-            Button("Connect") {
+            Button(L2("Connect")) {
                 model.connectServer(item)
             }
-            Button("Remove") {
+            Button(L2("Remove")) {
                 model.removeServer(item)
             }
             Divider()
-            Button(item.isStatic ? "Remove Static Flag" : "Mark Static") {
+            Button(item.isStatic ? L2("Remove Static Flag") : L2("Mark Static")) {
                 model.setServerStatic(ecid: item.id, isStatic: !item.isStatic)
             }
             .disabled(model.isBusy || !model.isBridgeOpSupported("server-set-static"))
-            Menu("Priority") {
-                Button("Low") {
+            Menu(L2("Priority")) {
+                Button(L2("Low")) {
                     model.setServerPriority(ecid: item.id, priority: 1)
                 }
-                Button("Normal") {
+                Button(L2("Normal")) {
                     model.setServerPriority(ecid: item.id, priority: 0)
                 }
-                Button("High") {
+                Button(L2("High")) {
                     model.setServerPriority(ecid: item.id, priority: 2)
                 }
             }
@@ -393,72 +463,6 @@ private struct ServersTableView: View {
         let parts = endpoint.split(separator: ":", maxSplits: 1).map(String.init)
         guard parts.count == 2, let port = Int(parts[1]) else { return false }
         return server.ip == parts[0] && server.port == port
-    }
-}
-
-private struct ServersTableAutosaveConfigurator: NSViewRepresentable {
-    let autosaveName: String
-
-    final class HostView: NSView {
-        var autosaveName: String = ""
-
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            apply()
-        }
-
-        override func viewDidMoveToSuperview() {
-            super.viewDidMoveToSuperview()
-            apply()
-        }
-
-        override func layout() {
-            super.layout()
-            apply()
-        }
-
-        func apply() {
-            DispatchQueue.main.async { [weak self] in
-                guard let self, let tableView = self.findNearestTableView() else { return }
-                tableView.autosaveName = self.autosaveName
-                tableView.autosaveTableColumns = true
-            }
-        }
-
-        private func findNearestTableView() -> NSTableView? {
-            var ancestor: NSView? = self
-            while let current = ancestor {
-                if let tableView = current.subviews.compactMap({ self.findTableView(in: $0) }).first {
-                    return tableView
-                }
-                ancestor = current.superview
-            }
-            return nil
-        }
-
-        private func findTableView(in view: NSView) -> NSTableView? {
-            if let table = view as? NSTableView {
-                return table
-            }
-            for subview in view.subviews {
-                if let table = findTableView(in: subview) {
-                    return table
-                }
-            }
-            return nil
-        }
-    }
-
-    func makeNSView(context: Context) -> HostView {
-        let view = HostView(frame: .zero)
-        view.isHidden = true
-        view.autosaveName = autosaveName
-        return view
-    }
-
-    func updateNSView(_ nsView: HostView, context: Context) {
-        nsView.autosaveName = autosaveName
-        nsView.apply()
     }
 }
 
@@ -481,24 +485,24 @@ private struct AddServerSheetView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Add Server")
+            Text(L2("Add Server"))
                 .font(.headline)
 
-            TextField("Server address (IP:Port)", text: $address)
+            TextField(L2("Server address (IP:Port)"), text: $address)
                 .textFieldStyle(.roundedBorder)
 
-            TextField("Name (optional)", text: $name)
+            TextField(L2("Name (optional)"), text: $name)
                 .textFieldStyle(.roundedBorder)
 
             HStack {
-                Button("Close") {
+                Button(L2("Close")) {
                     dismiss()
                 }
                 .buttonStyle(.bordered)
 
                 Spacer()
 
-                Button("Add Server") {
+                Button(L2("Add Server")) {
                     onAdd(trimmedAddress, trimmedName)
                 }
                 .buttonStyle(.borderedProminent)
@@ -524,21 +528,21 @@ private struct ImportServerMetSheetView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Import Server List")
+            Text(L2("Import Server List"))
                 .font(.headline)
 
             TextField("http://example.com/server.met", text: $url)
                 .textFieldStyle(.roundedBorder)
 
             HStack {
-                Button("Close") {
+                Button(L2("Close")) {
                     dismiss()
                 }
                 .buttonStyle(.bordered)
 
                 Spacer()
 
-                Button("Add") {
+                Button(L2("Add")) {
                     onAdd(trimmedURL)
                 }
                 .buttonStyle(.borderedProminent)
@@ -569,26 +573,26 @@ private struct KadBootstrapSheetView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Bootstrap Kad")
+            Text(L2("Bootstrap Kad"))
                 .font(.headline)
 
             HStack(spacing: 8) {
-                TextField("IP address", text: $ip)
+                TextField(L2("IP address"), text: $ip)
                     .textFieldStyle(.roundedBorder)
-                TextField("Port", text: $port)
+                TextField(L2("Port"), text: $port)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 90)
             }
 
             HStack {
-                Button("Close") {
+                Button(L2("Close")) {
                     dismiss()
                 }
                 .buttonStyle(.bordered)
 
                 Spacer()
 
-                Button("Bootstrap") {
+                Button(L2("Bootstrap")) {
                     onBootstrap(trimmedIP, trimmedPort)
                 }
                 .buttonStyle(.borderedProminent)
@@ -614,21 +618,21 @@ private struct KadNodesURLSheetView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Update Kad nodes.dat")
+            Text(L2("Update Kad nodes.dat"))
                 .font(.headline)
 
             TextField("http://example.com/nodes.dat", text: $url)
                 .textFieldStyle(.roundedBorder)
 
             HStack {
-                Button("Close") {
+                Button(L2("Close")) {
                     dismiss()
                 }
                 .buttonStyle(.bordered)
 
                 Spacer()
 
-                Button("Download nodes.dat") {
+                Button(L2("Download nodes.dat")) {
                     onUpdate(trimmedURL)
                 }
                 .buttonStyle(.borderedProminent)

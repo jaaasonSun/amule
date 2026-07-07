@@ -55,7 +55,7 @@ public enum ECJsonEnvelopeFixtures {
     """
 
     public static let sources = """
-    {"ok":true,"sources":[{"client_id":501,"request_file_id":1001,"client_name":"peer","user_ip":"10.0.0.2","user_port":4662,"server_name":"ExampleServer","server_ip":"1.2.3.4","server_port":4661,"software":"9","software_version":"2.3.3","download_state":3,"download_state_text":"Downloading","source_from":2,"source_from_text":"Kad","down_speed_kbps":12.5,"available_parts":8,"remote_queue_rank":12,"obfuscation_status":1,"extended_protocol":true,"remote_filename":"fixture.iso"}]}
+    {"ok":true,"sources":[{"client_id":501,"request_file_id":1001,"client_name":"peer","user_ip":"10.0.0.2","user_port":4662,"server_name":"ExampleServer","server_ip":"1.2.3.4","server_port":4661,"software":"9","software_version":"2.3.3","downloaded_total":4096,"uploaded_total":8192,"version_string":"2.3.3 - Community","client_hash":"","score":0,"friend_slot":false,"wait_time":0,"xfer_time":0,"queue_time":0,"last_time":0,"is_modded":false,"upload_session":0,"download_state":3,"download_state_text":"Downloading","upload_state":0,"ident_state":0,"source_from":2,"source_from_text":"Kad","upload_speed":0,"down_speed_kbps":12.5,"available_parts":8,"remote_queue_rank":12,"old_remote_queue_rank":0,"waiting_position":0,"user_id":0,"kad_port":0,"obfuscation_status":1,"extended_protocol":true,"remote_filename":"fixture.iso","os_info":"","part_status":"","next_requested_part":0,"last_downloading_part":0,"a4af_files":"","upload_part_status":"","shares_file_list":true}]}
     """
 
     public static let search = """

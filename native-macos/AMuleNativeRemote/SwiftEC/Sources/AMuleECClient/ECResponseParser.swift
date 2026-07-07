@@ -24,13 +24,38 @@ public enum ECResponseParser {
         public static let ed2kID: UInt16 = 0x000F
         public static let statsUploadSpeed: UInt16 = 0x0200
         public static let statsDownloadSpeed: UInt16 = 0x0201
+        public static let statsUploadSpeedLimit: UInt16 = 0x0202
+        public static let statsDownloadSpeedLimit: UInt16 = 0x0203
+        public static let statsUpOverhead: UInt16 = 0x0204
+        public static let statsDownOverhead: UInt16 = 0x0205
         public static let statsTotalSourceCount: UInt16 = 0x0206
+        public static let statsBannedCount: UInt16 = 0x0207
         public static let statsUploadQueueLength: UInt16 = 0x0208
+        public static let statsED2KUsers: UInt16 = 0x0209
+        public static let statsKadUsers: UInt16 = 0x020A
+        public static let statsED2KFiles: UInt16 = 0x020B
+        public static let statsKadFiles: UInt16 = 0x020C
+        public static let statsKadFirewalledUDP: UInt16 = 0x020E
+        public static let statsLoggerMessage: UInt16 = 0x020D
+        public static let statsKadIndexedSources: UInt16 = 0x020F
+        public static let statsKadIndexedKeywords: UInt16 = 0x0210
+        public static let statsKadIndexedNotes: UInt16 = 0x0211
+        public static let statsKadIndexedLoad: UInt16 = 0x0212
+        public static let statsKadIP: UInt16 = 0x0213
+        public static let statsBuddyStatus: UInt16 = 0x0214
+        public static let statsBuddyIP: UInt16 = 0x0215
+        public static let statsBuddyPort: UInt16 = 0x0216
+        public static let statsKadInLANMode: UInt16 = 0x0217
+        public static let statsTotalSentBytes: UInt16 = 0x0218
+        public static let statsTotalReceivedBytes: UInt16 = 0x0219
+        public static let statsSharedFileCount: UInt16 = 0x021A
+        public static let statsKadNodes: UInt16 = 0x021B
         public static let partFile: UInt16 = 0x0300
         public static let partFileName: UInt16 = 0x0301
         public static let partFilePartMetID: UInt16 = 0x0302
         public static let partFileSizeFull: UInt16 = 0x0303
         public static let partFileSizeTransfer: UInt16 = 0x0304
+        public static let partFileSizeXferUp: UInt16 = 0x0305
         public static let partFileSizeDone: UInt16 = 0x0306
         public static let partFileSpeed: UInt16 = 0x0307
         public static let partFileStatus: UInt16 = 0x0308
@@ -39,6 +64,7 @@ public enum ECResponseParser {
         public static let partFileSourceCountA4AF: UInt16 = 0x030B
         public static let partFileSourceCountNotCurrent: UInt16 = 0x030C
         public static let partFileSourceCountTransfer: UInt16 = 0x030D
+        public static let partFileEd2kLink: UInt16 = 0x030E
         public static let partFileCategory: UInt16 = 0x030F
         public static let partFileLastReceived: UInt16 = 0x0310
         public static let partFileLastSeenComplete: UInt16 = 0x0311
@@ -46,12 +72,19 @@ public enum ECResponseParser {
         public static let partFileGapStatus: UInt16 = 0x0313
         public static let partFileRequestStatus: UInt16 = 0x0314
         public static let partFileSourceNames: UInt16 = 0x0315
+        public static let partFileA4AFAuto: UInt16 = 0x0321
+        public static let partFileComments: UInt16 = 0x0316
         public static let partFileStopped: UInt16 = 0x0317
+        public static let partFileDownloadActive: UInt16 = 0x0318
+        public static let partFileLostCorruption: UInt16 = 0x0319
+        public static let partFileGainedCompression: UInt16 = 0x031A
+        public static let partFileSavedICH: UInt16 = 0x031B
         public static let partFileSourceNameCounts: UInt16 = 0x031C
         public static let partFileAvailableParts: UInt16 = 0x031D
         public static let partFileHash: UInt16 = 0x031E
         public static let partFileShared: UInt16 = 0x031F
         public static let partFileHashedPartCount: UInt16 = 0x0320
+        public static let partFileA4AFSources: UInt16 = 0x0322
         public static let knownFile: UInt16 = 0x0400
         public static let knownFileXferred: UInt16 = 0x0401
         public static let knownFileXferredAll: UInt16 = 0x0402
@@ -59,8 +92,13 @@ public enum ECResponseParser {
         public static let knownFileRequestsAll: UInt16 = 0x0404
         public static let knownFileAccepts: UInt16 = 0x0405
         public static let knownFileAcceptsAll: UInt16 = 0x0406
+        public static let knownFileAICHMasterHash: UInt16 = 0x0407
         public static let knownFileFilename: UInt16 = 0x0408
+        public static let knownFileOnQueue: UInt16 = 0x0409
+        public static let knownFileCompleteSources: UInt16 = 0x040A
         public static let knownFilePriority: UInt16 = 0x040B
+        public static let knownFileCompleteSourcesLow: UInt16 = 0x040C
+        public static let knownFileCompleteSourcesHigh: UInt16 = 0x040D
         public static let knownFileComment: UInt16 = 0x040E
         public static let knownFileRating: UInt16 = 0x040F
         public static let server: UInt16 = 0x0500
@@ -81,14 +119,35 @@ public enum ECResponseParser {
         public static let searchStatus: UInt16 = 0x0708
         public static let searchParent: UInt16 = 0x0709
         public static let string: UInt16 = 0x0000
+        public static let clientVersion: UInt16 = 0x0101
+        public static let clientMod: UInt16 = 0x0102
+        public static let prefsGeneral: UInt16 = 0x1200
+        public static let userNick: UInt16 = 0x1201
+        public static let userHash: UInt16 = 0x1202
+        public static let userHost: UInt16 = 0x1203
+        public static let generalCheckNewVersion: UInt16 = 0x1204
         public static let prefsConnections: UInt16 = 0x1300
         public static let connMaxDownload: UInt16 = 0x1303
         public static let connMaxUpload: UInt16 = 0x1304
         public static let connTCPPort: UInt16 = 0x1306
         public static let connUDPPort: UInt16 = 0x1307
         public static let connUDPDisable: UInt16 = 0x1308
+        public static let connDLCap: UInt16 = 0x1301
+        public static let connULCap: UInt16 = 0x1302
+        public static let connSlotAllocation: UInt16 = 0x1305
+        public static let connMaxFileSources: UInt16 = 0x1309
+        public static let connMaxConn: UInt16 = 0x130A
+        public static let connAutoConnect: UInt16 = 0x130B
+        public static let connReconnect: UInt16 = 0x130C
         public static let networkED2K: UInt16 = 0x130D
         public static let networkKademlia: UInt16 = 0x130E
+        public static let prefsMessageFilter: UInt16 = 0x1400
+        public static let msgFilterEnabled: UInt16 = 0x1401
+        public static let msgFilterAll: UInt16 = 0x1402
+        public static let msgFilterFriends: UInt16 = 0x1403
+        public static let msgFilterSecure: UInt16 = 0x1404
+        public static let msgFilterByKeyword: UInt16 = 0x1405
+        public static let msgFilterKeywords: UInt16 = 0x1406
         public static let prefsRemoteControls: UInt16 = 0x1500
         public static let webServerAutorun: UInt16 = 0x1501
         public static let webServerPort: UInt16 = 0x1502
@@ -96,6 +155,8 @@ public enum ECResponseParser {
         public static let webServerUseGzip: UInt16 = 0x1504
         public static let webServerRefresh: UInt16 = 0x1505
         public static let webServerTemplate: UInt16 = 0x1506
+        public static let prefsOnlineSignature: UInt16 = 0x1600
+        public static let onlineSignatureEnabled: UInt16 = 0x1601
         public static let prefsServers: UInt16 = 0x1700
         public static let serversRemoveDead: UInt16 = 0x1701
         public static let serversDeadServerRetries: UInt16 = 0x1702
@@ -119,6 +180,12 @@ public enum ECResponseParser {
         public static let filesCheckFreeSpace: UInt16 = 0x180D
         public static let filesMinFreeSpace: UInt16 = 0x180E
         public static let filesCreateNormal: UInt16 = 0x180F
+        public static let prefsCoreTweaks: UInt16 = 0x1D00
+        public static let coreTweaksMaxConnPerFive: UInt16 = 0x1D01
+        public static let coreTweaksVerbose: UInt16 = 0x1D02
+        public static let coreTweaksFileBuffer: UInt16 = 0x1D03
+        public static let coreTweaksUploadQueue: UInt16 = 0x1D04
+        public static let coreTweaksServerKeepaliveTimeout: UInt16 = 0x1D05
         public static let prefsDirectories: UInt16 = 0x1A00
         public static let directoriesIncoming: UInt16 = 0x1A01
         public static let directoriesTemp: UInt16 = 0x1A02
@@ -126,6 +193,7 @@ public enum ECResponseParser {
         public static let directoriesShareHidden: UInt16 = 0x1A04
         public static let prefsStatistics: UInt16 = 0x1B00
         public static let prefsSecurity: UInt16 = 0x1C00
+        public static let securityCanSeeShares: UInt16 = 0x1C01
         public static let ipFilterClients: UInt16 = 0x1C02
         public static let ipFilterServers: UInt16 = 0x1C03
         public static let ipFilterAutoUpdate: UInt16 = 0x1C04
@@ -136,10 +204,21 @@ public enum ECResponseParser {
         public static let securityObfuscationSupported: UInt16 = 0x1C09
         public static let securityObfuscationRequested: UInt16 = 0x1C0A
         public static let securityObfuscationRequired: UInt16 = 0x1C0B
+        public static let prefsKademlia: UInt16 = 0x1E00
+        public static let kademliaUpdateURL: UInt16 = 0x1E01
         public static let client: UInt16 = 0x0600
         public static let clientSoftware: UInt16 = 0x0601
+        public static let clientScore: UInt16 = 0x0602
+        public static let clientHash: UInt16 = 0x0603
+        public static let clientFriendSlot: UInt16 = 0x0604
+        public static let clientWaitTime: UInt16 = 0x0605
+        public static let clientXferTime: UInt16 = 0x0606
+        public static let clientQueueTime: UInt16 = 0x0607
+        public static let clientLastTime: UInt16 = 0x0608
+        public static let clientUploadSession: UInt16 = 0x0609
         public static let clientName: UInt16 = 0x0100
         public static let clientDownloadState: UInt16 = 0x060C
+        public static let clientUpSpeed: UInt16 = 0x060D
         public static let clientDownSpeed: UInt16 = 0x060E
         public static let clientFrom: UInt16 = 0x060F
         public static let clientUserIP: UInt16 = 0x0610
@@ -148,16 +227,29 @@ public enum ECResponseParser {
         public static let clientServerPort: UInt16 = 0x0613
         public static let clientServerName: UInt16 = 0x0614
         public static let clientSoftwareVersion: UInt16 = 0x0615
+        public static let clientWaitingPosition: UInt16 = 0x0616
+        public static let clientIdentState: UInt16 = 0x0617
         public static let clientObfuscationStatus: UInt16 = 0x0618
         public static let clientRemoteQueueRank: UInt16 = 0x061A
+        public static let clientDisableViewShared: UInt16 = 0x061B
+        public static let clientUploadState: UInt16 = 0x061C
         public static let clientExtendedProtocol: UInt16 = 0x061D
+        public static let clientUserID: UInt16 = 0x061E
         public static let clientUploadFile: UInt16 = 0x061F
         public static let clientRequestFile: UInt16 = 0x0620
+        public static let clientA4AFFiles: UInt16 = 0x0621
+        public static let clientOldRemoteQueueRank: UInt16 = 0x0622
+        public static let clientKadPort: UInt16 = 0x0623
+        public static let clientPartStatus: UInt16 = 0x0624
+        public static let clientNextRequestedPart: UInt16 = 0x0625
+        public static let clientLastDownloadingPart: UInt16 = 0x0626
         public static let clientRemoteFilename: UInt16 = 0x0627
+        public static let clientModVersion: UInt16 = 0x0628
+        public static let clientOSInfo: UInt16 = 0x0629
         public static let clientAvailableParts: UInt16 = 0x062A
+        public static let clientUploadPartStatus: UInt16 = 0x062B
         public static let clientUploadTotal: UInt16 = 0x060A
         public static let clientDownloadTotal: UInt16 = 0x060B
-        public static let clientUpSpeed: UInt16 = 0x060D
         public static let friend: UInt16 = 0x0800
         public static let friendName: UInt16 = 0x0801
         public static let friendHash: UInt16 = 0x0802
@@ -204,7 +296,31 @@ public enum ECResponseParser {
             downloadSpeed: packet.tags.first(named: TagName.statsDownloadSpeed)?.intValue ?? 0,
             uploadSpeed: packet.tags.first(named: TagName.statsUploadSpeed)?.intValue ?? 0,
             queue: packet.tags.first(named: TagName.statsUploadQueueLength)?.intValue ?? 0,
-            sources: packet.tags.first(named: TagName.statsTotalSourceCount)?.intValue ?? 0
+            sources: packet.tags.first(named: TagName.statsTotalSourceCount)?.intValue ?? 0,
+            uploadSpeedLimit: packet.tags.first(named: TagName.statsUploadSpeedLimit)?.intValue ?? 0,
+            downloadSpeedLimit: packet.tags.first(named: TagName.statsDownloadSpeedLimit)?.intValue ?? 0,
+            uploadOverhead: packet.tags.first(named: TagName.statsUpOverhead)?.intValue ?? 0,
+            downloadOverhead: packet.tags.first(named: TagName.statsDownOverhead)?.intValue ?? 0,
+            bannedCount: packet.tags.first(named: TagName.statsBannedCount)?.intValue ?? 0,
+            ed2kUsers: packet.tags.first(named: TagName.statsED2KUsers)?.intValue ?? 0,
+            kadUsers: packet.tags.first(named: TagName.statsKadUsers)?.intValue ?? 0,
+            ed2kFiles: packet.tags.first(named: TagName.statsED2KFiles)?.intValue ?? 0,
+            kadFiles: packet.tags.first(named: TagName.statsKadFiles)?.intValue ?? 0,
+            kadFirewalledUDP: (packet.tags.first(named: TagName.statsKadFirewalledUDP)?.intValue ?? 0) != 0,
+            totalSentBytes: packet.tags.first(named: TagName.statsTotalSentBytes)?.uintValue ?? 0,
+            totalReceivedBytes: packet.tags.first(named: TagName.statsTotalReceivedBytes)?.uintValue ?? 0,
+            sharedFileCount: packet.tags.first(named: TagName.statsSharedFileCount)?.intValue ?? 0,
+            kadNodes: packet.tags.first(named: TagName.statsKadNodes)?.intValue ?? 0,
+            loggerMessage: packet.tags.first(named: TagName.statsLoggerMessage)?.stringValue,
+            kadIndexedSources: packet.tags.first(named: TagName.statsKadIndexedSources)?.intValue ?? 0,
+            kadIndexedKeywords: packet.tags.first(named: TagName.statsKadIndexedKeywords)?.intValue ?? 0,
+            kadIndexedNotes: packet.tags.first(named: TagName.statsKadIndexedNotes)?.intValue ?? 0,
+            kadIndexedLoad: packet.tags.first(named: TagName.statsKadIndexedLoad)?.intValue ?? 0,
+            kadIP: packet.tags.first(named: TagName.statsKadIP)?.ipStringValue,
+            buddyStatus: packet.tags.first(named: TagName.statsBuddyStatus)?.intValue ?? 0,
+            buddyIP: packet.tags.first(named: TagName.statsBuddyIP)?.ipStringValue,
+            buddyPort: packet.tags.first(named: TagName.statsBuddyPort)?.intValue ?? 0,
+            kadInLANMode: (packet.tags.first(named: TagName.statsKadInLANMode)?.intValue ?? 0) != 0
         )
     }
 
@@ -300,32 +416,16 @@ public enum ECResponseParser {
             return nested.isEmpty ? [tag] : nested
         }
 
+        let useRequestContextForMissingFileID = clientTags.allSatisfy { tag in
+            guard let tagRequestFileID = tag.child(named: TagName.clientRequestFile)?.intValue, tagRequestFileID > 0 else { return true }
+            return tagRequestFileID == requestFileID
+        }
+
         return clientTags.compactMap { tag in
-            guard tag.child(named: TagName.clientRequestFile)?.intValue == requestFileID else { return nil }
-            let state = tag.child(named: TagName.clientDownloadState)?.intValue ?? 0
-            let from = tag.child(named: TagName.clientFrom)?.intValue ?? 0
-            let rank = tag.child(named: TagName.clientRemoteQueueRank)?.intValue ?? 0
-            return ECSource(
-                clientID: tag.intValue,
+            parseSourceTag(
+                tag,
                 requestFileID: requestFileID,
-                clientName: tag.child(named: TagName.clientName)?.stringValue ?? "",
-                userIP: tag.child(named: TagName.clientUserIP)?.ipStringValue ?? "",
-                userPort: tag.child(named: TagName.clientUserPort)?.intValue ?? 0,
-                serverName: tag.child(named: TagName.clientServerName)?.stringValue ?? "",
-                serverIP: tag.child(named: TagName.clientServerIP)?.ipStringValue ?? "",
-                serverPort: tag.child(named: TagName.clientServerPort)?.intValue ?? 0,
-                software: softwareText(tag.child(named: TagName.clientSoftware)?.intValue ?? 0),
-                softwareVersion: tag.child(named: TagName.clientSoftwareVersion)?.stringValue ?? "",
-                downloadState: state,
-                downloadStateText: downloadStateText(state, queueFull: rank == 0xffff),
-                sourceFrom: from,
-                sourceFromText: sourceFromText(from),
-                downSpeedKBps: tag.child(named: TagName.clientDownSpeed)?.doubleValue ?? 0,
-                availableParts: tag.child(named: TagName.clientAvailableParts)?.intValue ?? 0,
-                remoteQueueRank: rank,
-                obfuscationStatus: tag.child(named: TagName.clientObfuscationStatus)?.intValue ?? 0,
-                extendedProtocol: (tag.child(named: TagName.clientExtendedProtocol)?.intValue ?? 0) != 0,
-                remoteFilename: tag.child(named: TagName.clientRemoteFilename)?.stringValue ?? ""
+                useRequestContextWhenMissingFileID: useRequestContextForMissingFileID
             )
         }.sorted { lhs, rhs in
             if lhs.downloadState != rhs.downloadState { return lhs.downloadState < rhs.downloadState }
@@ -333,6 +433,93 @@ public enum ECResponseParser {
             if lhs.clientName != rhs.clientName { return lhs.clientName < rhs.clientName }
             return lhs.clientID < rhs.clientID
         }
+    }
+
+    private static func parseSourceTag(_ tag: ECTag, requestFileID: Int, useRequestContextWhenMissingFileID: Bool) -> ECSource? {
+        guard let resolvedRequestFileID = sourceRequestFileID(
+            in: tag,
+            matching: requestFileID,
+            useRequestContextWhenMissingFileID: useRequestContextWhenMissingFileID
+        ) else { return nil }
+        let state = tag.child(named: TagName.clientDownloadState)?.intValue ?? 0
+        let from = tag.child(named: TagName.clientFrom)?.intValue ?? 0
+        let rank = tag.child(named: TagName.clientRemoteQueueRank)?.intValue ?? 0
+        let softwareVersion = tag.child(named: TagName.clientSoftwareVersion)?.stringValue ?? ""
+        return ECSource(
+            clientID: tag.intValue,
+            requestFileID: resolvedRequestFileID,
+            clientName: tag.child(named: TagName.clientName)?.stringValue ?? "",
+            userIP: tag.child(named: TagName.clientUserIP)?.ipStringValue ?? "",
+            userPort: tag.child(named: TagName.clientUserPort)?.intValue ?? 0,
+            serverName: tag.child(named: TagName.clientServerName)?.stringValue ?? "",
+            serverIP: tag.child(named: TagName.clientServerIP)?.ipStringValue ?? "",
+            serverPort: tag.child(named: TagName.clientServerPort)?.intValue ?? 0,
+            software: softwareText(tag.child(named: TagName.clientSoftware)?.intValue ?? 0),
+            softwareVersion: softwareVersion,
+            downloadedTotal: tag.child(named: TagName.clientDownloadTotal).map { Int(clamping: $0.uintValue) },
+            uploadedTotal: tag.child(named: TagName.clientUploadTotal).map { Int(clamping: $0.uintValue) },
+            versionString: sourceVersionString(
+                softVersion: softwareVersion,
+                clientVersion: tag.child(named: TagName.clientVersion)?.uintValue,
+                modVersion: tag.child(named: TagName.clientModVersion)?.stringValue
+            ),
+            downloadState: state,
+            downloadStateText: downloadStateText(state, queueFull: rank == 0xffff),
+            sourceFrom: from,
+            sourceFromText: sourceFromText(from),
+            downSpeedKBps: tag.child(named: TagName.clientDownSpeed)?.doubleValue ?? 0,
+            availableParts: tag.child(named: TagName.clientAvailableParts)?.intValue ?? 0,
+            remoteQueueRank: rank,
+            obfuscationStatus: tag.child(named: TagName.clientObfuscationStatus)?.intValue ?? 0,
+            extendedProtocol: (tag.child(named: TagName.clientExtendedProtocol)?.intValue ?? 0) != 0,
+            remoteFilename: tag.child(named: TagName.clientRemoteFilename)?.stringValue ?? "",
+            sharesFileList: tag.child(named: TagName.clientDisableViewShared).map { $0.uintValue == 0 },
+            clientHash: tag.child(named: TagName.clientHash)?.dataValue ?? Data(),
+            score: tag.child(named: TagName.clientScore)?.intValue ?? 0,
+            friendSlot: (tag.child(named: TagName.clientFriendSlot)?.intValue ?? 0) != 0,
+            waitTime: tag.child(named: TagName.clientWaitTime)?.intValue ?? 0,
+            xferTime: tag.child(named: TagName.clientXferTime)?.intValue ?? 0,
+            queueTime: tag.child(named: TagName.clientQueueTime)?.intValue ?? 0,
+            lastTime: tag.child(named: TagName.clientLastTime)?.intValue ?? 0,
+            isModded: (tag.child(named: TagName.clientMod)?.intValue ?? 0) != 0,
+            uploadSession: tag.child(named: TagName.clientUploadSession)?.intValue ?? 0,
+            uploadState: tag.child(named: TagName.clientUploadState)?.intValue ?? 0,
+            identState: tag.child(named: TagName.clientIdentState)?.intValue ?? 0,
+            uploadSpeed: tag.child(named: TagName.clientUpSpeed)?.intValue ?? 0,
+            oldRemoteQueueRank: tag.child(named: TagName.clientOldRemoteQueueRank)?.intValue ?? 0,
+            waitingPosition: tag.child(named: TagName.clientWaitingPosition)?.intValue ?? 0,
+            userID: tag.child(named: TagName.clientUserID)?.intValue ?? 0,
+            kadPort: tag.child(named: TagName.clientKadPort)?.intValue ?? 0,
+            osInfo: tag.child(named: TagName.clientOSInfo)?.stringValue ?? "",
+            partStatus: tag.child(named: TagName.clientPartStatus)?.dataValue ?? Data(),
+            nextRequestedPart: tag.child(named: TagName.clientNextRequestedPart)?.intValue ?? 0,
+            lastDownloadingPart: tag.child(named: TagName.clientLastDownloadingPart)?.intValue ?? 0,
+            a4afFiles: tag.child(named: TagName.clientA4AFFiles)?.dataValue ?? Data(),
+            uploadPartStatus: tag.child(named: TagName.clientUploadPartStatus)?.dataValue ?? Data()
+        )
+    }
+
+    private static func sourceVersionString(softVersion: String, clientVersion: UInt64?, modVersion: String?) -> String? {
+        var text = softVersion.trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.isEmpty, let clientVersion, clientVersion > 0 {
+            text = String(clientVersion)
+        }
+
+        let modText = modVersion?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !modText.isEmpty, text.isEmpty {
+            text = modText
+        } else if !modText.isEmpty, text.range(of: modText, options: [.caseInsensitive, .diacriticInsensitive]) == nil {
+            text += " - \(modText)"
+        }
+
+        return text.isEmpty ? nil : text
+    }
+
+    private static func sourceRequestFileID(in tag: ECTag, matching requestFileID: Int, useRequestContextWhenMissingFileID: Bool) -> Int? {
+        if let tagRequestFileID = tag.child(named: TagName.clientRequestFile)?.intValue {
+            return tagRequestFileID == requestFileID ? tagRequestFileID : nil
+        }
+        return useRequestContextWhenMissingFileID && requestFileID > 0 ? requestFileID : nil
     }
 
     public static func parseServers(_ packet: ECPacket) throws -> [ECServer] {
@@ -404,6 +591,11 @@ public enum ECResponseParser {
                 acceptsAll: tag.child(named: TagName.knownFileAcceptsAll)?.intValue ?? 0,
                 xferred: tag.child(named: TagName.knownFileXferred)?.uintValue ?? 0,
                 xferredAll: tag.child(named: TagName.knownFileXferredAll)?.uintValue ?? 0,
+                aichMasterHash: tag.child(named: TagName.knownFileAICHMasterHash)?.hashStringValue,
+                onQueue: tag.child(named: TagName.knownFileOnQueue)?.intValue ?? 0,
+                completeSources: tag.child(named: TagName.knownFileCompleteSources)?.intValue ?? 0,
+                completeSourcesLow: tag.child(named: TagName.knownFileCompleteSourcesLow)?.intValue ?? 0,
+                completeSourcesHigh: tag.child(named: TagName.knownFileCompleteSourcesHigh)?.intValue ?? 0,
                 comment: tag.child(named: TagName.knownFileComment)?.stringValue,
                 rating: tag.child(named: TagName.knownFileRating)?.intValue
             )
@@ -413,6 +605,23 @@ public enum ECResponseParser {
     public static func parseCoreLog(_ packet: ECPacket, kind: String) throws -> ECCoreLog {
         try requireOpcode(packet, kind == "debug" ? ECOperations.OpCode.debugLog : ECOperations.OpCode.log)
         return ECCoreLog(kind: kind, lines: packet.tags.compactMap(\.stringValue))
+    }
+
+    public static func parseLastLogEntry(_ packet: ECPacket) throws -> String {
+        try requireOpcode(packet, ECOperations.OpCode.log)
+        return packet.tags.compactMap(\.stringValue).joined(separator: "\n")
+    }
+
+    public static func parseConnectionState(_ packet: ECPacket) throws -> ECConnectionState {
+        try requireOpcode(packet, ECOperations.OpCode.miscData)
+        let state = packet.tags.first(named: TagName.connState)?.uintValue ?? 0
+        return ECConnectionState(
+            ed2kConnected: (state & 0x01) != 0,
+            ed2kConnecting: (state & 0x02) != 0,
+            kadConnected: (state & 0x04) != 0,
+            kadFirewalled: (state & 0x08) != 0,
+            kadRunning: (state & 0x10) != 0
+        )
     }
 
     public static func parseServerInfo(_ packet: ECPacket) throws -> ECCoreLog {
@@ -523,14 +732,19 @@ public enum ECResponseParser {
 
     public static func parseConnectionPrefs(_ packet: ECPacket) throws -> ECConnectionPrefs {
         try requireOpcode(packet, ECOperations.OpCode.setPreferences)
+        let general = packet.tags.first(named: TagName.prefsGeneral)
         let connection = packet.tags.first(named: TagName.prefsConnections)
+        let messageFilter = packet.tags.first(named: TagName.prefsMessageFilter)
+        let onlineSignature = packet.tags.first(named: TagName.prefsOnlineSignature)
         let directories = packet.tags.first(named: TagName.prefsDirectories)
         let files = packet.tags.first(named: TagName.prefsFiles)
+        let coreTweaks = packet.tags.first(named: TagName.prefsCoreTweaks)
         let servers = packet.tags.first(named: TagName.prefsServers)
         let security = packet.tags.first(named: TagName.prefsSecurity)
         let remoteControls = packet.tags.first(named: TagName.prefsRemoteControls)
         let statistics = packet.tags.first(named: TagName.prefsStatistics)
-        guard connection != nil || directories != nil || files != nil || servers != nil || security != nil || remoteControls != nil || statistics != nil else {
+        let kademlia = packet.tags.first(named: TagName.prefsKademlia)
+        guard general != nil || connection != nil || messageFilter != nil || onlineSignature != nil || directories != nil || files != nil || coreTweaks != nil || servers != nil || security != nil || remoteControls != nil || statistics != nil || kademlia != nil else {
             throw ECResponseParserError.missingPreferences
         }
         let hasConnectionNetworkFields = connection.map {
@@ -540,59 +754,157 @@ public enum ECResponseParser {
                 $0.child(named: TagName.networkED2K) != nil ||
                 $0.child(named: TagName.networkKademlia) != nil
         } ?? false
+        let userNick = general?.child(named: TagName.userNick)?.stringValue
+        let userHash = general?.child(named: TagName.userHash)?.hashStringValue
+        let userHost = general?.child(named: TagName.userHost)?.stringValue
+        let checkNewVersion = general.flatMap { preferenceBool($0, TagName.generalCheckNewVersion) }
+        let maxDownload = connection?.child(named: TagName.connMaxDownload)?.intValue ?? 0
+        let maxUpload = connection?.child(named: TagName.connMaxUpload)?.intValue ?? 0
+        let tcpPort = connection?.child(named: TagName.connTCPPort)?.intValue
+        let udpPort = connection?.child(named: TagName.connUDPPort)?.intValue
+        let udpEnabled = hasConnectionNetworkFields ? connection.map { !(preferenceBool($0, TagName.connUDPDisable) ?? false) } : nil
+        let ed2kEnabled = hasConnectionNetworkFields ? connection.flatMap { preferenceBool($0, TagName.networkED2K) } : nil
+        let kadEnabled = hasConnectionNetworkFields ? connection.flatMap { preferenceBool($0, TagName.networkKademlia) } : nil
+        let messageFilterEnabled = messageFilter.flatMap { preferenceBool($0, TagName.msgFilterEnabled) }
+        let messageFilterAll = messageFilter.flatMap { preferenceBool($0, TagName.msgFilterAll) }
+        let messageFilterFriends = messageFilter.flatMap { preferenceBool($0, TagName.msgFilterFriends) }
+        let messageFilterSecure = messageFilter.flatMap { preferenceBool($0, TagName.msgFilterSecure) }
+        let messageFilterByKeyword = messageFilter.flatMap { preferenceBool($0, TagName.msgFilterByKeyword) }
+        let messageFilterKeywords = messageFilter?.child(named: TagName.msgFilterKeywords)?.stringValue
+        let onlineSignatureEnabled = onlineSignature.flatMap { preferenceBool($0, TagName.onlineSignatureEnabled) }
+        let incomingDirectory = directories?.child(named: TagName.directoriesIncoming)?.stringValue
+        let tempDirectory = directories?.child(named: TagName.directoriesTemp)?.stringValue
+        let sharedDirectories = directories?.child(named: TagName.directoriesShared)?.children.compactMap(\.stringValue)
+        let shareHiddenFiles = directories?.child(named: TagName.directoriesShareHidden).map { $0.intValue != 0 }
+        let newFilesPaused = files.flatMap { preferenceBool($0, TagName.filesNewPaused) }
+        let autoDownloadPriority = files.flatMap { preferenceBool($0, TagName.filesNewAutoDownloadPriority) }
+        let previewPriority = files.flatMap { preferenceBool($0, TagName.filesPreviewPriority) }
+        let autoUploadPriority = files.flatMap { preferenceBool($0, TagName.filesNewAutoUploadPriority) }
+        let saveSources = files.flatMap { preferenceBool($0, TagName.filesSaveSources) }
+        let extractMetadata = files.flatMap { preferenceBool($0, TagName.filesExtractMetadata) }
+        let allocateFullFileSize = files.flatMap { preferenceBool($0, TagName.filesAllocateFullSize) }
+        let checkFreeSpace = files.flatMap { preferenceBool($0, TagName.filesCheckFreeSpace) }
+        let minFreeDiskSpaceMB = files?.child(named: TagName.filesMinFreeSpace)?.intValue
+        let createSparseFiles = files.map { !(preferenceBool($0, TagName.filesCreateNormal) ?? false) }
+        let maxConnectionsPerFive = coreTweaks?.child(named: TagName.coreTweaksMaxConnPerFive)?.intValue
+        let verboseLogging = coreTweaks.flatMap { preferenceBool($0, TagName.coreTweaksVerbose) }
+        let fileBufferSize = coreTweaks?.child(named: TagName.coreTweaksFileBuffer)?.intValue
+        let uploadQueueSize = coreTweaks?.child(named: TagName.coreTweaksUploadQueue)?.intValue
+        let serverKeepaliveTimeout = coreTweaks?.child(named: TagName.coreTweaksServerKeepaliveTimeout)?.intValue
+        let serverUpdateURL = servers?.child(named: TagName.serversUpdateURL)?.stringValue
+        let removeDeadServers = servers.flatMap { preferenceBool($0, TagName.serversRemoveDead) }
+        let deadServerRetries = servers?.child(named: TagName.serversDeadServerRetries)?.intValue
+        let autoUpdateServers = servers.flatMap { preferenceBool($0, TagName.serversAutoUpdate) }
+        let addServersFromServer = servers.flatMap { preferenceBool($0, TagName.serversAddFromServer) }
+        let addServersFromClient = servers.flatMap { preferenceBool($0, TagName.serversAddFromClient) }
+        let useServerPrioritySystem = servers.flatMap { preferenceBool($0, TagName.serversUseScoreSystem) }
+        let smartIdCheck = servers.flatMap { preferenceBool($0, TagName.serversSmartIDCheck) }
+        let safeServerConnect = servers.flatMap { preferenceBool($0, TagName.serversSafeServerConnect) }
+        let autoConnectStaticOnly = servers.flatMap { preferenceBool($0, TagName.serversAutoConnectStaticOnly) }
+        let manualHighPriority = servers.flatMap { preferenceBool($0, TagName.serversManualHighPriority) }
+        let ipFilterLevel = security?.child(named: TagName.ipFilterLevel)?.intValue
+        let filterClients = security.flatMap { preferenceBool($0, TagName.ipFilterClients) }
+        let filterServers = security.flatMap { preferenceBool($0, TagName.ipFilterServers) }
+        let ipFilterAutoUpdate = security.flatMap { preferenceBool($0, TagName.ipFilterAutoUpdate) }
+        let ipFilterUpdateURL = security?.child(named: TagName.ipFilterUpdateURL)?.stringValue
+        let filterLanIPs = security.flatMap { preferenceBool($0, TagName.ipFilterFilterLan) }
+        let secureIdentEnabled = security.flatMap { preferenceBool($0, TagName.securityUseSecureIdent) }
+        let obfuscationSupported = security.flatMap { preferenceBool($0, TagName.securityObfuscationSupported) }
+        let obfuscationRequested = security.flatMap { preferenceBool($0, TagName.securityObfuscationRequested) }
+        let obfuscationRequired = security.flatMap { preferenceBool($0, TagName.securityObfuscationRequired) }
+        let webServerEnabled = remoteControls.flatMap { preferenceBool($0, TagName.webServerAutorun) }
+        let webServerPort = remoteControls?.child(named: TagName.webServerPort)?.intValue
+        let webServerGuestEnabled = remoteControls.flatMap { preferenceBool($0, TagName.webServerGuest) }
+        let webServerUseGzip = remoteControls.flatMap { preferenceBool($0, TagName.webServerUseGzip) }
+        let webServerRefreshSeconds = remoteControls?.child(named: TagName.webServerRefresh)?.intValue
+        let webServerTemplate = remoteControls?.child(named: TagName.webServerTemplate)?.stringValue
+        let kademliaUpdateURL = kademlia?.child(named: TagName.kademliaUpdateURL)?.stringValue
+        let dlCap = connection?.child(named: TagName.connDLCap)?.intValue
+        let ulCap = connection?.child(named: TagName.connULCap)?.intValue
+        let slotAllocation = connection?.child(named: TagName.connSlotAllocation)?.intValue
+        let maxFileSources = connection?.child(named: TagName.connMaxFileSources)?.intValue
+        let maxConn = connection?.child(named: TagName.connMaxConn)?.intValue
+        let autoConnect = connection.flatMap { preferenceBool($0, TagName.connAutoConnect) }
+        let reconnect = connection.flatMap { preferenceBool($0, TagName.connReconnect) }
+        let canSeeShares = security.flatMap { preferenceBool($0, TagName.securityCanSeeShares) }
         return ECConnectionPrefs(
-            maxDownload: connection?.child(named: TagName.connMaxDownload)?.intValue ?? 0,
-            maxUpload: connection?.child(named: TagName.connMaxUpload)?.intValue ?? 0,
-            tcpPort: connection?.child(named: TagName.connTCPPort)?.intValue,
-            udpPort: connection?.child(named: TagName.connUDPPort)?.intValue,
-            udpEnabled: hasConnectionNetworkFields ? connection.map { !(preferenceBool($0, TagName.connUDPDisable) ?? false) } : nil,
-            ed2kEnabled: hasConnectionNetworkFields ? connection.flatMap { preferenceBool($0, TagName.networkED2K) } : nil,
-            kadEnabled: hasConnectionNetworkFields ? connection.flatMap { preferenceBool($0, TagName.networkKademlia) } : nil,
-            incomingDirectory: directories?.child(named: TagName.directoriesIncoming)?.stringValue,
-            tempDirectory: directories?.child(named: TagName.directoriesTemp)?.stringValue,
-            sharedDirectories: directories?.child(named: TagName.directoriesShared)?.children.compactMap(\.stringValue),
-            shareHiddenFiles: directories?.child(named: TagName.directoriesShareHidden).map { $0.intValue != 0 },
-            newFilesPaused: files.flatMap { preferenceBool($0, TagName.filesNewPaused) },
-            autoDownloadPriority: files.flatMap { preferenceBool($0, TagName.filesNewAutoDownloadPriority) },
-            previewPriority: files.flatMap { preferenceBool($0, TagName.filesPreviewPriority) },
-            autoUploadPriority: files.flatMap { preferenceBool($0, TagName.filesNewAutoUploadPriority) },
-            saveSources: files.flatMap { preferenceBool($0, TagName.filesSaveSources) },
-            extractMetadata: files.flatMap { preferenceBool($0, TagName.filesExtractMetadata) },
-            allocateFullFileSize: files.flatMap { preferenceBool($0, TagName.filesAllocateFullSize) },
-            checkFreeSpace: files.flatMap { preferenceBool($0, TagName.filesCheckFreeSpace) },
-            minFreeDiskSpaceMB: files?.child(named: TagName.filesMinFreeSpace)?.intValue,
-            createSparseFiles: files.map { !(preferenceBool($0, TagName.filesCreateNormal) ?? false) },
-            serverUpdateURL: servers?.child(named: TagName.serversUpdateURL)?.stringValue,
-            removeDeadServers: servers.flatMap { preferenceBool($0, TagName.serversRemoveDead) },
-            deadServerRetries: servers?.child(named: TagName.serversDeadServerRetries)?.intValue,
-            autoUpdateServers: servers.flatMap { preferenceBool($0, TagName.serversAutoUpdate) },
-            addServersFromServer: servers.flatMap { preferenceBool($0, TagName.serversAddFromServer) },
-            addServersFromClient: servers.flatMap { preferenceBool($0, TagName.serversAddFromClient) },
-            useServerPrioritySystem: servers.flatMap { preferenceBool($0, TagName.serversUseScoreSystem) },
-            smartIdCheck: servers.flatMap { preferenceBool($0, TagName.serversSmartIDCheck) },
-            safeServerConnect: servers.flatMap { preferenceBool($0, TagName.serversSafeServerConnect) },
-            autoConnectStaticOnly: servers.flatMap { preferenceBool($0, TagName.serversAutoConnectStaticOnly) },
-            manualHighPriority: servers.flatMap { preferenceBool($0, TagName.serversManualHighPriority) },
-            ipFilterLevel: security?.child(named: TagName.ipFilterLevel)?.intValue,
-            filterClients: security.flatMap { preferenceBool($0, TagName.ipFilterClients) },
-            filterServers: security.flatMap { preferenceBool($0, TagName.ipFilterServers) },
-            ipFilterAutoUpdate: security.flatMap { preferenceBool($0, TagName.ipFilterAutoUpdate) },
-            ipFilterUpdateURL: security?.child(named: TagName.ipFilterUpdateURL)?.stringValue,
-            filterLanIPs: security.flatMap { preferenceBool($0, TagName.ipFilterFilterLan) },
-            secureIdentEnabled: security.flatMap { preferenceBool($0, TagName.securityUseSecureIdent) },
-            obfuscationSupported: security.flatMap { preferenceBool($0, TagName.securityObfuscationSupported) },
-            obfuscationRequested: security.flatMap { preferenceBool($0, TagName.securityObfuscationRequested) },
-            obfuscationRequired: security.flatMap { preferenceBool($0, TagName.securityObfuscationRequired) },
-            webServerEnabled: remoteControls.flatMap { preferenceBool($0, TagName.webServerAutorun) },
-            webServerPort: remoteControls?.child(named: TagName.webServerPort)?.intValue,
-            webServerGuestEnabled: remoteControls.flatMap { preferenceBool($0, TagName.webServerGuest) },
-            webServerUseGzip: remoteControls.flatMap { preferenceBool($0, TagName.webServerUseGzip) },
-            webServerRefreshSeconds: remoteControls?.child(named: TagName.webServerRefresh)?.intValue,
-            webServerTemplate: remoteControls?.child(named: TagName.webServerTemplate)?.stringValue,
+            userNick: userNick,
+            userHash: userHash,
+            userHost: userHost,
+            checkNewVersion: checkNewVersion,
+            maxDownload: maxDownload,
+            maxUpload: maxUpload,
+            tcpPort: tcpPort,
+            udpPort: udpPort,
+            udpEnabled: udpEnabled,
+            ed2kEnabled: ed2kEnabled,
+            kadEnabled: kadEnabled,
+            messageFilterEnabled: messageFilterEnabled,
+            messageFilterAll: messageFilterAll,
+            messageFilterFriends: messageFilterFriends,
+            messageFilterSecure: messageFilterSecure,
+            messageFilterByKeyword: messageFilterByKeyword,
+            messageFilterKeywords: messageFilterKeywords,
+            onlineSignatureEnabled: onlineSignatureEnabled,
+            incomingDirectory: incomingDirectory,
+            tempDirectory: tempDirectory,
+            sharedDirectories: sharedDirectories,
+            shareHiddenFiles: shareHiddenFiles,
+            newFilesPaused: newFilesPaused,
+            autoDownloadPriority: autoDownloadPriority,
+            previewPriority: previewPriority,
+            autoUploadPriority: autoUploadPriority,
+            saveSources: saveSources,
+            extractMetadata: extractMetadata,
+            allocateFullFileSize: allocateFullFileSize,
+            checkFreeSpace: checkFreeSpace,
+            minFreeDiskSpaceMB: minFreeDiskSpaceMB,
+            createSparseFiles: createSparseFiles,
+            maxConnectionsPerFive: maxConnectionsPerFive,
+            verboseLogging: verboseLogging,
+            fileBufferSize: fileBufferSize,
+            uploadQueueSize: uploadQueueSize,
+            serverKeepaliveTimeout: serverKeepaliveTimeout,
+            serverUpdateURL: serverUpdateURL,
+            removeDeadServers: removeDeadServers,
+            deadServerRetries: deadServerRetries,
+            autoUpdateServers: autoUpdateServers,
+            addServersFromServer: addServersFromServer,
+            addServersFromClient: addServersFromClient,
+            useServerPrioritySystem: useServerPrioritySystem,
+            smartIdCheck: smartIdCheck,
+            safeServerConnect: safeServerConnect,
+            autoConnectStaticOnly: autoConnectStaticOnly,
+            manualHighPriority: manualHighPriority,
+            ipFilterLevel: ipFilterLevel,
+            filterClients: filterClients,
+            filterServers: filterServers,
+            ipFilterAutoUpdate: ipFilterAutoUpdate,
+            ipFilterUpdateURL: ipFilterUpdateURL,
+            filterLanIPs: filterLanIPs,
+            secureIdentEnabled: secureIdentEnabled,
+            obfuscationSupported: obfuscationSupported,
+            obfuscationRequested: obfuscationRequested,
+            obfuscationRequired: obfuscationRequired,
+            webServerEnabled: webServerEnabled,
+            webServerPort: webServerPort,
+            webServerGuestEnabled: webServerGuestEnabled,
+            webServerUseGzip: webServerUseGzip,
+            webServerRefreshSeconds: webServerRefreshSeconds,
+            webServerTemplate: webServerTemplate,
             remoteAuthMetadata: nil,
+            dlCap: dlCap,
+            ulCap: ulCap,
+            slotAllocation: slotAllocation,
+            maxFileSources: maxFileSources,
+            maxConn: maxConn,
+            autoConnect: autoConnect,
+            reconnect: reconnect,
+            canSeeShares: canSeeShares,
             statisticsSupported: false,
             statsGraphUpdateInterval: nil,
-            statsDisplayLimit: nil
+            statsDisplayLimit: nil,
+            kademliaUpdateURL: kademliaUpdateURL
         )
     }
 
@@ -630,11 +942,14 @@ public enum ECResponseParser {
             size: size,
             done: done,
             transferred: tag.child(named: TagName.partFileSizeTransfer)?.uintValue ?? 0,
+            transferredUp: tag.child(named: TagName.partFileSizeXferUp)?.uintValue ?? 0,
             progress: size > 0 ? 100.0 * Double(done) / Double(size) : 0,
             sourcesCurrent: sourceTotal - sourceNotCurrent,
             sourcesTotal: sourceTotal,
             sourcesTransferring: sourcesTransferring,
             sourcesA4AF: tag.child(named: TagName.partFileSourceCountA4AF)?.intValue ?? 0,
+            a4afAuto: (tag.child(named: TagName.partFileA4AFAuto)?.intValue ?? 0) != 0,
+            downloadActive: (tag.child(named: TagName.partFileDownloadActive)?.intValue ?? 0) != 0,
             statusCode: statusCode,
             isCompleted: statusCode == 9,
             status: partFileStatusText(statusCode, sourcesTransferring: sourcesTransferring, isStopped: isStopped),
@@ -644,9 +959,15 @@ public enum ECResponseParser {
             partMet: tag.child(named: TagName.partFilePartMetID)?.stringValue ?? "",
             lastSeenComplete: tag.child(named: TagName.partFileLastSeenComplete)?.uintValue ?? 0,
             lastReceived: tag.child(named: TagName.partFileLastReceived)?.uintValue ?? 0,
+            lostCorruption: tag.child(named: TagName.partFileLostCorruption)?.uintValue ?? 0,
+            gainedCompression: tag.child(named: TagName.partFileGainedCompression)?.uintValue ?? 0,
+            savedICH: tag.child(named: TagName.partFileSavedICH)?.uintValue ?? 0,
             activeSeconds: 0,
             availableParts: tag.child(named: TagName.partFileAvailableParts)?.intValue ?? 0,
             shared: (tag.child(named: TagName.partFileShared)?.intValue ?? 0) != 0,
+            ed2kLink: tag.child(named: TagName.partFileEd2kLink)?.stringValue,
+            comments: tag.child(named: TagName.partFileComments)?.stringValue,
+            a4afSources: tag.child(named: TagName.partFileA4AFSources)?.children.map(\.intValue),
             alternativeNames: parseAlternativeNames(in: tag, currentName: name),
             progressColors: hasStatus || hasProgressStatusTags(tag) ? buildProgressSegments(from: tag, fileSize: size, statusCode: statusCode, isStopped: isStopped, hashingProgressParts: hashingProgressParts) : [],
             isStopped: isStopped,
@@ -998,6 +1319,14 @@ private extension ECTag {
     var customData: Data? {
         if case .custom(let data) = value { return data }
         return nil
+    }
+
+    var dataValue: Data? {
+        switch value {
+        case .custom(let data), .hash16(let data), .uint128(let data): return data
+        case .empty: return Data()
+        default: return nil
+        }
     }
 
     var ipv4Value: (host: String, port: Int)? {

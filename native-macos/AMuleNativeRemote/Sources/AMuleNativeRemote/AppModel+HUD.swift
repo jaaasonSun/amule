@@ -26,8 +26,6 @@ extension AppModel {
             return
         }
 
-        presentHUD(message: LF3("Adding %lld link(s)...", Int64(importPlan.count)), autoDismissAfter: nil)
-
         run(label: "add-link") {
             let beforeHashes = Set(self.downloads.map { $0.id.uppercased() })
 
@@ -68,10 +66,6 @@ extension AppModel {
                 await self.refreshStatus(logOutput: false, suppressErrors: true)
             }
 
-            await MainActor.run {
-                self.presentHUD(message: LF3("Added %lld link(s)", Int64(actualAddedCount)))
-            }
-
             if failureCount > 0 {
                 await MainActor.run {
                     self.lastError = LF3(
@@ -81,41 +75,6 @@ extension AppModel {
                     )
                 }
             }
-        }
-    }
-
-    func presentHUD(message: String) {
-        presentHUD(message: message, autoDismissAfter: 2_000_000_000)
-    }
-
-    func presentHUD(message: String, autoDismissAfter nanoseconds: UInt64?) {
-        hudDismissTask?.cancel()
-        hudDismissTask = nil
-        hudMessage = message
-        withAnimation(.easeOut(duration: 0.15)) {
-            showHUD = true
-        }
-
-        guard let nanoseconds else { return }
-
-        hudDismissTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: nanoseconds)
-            guard !Task.isCancelled else { return }
-            await MainActor.run {
-                guard let self else { return }
-                self.hudDismissTask = nil
-                withAnimation(.easeIn(duration: 0.18)) {
-                    self.showHUD = false
-                }
-            }
-        }
-    }
-
-    func hideHUD() {
-        hudDismissTask?.cancel()
-        hudDismissTask = nil
-        withAnimation(.easeIn(duration: 0.18)) {
-            showHUD = false
         }
     }
 }

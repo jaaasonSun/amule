@@ -10,6 +10,10 @@ import SharedServices
 final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
     var capabilitiesResult: (schemaVersion: Int?, capabilities: BridgeCapabilitiesPayload, raw: String)
     var statusResult: (BridgeStatusPayload, String)
+    var connectionStateResult: (BridgeConnectionStatePayload, String) = (
+        BridgeConnectionStatePayload(ed2kConnected: false, ed2kConnecting: false, kadConnected: false, kadFirewalled: false, kadRunning: false),
+        #"{"ok":true,"connection_state":{"ed2k_connected":false,"ed2k_connecting":false,"kad_connected":false,"kad_firewalled":false,"kad_running":false}}"#
+    )
     var downloadsResult: ([BridgeDownloadPayload], String) = ([], #"{"ok":true,"downloads":[]}"#)
     var categoriesResult: ([BridgeCategoryPayload], String) = ([], #"{"ok":true,"categories":[]}"#)
     var searchResult: (progress: Int, results: [BridgeSearchPayload], raw: String) = (0, [], #"{"ok":true,"progress":0,"results":[]}"#)
@@ -94,6 +98,10 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
         invokedOperations.append("status")
         return statusResult
     }
+    func connectionState(config: AMuleConnectionConfig) async throws -> (BridgeConnectionStatePayload, String) {
+        invokedOperations.append("connection-state")
+        return connectionStateResult
+    }
     func downloads(config: AMuleConnectionConfig) async throws -> ([BridgeDownloadPayload], String) {
         invokedOperations.append("downloads")
         return downloadsResult
@@ -158,6 +166,10 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
         lastPrefsGroup = group
         return ("ok", messageRaw)
     }
+    func shutdown(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        invokedOperations.append("shutdown")
+        return ("ok", messageRaw)
+    }
     func kadStart(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func kadStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func kadBootstrap(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
@@ -179,6 +191,13 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
         return ("ok", messageRaw)
     }
     func resetLog(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func lastLogEntry(config: AMuleConnectionConfig) async throws -> String {
+        invokedOperations.append("last-log-entry")
+        return "last log entry"
+    }
+    func resetDebugLog(config: AMuleConnectionConfig) async throws {
+        invokedOperations.append("reset-debug-log")
+    }
     func categories(config: AMuleConnectionConfig) async throws -> ([BridgeCategoryPayload], String) {
         invokedOperations.append("categories")
         return categoriesResult

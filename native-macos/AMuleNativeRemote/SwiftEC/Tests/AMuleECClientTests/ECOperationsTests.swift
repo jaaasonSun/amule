@@ -27,6 +27,10 @@ final class ECOperationsTests: XCTestCase {
         let friends = try ECOperations.friends()
         XCTAssertEqual(friends.opcode, 0x52)
         XCTAssertEqual(friends.tags.first?.value, .uint(0x04))
+
+        XCTAssertEqual(try ECOperations.connectionState().opcode, 0x0B)
+
+        XCTAssertEqual(try ECOperations.lastLogEntry().opcode, 0x3E)
     }
 
     func testMutatingOperationBuildersUseBridgeOpcodesAndTags() throws {
@@ -37,7 +41,13 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertTrue(ECOperations.searchResults().tags.isEmpty)
 
         let hash = "00112233445566778899aabbccddeeff"
+        XCTAssertEqual(try ECOperations.shutdown().opcode, 0x08)
+        XCTAssertEqual(try ECOperations.resetDebugLog().opcode, 0x3C)
         XCTAssertEqual(try ECOperations.download(hash: hash).opcode, 0x2A)
+        let swapClient = try ECOperations.swapClientToAnotherFile(hash: hash)
+        XCTAssertEqual(swapClient.opcode, 0x2A)
+        XCTAssertEqual(swapClient.tags.map(\.name), [ECOperations.TagName.client])
+        XCTAssertEqual(swapClient.tags.first?.hashStringValue, hash)
         XCTAssertEqual(try ECOperations.addLink("ed2k://|file|x|1|00112233445566778899aabbccddeeff|h=abc|").opcode, 0x09)
         XCTAssertEqual(try ECOperations.pause(hash: hash).opcode, 0x19)
         XCTAssertEqual(try ECOperations.resume(hash: hash).opcode, 0x1A)
@@ -55,7 +65,7 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertEqual(try ECOperations.serverUpdateFromURL(url: "https://example.test/server.met").tags.first?.name, 0x170C)
         XCTAssertEqual(try ECOperations.kadUpdateFromURL(url: "https://example.test/nodes.dat").tags.first?.name, 0x1E01)
         XCTAssertEqual(try ECOperations.prefsConnectionGet().opcode, 0x3F)
-        XCTAssertEqual(try ECOperations.prefsConnectionGet().tags.first { $0.name == 0x1000 }?.value, .uint(0x00000ED4))
+        XCTAssertEqual(try ECOperations.prefsConnectionGet().tags.first { $0.name == 0x1000 }?.value, .uint(0x00003EFE))
         let prefsSet = try ECOperations.prefsConnectionSet(maxDownload: 512, maxUpload: 64)
         XCTAssertEqual(prefsSet.opcode, 0x40)
         XCTAssertEqual(prefsSet.tags.first { $0.name == 0x0004 }?.value, .uint(0x02))
@@ -351,6 +361,21 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertThrowsError(try ECOperations.resetLog(gate: emptyGate)) { error in
             XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("reset-log"))
         }
+        XCTAssertThrowsError(try ECOperations.shutdown(gate: emptyGate)) { error in
+            XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("shutdown"))
+        }
+        XCTAssertThrowsError(try ECOperations.resetDebugLog(gate: emptyGate)) { error in
+            XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("reset-debug-log"))
+        }
+        XCTAssertThrowsError(try ECOperations.lastLogEntry(gate: emptyGate)) { error in
+            XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("last-log-entry"))
+        }
+        XCTAssertThrowsError(try ECOperations.swapClientToAnotherFile(hash: hash, gate: emptyGate)) { error in
+            XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("client-swap-to-another-file"))
+        }
+        XCTAssertThrowsError(try ECOperations.connectionState(gate: emptyGate)) { error in
+            XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("connection-state"))
+        }
     }
 
     func testCapabilityGateRejectsUnsupportedReadOnlyOperation() throws {
@@ -377,6 +402,11 @@ final class ECOperationsTests: XCTestCase {
         let gate = ECCapabilityGate(capabilities: ECOperations.capabilities())
         XCTAssertNoThrow(try gate.require(.categoryUpdate))
         XCTAssertNoThrow(try gate.require(.downloadSetCategory))
+        XCTAssertNoThrow(try gate.require(.shutdown))
+        XCTAssertNoThrow(try gate.require(.connectionState))
+        XCTAssertNoThrow(try gate.require(.lastLogEntry))
+        XCTAssertNoThrow(try gate.require(.resetDebugLog))
+        XCTAssertNoThrow(try gate.require(.clientSwapToAnotherFile))
         XCTAssertThrowsError(try gate.require(.friendShared)) { error in
             XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("friend-shared"))
         }
@@ -393,8 +423,32 @@ final class ECOperationsTests: XCTestCase {
             ]),
             .integer(name: 0x0201, value: 1024),
             .integer(name: 0x0200, value: 512),
+            .integer(name: 0x0202, value: 2048),
+            .integer(name: 0x0203, value: 4096),
+            .integer(name: 0x0204, value: 12),
+            .integer(name: 0x0205, value: 34),
             .integer(name: 0x0208, value: 7),
             .integer(name: 0x0206, value: 99),
+            .integer(name: 0x0207, value: 3),
+            .integer(name: 0x0209, value: 1_000),
+            .integer(name: 0x020A, value: 2_000),
+            .integer(name: 0x020B, value: 3_000),
+            .integer(name: 0x020C, value: 4_000),
+            .integer(name: 0x020E, value: 1),
+            .integer(name: 0x0218, value: 5_000),
+            .integer(name: 0x0219, value: 6_000),
+            .integer(name: 0x021A, value: 70),
+            .integer(name: 0x021B, value: 80),
+            ECTag(name: 0x020D, type: .string, value: .string("logger msg")),
+            .integer(name: 0x020F, value: 100),
+            .integer(name: 0x0210, value: 200),
+            .integer(name: 0x0211, value: 300),
+            .integer(name: 0x0212, value: 400),
+            ECTag(name: 0x0213, type: .ipv4, value: .ipv4(ECIPv4Address(1, 2, 3, 4, port: 0))),
+            .integer(name: 0x0214, value: 1),
+            .integer(name: 0x0215, value: 0x05060708),
+            .integer(name: 0x0216, value: 4662),
+            .integer(name: 0x0217, value: 1),
         ])
 
         let status = try ECResponseParser.parseStatus(packet)
@@ -407,7 +461,31 @@ final class ECOperationsTests: XCTestCase {
             downloadSpeed: 1024,
             uploadSpeed: 512,
             queue: 7,
-            sources: 99
+            sources: 99,
+            uploadSpeedLimit: 2048,
+            downloadSpeedLimit: 4096,
+            uploadOverhead: 12,
+            downloadOverhead: 34,
+            bannedCount: 3,
+            ed2kUsers: 1_000,
+            kadUsers: 2_000,
+            ed2kFiles: 3_000,
+            kadFiles: 4_000,
+            kadFirewalledUDP: true,
+            totalSentBytes: 5_000,
+            totalReceivedBytes: 6_000,
+            sharedFileCount: 70,
+            kadNodes: 80,
+            loggerMessage: "logger msg",
+            kadIndexedSources: 100,
+            kadIndexedKeywords: 200,
+            kadIndexedNotes: 300,
+            kadIndexedLoad: 400,
+            kadIP: "1.2.3.4",
+            buddyStatus: 1,
+            buddyIP: "5.6.7.8",
+            buddyPort: 4662,
+            kadInLANMode: true
         ))
 
         let json = try jsonObject(ECJSONEnvelope.status(status))
@@ -415,6 +493,30 @@ final class ECOperationsTests: XCTestCase {
         let payload = try XCTUnwrap(json["status"] as? [String: Any])
         XCTAssertEqual(payload["download_speed"] as? Int, 1024)
         XCTAssertEqual(payload["upload_speed"] as? Int, 512)
+        XCTAssertEqual(payload["upload_speed_limit"] as? Int, 2048)
+        XCTAssertEqual(payload["download_speed_limit"] as? Int, 4096)
+        XCTAssertEqual(payload["upload_overhead"] as? Int, 12)
+        XCTAssertEqual(payload["download_overhead"] as? Int, 34)
+        XCTAssertEqual(payload["banned_count"] as? Int, 3)
+        XCTAssertEqual(payload["ed2k_users"] as? Int, 1_000)
+        XCTAssertEqual(payload["kad_users"] as? Int, 2_000)
+        XCTAssertEqual(payload["ed2k_files"] as? Int, 3_000)
+        XCTAssertEqual(payload["kad_files"] as? Int, 4_000)
+        XCTAssertEqual(payload["kad_firewalled_udp"] as? Bool, true)
+        XCTAssertEqual(payload["total_sent_bytes"] as? Int, 5_000)
+        XCTAssertEqual(payload["total_received_bytes"] as? Int, 6_000)
+        XCTAssertEqual(payload["shared_file_count"] as? Int, 70)
+        XCTAssertEqual(payload["kad_nodes"] as? Int, 80)
+        XCTAssertEqual(payload["logger_message"] as? String, "logger msg")
+        XCTAssertEqual(payload["kad_indexed_sources"] as? Int, 100)
+        XCTAssertEqual(payload["kad_indexed_keywords"] as? Int, 200)
+        XCTAssertEqual(payload["kad_indexed_notes"] as? Int, 300)
+        XCTAssertEqual(payload["kad_indexed_load"] as? Int, 400)
+        XCTAssertEqual(payload["kad_ip"] as? String, "1.2.3.4")
+        XCTAssertEqual(payload["buddy_status"] as? Int, 1)
+        XCTAssertEqual(payload["buddy_ip"] as? String, "5.6.7.8")
+        XCTAssertEqual(payload["buddy_port"] as? Int, 4662)
+        XCTAssertEqual(payload["kad_in_lan_mode"] as? Bool, true)
         XCTAssertEqual(payload["ed2k"] as? String, "Connected to ExampleServer [1.2.3.4:4662] HighID")
         XCTAssertEqual(payload["id_status"] as? String, "HighID")
         XCTAssertNil(json["success"])
@@ -444,6 +546,28 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertEqual(disconnectedStatus.kad, "Off")
     }
 
+    func testLastLogEntryParserReturnsLogOpcodeText() throws {
+        let packet = ECPacket(opcode: 0x38, tags: [
+            ECTag(name: 0x0000, type: .string, value: .string("last log line")),
+        ])
+
+        XCTAssertEqual(try ECResponseParser.parseLastLogEntry(packet), "last log line")
+    }
+
+    func testConnectionStateParserHandlesMiscDataBitmask() throws {
+        let packet = ECPacket(opcode: 0x07, tags: [
+            ECTag(name: 0x0005, type: .uint8, value: .uint(0x1D)),
+        ])
+
+        XCTAssertEqual(try ECResponseParser.parseConnectionState(packet), ECConnectionState(
+            ed2kConnected: true,
+            ed2kConnecting: false,
+            kadConnected: true,
+            kadFirewalled: true,
+            kadRunning: true
+        ))
+    }
+
     func testDownloadParserAndEnvelopeMatchBridgeShape() throws {
         let hash = Data((0..<16).map(UInt8.init))
         let packet = ECPacket(opcode: 0x1F, tags: [
@@ -453,10 +577,19 @@ final class ECOperationsTests: XCTestCase {
                 .integer(name: 0x0303, value: 1000),
                 .integer(name: 0x0306, value: 250),
                 .integer(name: 0x0304, value: 300),
+                .integer(name: 0x0305, value: 25),
                 .integer(name: 0x030A, value: 12),
                 .integer(name: 0x030C, value: 2),
                 .integer(name: 0x030D, value: 3),
                 .integer(name: 0x030B, value: 1),
+                .integer(name: 0x0321, value: 1),
+                ECTag(name: 0x0316, type: .string, value: .string("nice file")),
+                ECTag(name: 0x030E, type: .string, value: .string("ed2k://|file|file.iso|1000|000102030405060708090A0B0C0D0E0F|/")),
+                ECTag(name: 0x0322, type: .custom, children: [
+                    .integer(name: 0x0322, value: 7),
+                    .integer(name: 0x0322, value: 8),
+                ]),
+                .integer(name: 0x0318, value: 1),
                 .integer(name: 0x0308, value: 1),
                 .integer(name: 0x0307, value: 4096),
                 .integer(name: 0x0309, value: 2),
@@ -464,6 +597,9 @@ final class ECOperationsTests: XCTestCase {
                 ECTag(name: 0x0302, type: .string, value: .string("001.part.met")),
                 .integer(name: 0x0311, value: 123),
                 .integer(name: 0x0310, value: 456),
+                .integer(name: 0x0319, value: 7),
+                .integer(name: 0x031A, value: 8),
+                .integer(name: 0x031B, value: 9),
                 .integer(name: 0x031D, value: 8),
                 .integer(name: 0x031F, value: 1),
             ]),
@@ -474,9 +610,27 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertEqual(downloads[0].hash, "000102030405060708090a0b0c0d0e0f")
         XCTAssertEqual(downloads[0].sourcesCurrent, 10)
         XCTAssertEqual(downloads[0].progress, 25)
+        XCTAssertEqual(downloads[0].transferredUp, 25)
+        XCTAssertTrue(downloads[0].a4afAuto)
+        XCTAssertEqual(downloads[0].comments, "nice file")
+        XCTAssertEqual(downloads[0].ed2kLink, "ed2k://|file|file.iso|1000|000102030405060708090A0B0C0D0E0F|/")
+        XCTAssertEqual(downloads[0].a4afSources, [7, 8])
+        XCTAssertTrue(downloads[0].downloadActive)
+        XCTAssertEqual(downloads[0].lostCorruption, 7)
+        XCTAssertEqual(downloads[0].gainedCompression, 8)
+        XCTAssertEqual(downloads[0].savedICH, 9)
 
         let json = try jsonObject(ECJSONEnvelope.downloads(downloads))
         let payload = try XCTUnwrap((json["downloads"] as? [[String: Any]])?.first)
+        XCTAssertEqual(payload["transferred_up"] as? Int, 25)
+        XCTAssertEqual(payload["a4af_auto"] as? Bool, true)
+        XCTAssertEqual(payload["comments"] as? String, "nice file")
+        XCTAssertEqual(payload["ed2k_link"] as? String, "ed2k://|file|file.iso|1000|000102030405060708090A0B0C0D0E0F|/")
+        XCTAssertEqual(payload["a4af_sources"] as? [Int], [7, 8])
+        XCTAssertEqual(payload["download_active"] as? Bool, true)
+        XCTAssertEqual(payload["lost_corruption"] as? Int, 7)
+        XCTAssertEqual(payload["gained_compression"] as? Int, 8)
+        XCTAssertEqual(payload["saved_ich"] as? Int, 9)
         XCTAssertEqual(payload["name_encoding_suspect"] as? Bool, false)
         XCTAssertTrue(payload.keys.contains("alternative_names"))
         XCTAssertTrue(payload.keys.contains("progress_colors"))
@@ -756,21 +910,48 @@ final class ECOperationsTests: XCTestCase {
             ECTag(name: 0x0600, type: .uint32, value: .uint(99), children: [
                 .integer(name: 0x0620, value: 42),
                 ECTag(name: 0x0100, type: .string, value: .string("Client")),
+                ECTag(name: 0x0603, type: .hash16, value: .hash16(Data((0..<16).map(UInt8.init)))),
+                .integer(name: 0x0602, value: 75),
+                .integer(name: 0x0604, value: 1),
+                .integer(name: 0x0605, value: 10),
+                .integer(name: 0x0606, value: 20),
+                .integer(name: 0x0607, value: 30),
+                .integer(name: 0x0608, value: 40),
+                .integer(name: 0x0102, value: 1),
+                .integer(name: 0x0609, value: 4_096),
                 ECTag(name: 0x0610, type: .ipv4, value: .ipv4(ECIPv4Address(5, 6, 7, 8, port: 0))),
                 .integer(name: 0x0611, value: 1234),
+                .integer(name: 0x061E, value: 0x05060708),
                 ECTag(name: 0x0614, type: .string, value: .string("Srv")),
                 ECTag(name: 0x0612, type: .ipv4, value: .ipv4(ECIPv4Address(1, 1, 1, 1, port: 0))),
                 .integer(name: 0x0613, value: 4661),
                 .integer(name: 0x0601, value: 0),
+                .integer(name: 0x060A, value: 2_048),
+                .integer(name: 0x060B, value: 1_024),
                 ECTag(name: 0x0615, type: .string, value: .string("1.0")),
+                .integer(name: 0x0101, value: 50_100),
                 .integer(name: 0x060C, value: 3),
+                .integer(name: 0x061C, value: 2),
+                .integer(name: 0x0617, value: 1),
                 .integer(name: 0x060F, value: 1),
+                .integer(name: 0x060D, value: 512),
                 ECTag(name: 0x060E, type: .double, value: .double(12.5)),
                 .integer(name: 0x062A, value: 5),
                 .integer(name: 0x061A, value: 12),
+                .integer(name: 0x0622, value: 13),
+                .integer(name: 0x0616, value: 4),
+                .integer(name: 0x0623, value: 4672),
                 .integer(name: 0x0618, value: 1),
                 .integer(name: 0x061D, value: 1),
+                ECTag(name: 0x0624, type: .custom, value: .custom(Data([0xaa, 0xbb]))),
+                .integer(name: 0x0625, value: 7),
+                .integer(name: 0x0626, value: 8),
+                ECTag(name: 0x0621, type: .custom, value: .custom(Data([0x01, 0x02]))),
                 ECTag(name: 0x0627, type: .string, value: .string("remote.bin")),
+                ECTag(name: 0x0628, type: .string, value: .string("Mod")),
+                ECTag(name: 0x0629, type: .string, value: .string("macOS")),
+                ECTag(name: 0x062B, type: .custom, value: .custom(Data([0xcc, 0xdd]))),
+                .integer(name: 0x061B, value: 0),
             ]),
         ])
 
@@ -779,12 +960,125 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertEqual(sources[0].clientID, 99)
         XCTAssertEqual(sources[0].userIP, "5.6.7.8")
         XCTAssertEqual(sources[0].downSpeedKBps, 12.5)
+        XCTAssertEqual(sources[0].downloadedTotal, 1_024)
+        XCTAssertEqual(sources[0].uploadedTotal, 2_048)
+        XCTAssertEqual(sources[0].versionString, "1.0 - Mod")
+        XCTAssertEqual(sources[0].sharesFileList, true)
+        XCTAssertEqual(sources[0].clientHash, Data((0..<16).map(UInt8.init)))
+        XCTAssertEqual(sources[0].score, 75)
+        XCTAssertEqual(sources[0].friendSlot, true)
+        XCTAssertEqual(sources[0].waitTime, 10)
+        XCTAssertEqual(sources[0].xferTime, 20)
+        XCTAssertEqual(sources[0].queueTime, 30)
+        XCTAssertEqual(sources[0].lastTime, 40)
+        XCTAssertEqual(sources[0].isModded, true)
+        XCTAssertEqual(sources[0].uploadSession, 4_096)
+        XCTAssertEqual(sources[0].uploadState, 2)
+        XCTAssertEqual(sources[0].identState, 1)
+        XCTAssertEqual(sources[0].uploadSpeed, 512)
+        XCTAssertEqual(sources[0].oldRemoteQueueRank, 13)
+        XCTAssertEqual(sources[0].waitingPosition, 4)
+        XCTAssertEqual(sources[0].userID, 0x05060708)
+        XCTAssertEqual(sources[0].kadPort, 4672)
+        XCTAssertEqual(sources[0].osInfo, "macOS")
+        XCTAssertEqual(sources[0].partStatus, Data([0xaa, 0xbb]))
+        XCTAssertEqual(sources[0].nextRequestedPart, 7)
+        XCTAssertEqual(sources[0].lastDownloadingPart, 8)
+        XCTAssertEqual(sources[0].a4afFiles, Data([0x01, 0x02]))
+        XCTAssertEqual(sources[0].uploadPartStatus, Data([0xcc, 0xdd]))
 
         let json = try jsonObject(ECJSONEnvelope.sources(sources))
         let payload = try XCTUnwrap((json["sources"] as? [[String: Any]])?.first)
         XCTAssertEqual(payload["client_id"] as? Int, 99)
         XCTAssertEqual(payload["down_speed_kbps"] as? Double, 12.5)
         XCTAssertEqual(payload["extended_protocol"] as? Bool, true)
+        XCTAssertEqual(payload["downloaded_total"] as? Int, 1_024)
+        XCTAssertEqual(payload["uploaded_total"] as? Int, 2_048)
+        XCTAssertEqual(payload["version_string"] as? String, "1.0 - Mod")
+        XCTAssertEqual(payload["shares_file_list"] as? Bool, true)
+        XCTAssertEqual(payload["score"] as? Int, 75)
+        XCTAssertEqual(payload["friend_slot"] as? Bool, true)
+        XCTAssertEqual(payload["wait_time"] as? Int, 10)
+        XCTAssertEqual(payload["xfer_time"] as? Int, 20)
+        XCTAssertEqual(payload["queue_time"] as? Int, 30)
+        XCTAssertEqual(payload["last_time"] as? Int, 40)
+        XCTAssertEqual(payload["is_modded"] as? Bool, true)
+        XCTAssertEqual(payload["upload_session"] as? Int, 4_096)
+        XCTAssertEqual(payload["upload_state"] as? Int, 2)
+        XCTAssertEqual(payload["ident_state"] as? Int, 1)
+        XCTAssertEqual(payload["upload_speed"] as? Int, 512)
+        XCTAssertEqual(payload["old_remote_queue_rank"] as? Int, 13)
+        XCTAssertEqual(payload["waiting_position"] as? Int, 4)
+        XCTAssertEqual(payload["user_id"] as? Int, 0x05060708)
+        XCTAssertEqual(payload["kad_port"] as? Int, 4672)
+        XCTAssertEqual(payload["os_info"] as? String, "macOS")
+    }
+
+    func testSharedFilesParserAndEnvelopeMatchBridgeShape() throws {
+        let hash = Data((0..<16).map(UInt8.init))
+        let aichHash = Data((16..<32).map(UInt8.init))
+        let packet = ECPacket(opcode: 0x22, tags: [
+            ECTag(name: 0x0400, type: .hash16, value: .hash16(hash), children: [
+                ECTag(name: 0x0408, type: .string, value: .string("/shared/file.iso")),
+                .integer(name: 0x0303, value: 1234),
+                .integer(name: 0x040B, value: 2),
+                .integer(name: 0x0403, value: 10),
+                .integer(name: 0x0404, value: 20),
+                .integer(name: 0x0405, value: 5),
+                .integer(name: 0x0406, value: 15),
+                .integer(name: 0x0401, value: 100),
+                .integer(name: 0x0402, value: 200),
+                ECTag(name: 0x0407, type: .hash16, value: .hash16(aichHash)),
+                .integer(name: 0x0409, value: 3),
+                .integer(name: 0x040A, value: 8),
+                .integer(name: 0x040C, value: 6),
+                .integer(name: 0x040D, value: 10),
+                ECTag(name: 0x040E, type: .string, value: .string("Great file")),
+                .integer(name: 0x040F, value: 5),
+            ]),
+        ])
+
+        let sharedFiles = try ECResponseParser.parseSharedFiles(packet)
+        XCTAssertEqual(sharedFiles.count, 1)
+        XCTAssertEqual(sharedFiles[0].hash, "000102030405060708090a0b0c0d0e0f")
+        XCTAssertEqual(sharedFiles[0].name, "file.iso")
+        XCTAssertEqual(sharedFiles[0].path, "/shared/file.iso")
+        XCTAssertEqual(sharedFiles[0].size, 1234)
+        XCTAssertEqual(sharedFiles[0].ed2kLink, "ed2k://|file|file.iso|1234|000102030405060708090A0B0C0D0E0F|/")
+        XCTAssertEqual(sharedFiles[0].priority, 2)
+        XCTAssertEqual(sharedFiles[0].requests, 10)
+        XCTAssertEqual(sharedFiles[0].requestsAll, 20)
+        XCTAssertEqual(sharedFiles[0].accepts, 5)
+        XCTAssertEqual(sharedFiles[0].acceptsAll, 15)
+        XCTAssertEqual(sharedFiles[0].xferred, 100)
+        XCTAssertEqual(sharedFiles[0].xferredAll, 200)
+        XCTAssertEqual(sharedFiles[0].aichMasterHash, "101112131415161718191a1b1c1d1e1f")
+        XCTAssertEqual(sharedFiles[0].onQueue, 3)
+        XCTAssertEqual(sharedFiles[0].completeSources, 8)
+        XCTAssertEqual(sharedFiles[0].completeSourcesLow, 6)
+        XCTAssertEqual(sharedFiles[0].completeSourcesHigh, 10)
+        XCTAssertEqual(sharedFiles[0].comment, "Great file")
+        XCTAssertEqual(sharedFiles[0].rating, 5)
+
+        let json = try jsonObject(ECJSONEnvelope.sharedFiles(sharedFiles))
+        let payload = try XCTUnwrap((json["shared_files"] as? [[String: Any]])?.first)
+        XCTAssertEqual(payload["hash"] as? String, "000102030405060708090a0b0c0d0e0f")
+        XCTAssertEqual(payload["name"] as? String, "file.iso")
+        XCTAssertEqual(payload["size"] as? Int, 1234)
+        XCTAssertEqual(payload["priority"] as? Int, 2)
+        XCTAssertEqual(payload["requests"] as? Int, 10)
+        XCTAssertEqual(payload["requests_all"] as? Int, 20)
+        XCTAssertEqual(payload["accepts"] as? Int, 5)
+        XCTAssertEqual(payload["accepts_all"] as? Int, 15)
+        XCTAssertEqual(payload["xferred"] as? Int, 100)
+        XCTAssertEqual(payload["xferred_all"] as? Int, 200)
+        XCTAssertEqual(payload["aich_master_hash"] as? String, "101112131415161718191a1b1c1d1e1f")
+        XCTAssertEqual(payload["on_queue"] as? Int, 3)
+        XCTAssertEqual(payload["complete_sources"] as? Int, 8)
+        XCTAssertEqual(payload["complete_sources_low"] as? Int, 6)
+        XCTAssertEqual(payload["complete_sources_high"] as? Int, 10)
+        XCTAssertEqual(payload["comment"] as? String, "Great file")
+        XCTAssertEqual(payload["rating"] as? Int, 5)
     }
 
     func testFriendsParserHandlesNestedUpdateContainerAndEnvelope() throws {
@@ -849,15 +1143,64 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertEqual((searchJSON["results"] as? [[String: Any]])?.first?["complete_sources"] as? Int, 2)
 
         let prefsPacket = ECPacket(opcode: 0x40, tags: [
+            ECTag(name: 0x1200, type: .custom, children: [
+                ECTag(name: 0x1201, type: .string, value: .string("native-user")),
+            ]),
             ECTag(name: 0x1300, type: .custom, children: [
+                .integer(name: 0x1301, value: 1024),
+                .integer(name: 0x1302, value: 128),
                 .integer(name: 0x1303, value: 512),
                 .integer(name: 0x1304, value: 64),
+                .integer(name: 0x1305, value: 3),
+                .integer(name: 0x1309, value: 500),
+                .integer(name: 0x130A, value: 600),
+                .integer(name: 0x130B, value: 1),
+                .integer(name: 0x130C, value: 1),
+            ]),
+            ECTag(name: 0x1400, type: .custom, children: [
+                ECTag(name: 0x1406, type: .string, value: .string("spam|bot")),
+            ]),
+            ECTag(name: 0x1600, type: .custom, children: [
+                ECTag(name: 0x1601, type: .unknown),
+            ]),
+            ECTag(name: 0x1D00, type: .custom, children: [
+                .integer(name: 0x1D01, value: 20),
+            ]),
+            ECTag(name: 0x1C00, type: .custom, children: [
+                .integer(name: 0x1C01, value: 1),
+            ]),
+            ECTag(name: 0x1E00, type: .custom, children: [
+                ECTag(name: 0x1E01, type: .string, value: .string("https://example.test/nodes.dat")),
             ]),
         ])
         let prefs = try ECResponseParser.parseConnectionPrefs(prefsPacket)
-        XCTAssertEqual(prefs, ECConnectionPrefs(maxDownload: 512, maxUpload: 64))
+        XCTAssertEqual(prefs.userNick, "native-user")
+        XCTAssertEqual(prefs.maxDownload, 512)
+        XCTAssertEqual(prefs.maxUpload, 64)
+        XCTAssertEqual(prefs.dlCap, 1024)
+        XCTAssertEqual(prefs.ulCap, 128)
+        XCTAssertEqual(prefs.slotAllocation, 3)
+        XCTAssertEqual(prefs.maxFileSources, 500)
+        XCTAssertEqual(prefs.maxConn, 600)
+        XCTAssertEqual(prefs.autoConnect, true)
+        XCTAssertEqual(prefs.reconnect, true)
+        XCTAssertEqual(prefs.canSeeShares, true)
+        XCTAssertEqual(prefs.messageFilterKeywords, "spam|bot")
+        XCTAssertEqual(prefs.onlineSignatureEnabled, true)
+        XCTAssertEqual(prefs.maxConnectionsPerFive, 20)
+        XCTAssertEqual(prefs.kademliaUpdateURL, "https://example.test/nodes.dat")
         let prefsJSON = try jsonObject(ECJSONEnvelope.prefsConnection(prefs))
         XCTAssertEqual((prefsJSON["prefs_connection"] as? [String: Any])?["max_dl"] as? Int, 512)
+        XCTAssertEqual((prefsJSON["prefs_connection"] as? [String: Any])?["user_nick"] as? String, "native-user")
+        XCTAssertEqual((prefsJSON["prefs_connection"] as? [String: Any])?["dl_cap"] as? Int, 1024)
+        XCTAssertEqual((prefsJSON["prefs_connection"] as? [String: Any])?["ul_cap"] as? Int, 128)
+        XCTAssertEqual((prefsJSON["prefs_connection"] as? [String: Any])?["slot_allocation"] as? Int, 3)
+        XCTAssertEqual((prefsJSON["prefs_connection"] as? [String: Any])?["max_file_sources"] as? Int, 500)
+        XCTAssertEqual((prefsJSON["prefs_connection"] as? [String: Any])?["max_conn"] as? Int, 600)
+        XCTAssertEqual((prefsJSON["prefs_connection"] as? [String: Any])?["auto_connect"] as? Bool, true)
+        XCTAssertEqual((prefsJSON["prefs_connection"] as? [String: Any])?["reconnect"] as? Bool, true)
+        XCTAssertEqual((prefsJSON["prefs_connection"] as? [String: Any])?["can_see_shares"] as? Bool, true)
+        XCTAssertEqual((prefsJSON["prefs_connection"] as? [String: Any])?["kademlia_update_url"] as? String, "https://example.test/nodes.dat")
     }
 
     func testCategoriesParserAndEnvelopeMatchFixtureShape() throws {
@@ -930,6 +1273,16 @@ final class ECOperationsTests: XCTestCase {
             try ECResponseParser.parseConnectionPrefs(ECPacket(opcode: 0x3F)),
             expected: 0x40,
             actual: 0x3F
+        )
+        assertUnexpectedOpcode(
+            try ECResponseParser.parseLastLogEntry(ECPacket(opcode: 0x39)),
+            expected: 0x38,
+            actual: 0x39
+        )
+        assertUnexpectedOpcode(
+            try ECResponseParser.parseConnectionState(ECPacket(opcode: 0x0C)),
+            expected: 0x07,
+            actual: 0x0C
         )
         assertUnexpectedOpcode(
             try ECResponseParser.parseFriends(ECPacket(opcode: 0x52)),

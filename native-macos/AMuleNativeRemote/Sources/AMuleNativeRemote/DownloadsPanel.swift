@@ -46,6 +46,7 @@ struct DownloadsPanel: View {
     let categories: [DownloadCategoryMenuItem]
     let isDownloadStopSupported: Bool
     let isDownloadSetCategorySupported: Bool
+    let isDownloadSetPrioritySupported: Bool
     let isBusy: Bool
 
     @AppStorage(DownloadTableColumnPersistence.columnCustomizationDefaultsKey)
@@ -201,6 +202,7 @@ struct DownloadsPanel: View {
             Button("High") { setPriority(item, "high") }
             Button("Auto") { setPriority(item, "auto") }
         }
+        .disabled(isBusy || !isDownloadSetPrioritySupported)
         Menu("Assign to Category") {
             Button("Unassign") { setCategory(item, 0) }
             ForEach(categories) { category in
@@ -301,6 +303,7 @@ private extension DownloadsPanel {
             ],
             isDownloadStopSupported: true,
             isDownloadSetCategorySupported: true,
+            isDownloadSetPrioritySupported: true,
             isBusy: false
         )
     }

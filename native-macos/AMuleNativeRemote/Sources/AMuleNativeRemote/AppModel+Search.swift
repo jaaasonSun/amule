@@ -93,8 +93,6 @@ extension AppModel {
         let unique = Dictionary(grouping: results, by: \.hash).compactMap { $0.value.first }
         guard !unique.isEmpty else { return }
 
-        presentHUD(message: LF3("Adding %lld download(s)...", Int64(unique.count)), autoDismissAfter: nil)
-
         run(label: "download") {
             var successCount = 0
             var failureCount = 0
@@ -117,7 +115,6 @@ extension AppModel {
             await self.refreshStatus(logOutput: false)
 
             await MainActor.run {
-                self.presentHUD(message: LF3("Added %lld download(s)", Int64(successCount)))
                 if failureCount > 0 {
                     self.lastError = LF3(
                         "Added %lld download(s), failed %lld.",

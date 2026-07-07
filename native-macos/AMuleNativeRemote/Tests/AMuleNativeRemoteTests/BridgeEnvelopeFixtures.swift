@@ -266,6 +266,10 @@ final class RecordingFakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
     func serverInfo(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String) { (BridgeCoreLogPayload(kind: "server-info", lines: ["server log"]), messageRaw) }
     func clearServerInfo(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func resetLog(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func shutdown(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func connectionState(config: AMuleConnectionConfig) async throws -> (BridgeConnectionStatePayload, String) { (ECConnectionState(ed2kConnected: false, ed2kConnecting: false, kadConnected: false, kadFirewalled: false, kadRunning: false), "{}") }
+    func lastLogEntry(config: AMuleConnectionConfig) async throws -> String { "last log entry" }
+    func resetDebugLog(config: AMuleConnectionConfig) async throws { }
     func categories(config: AMuleConnectionConfig) async throws -> ([BridgeCategoryPayload], String) { ([], #"{"ok":true,"categories":[]}"#) }
     func categoryCreate(name: String, path: String, comment: String, color: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func categoryUpdate(id: Int, name: String, path: String, comment: String, color: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }

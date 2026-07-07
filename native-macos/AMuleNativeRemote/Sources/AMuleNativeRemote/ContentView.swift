@@ -149,37 +149,37 @@ struct ContentView: View {
                     }
 
                     Section(L("Remote")) {
-                        Label("Search", systemImage: "magnifyingglass")
+                        Label(L("Search"), systemImage: "magnifyingglass")
                             .lineLimit(1)
                             .badge(searchSidebarBadgeText)
                             .tag(SidebarSelection.search)
 
-                        Label("Servers", systemImage: "server.rack")
+                        Label(L("Servers"), systemImage: "server.rack")
                             .lineLimit(1)
                             .badge(model.servers.count)
                             .tag(SidebarSelection.servers)
 
-                        Label("Shared Files", systemImage: "folder")
+                        Label(L("Shared Files"), systemImage: "folder")
                             .lineLimit(1)
                             .badge(model.sharedFiles.count)
                             .tag(SidebarSelection.sharedFiles)
 
-                        Label("Uploads", systemImage: "arrow.up")
+                        Label(L("Uploads"), systemImage: "arrow.up")
                             .lineLimit(1)
                             .badge(model.uploads.count)
                             .tag(SidebarSelection.uploads)
 
-                        Label("Categories", systemImage: "tag")
+                        Label(L("Categories"), systemImage: "tag")
                             .lineLimit(1)
                             .badge(model.categories.count)
                             .tag(SidebarSelection.categories)
 
-                        Label("Friends", systemImage: "person.2")
+                        Label(L("Friends"), systemImage: "person.2")
                             .lineLimit(1)
                             .badge(model.friends.count)
                             .tag(SidebarSelection.friends)
 
-                        Label("Statistics", systemImage: "chart.xyaxis.line")
+                        Label(L("Statistics"), systemImage: "chart.xyaxis.line")
                             .lineLimit(1)
                             .tag(SidebarSelection.statistics)
                     }
@@ -218,14 +218,6 @@ struct ContentView: View {
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
                     }
-                    Divider()
-                    MainFooterBar(
-                        showLoginSheet: $showLoginSheet,
-                        showKadSheet: $showKadSheet,
-                        showServers: {
-                            selectedSidebarSelection = .servers
-                        }
-                    )
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
@@ -262,22 +254,14 @@ struct ContentView: View {
             },
             isDownloadStopSupported: model.isBridgeOpSupported("download-stop"),
             isDownloadSetCategorySupported: model.isBridgeOpSupported("download-set-category"),
+            isDownloadSetPrioritySupported: model.isBridgeOpSupported("priority"),
             isBusy: model.isBusy
         )
     }
 
-    private var styledBody: some View {
+    private var lifecycleBody: some View {
         baseBody
             .frame(minWidth: 760, minHeight: 420)
-            .background(
-                WindowFrameAutosaveConfigurator(
-                    autosaveName: DownloadsWindowPersistence.frameAutosaveName
-                )
-            )
-    }
-
-    private var lifecycleBody: some View {
-        styledBody
             .onAppear {
                 model.setDownloadAutoRefreshEnabled(true)
             }
@@ -315,6 +299,7 @@ struct ContentView: View {
                 }
             }
             .onChange(of: model.addLinksPanelRequestID) { showAddLinksSheet = true }
+            .onChange(of: model.connectionSheetRequestID) { showLoginSheet = true }
             .onReceive(NotificationCenter.default.publisher(for: .amuleIncomingLinksDidChange)) { _ in
                 model.flushIncomingLinksIfAny()
             }
@@ -352,28 +337,17 @@ struct ContentView: View {
                     )
                 }
             }
-            .alert("Remove Selected Downloads?", isPresented: $showRemoveConfirmation) {
-                Button("Cancel", role: .cancel) {}
-                Button("Remove", role: .destructive) { removePendingDownloads() }
+            .alert(L("Remove Selected Downloads?"), isPresented: $showRemoveConfirmation) {
+                Button(L("Cancel"), role: .cancel) {}
+                Button(L("Remove"), role: .destructive) { removePendingDownloads() }
             } message: {
                 Text(LF("This will remove %lld selected download(s). This action cannot be undone.", Int64(pendingRemoveDownloadIDs.count)))
-            }
-            .overlay {
-                if model.showHUD {
-                    AddLinksHUD(message: model.hudMessage)
-                        .transition(.scale(scale: 0.96).combined(with: .opacity))
-                        .allowsHitTesting(false)
-                }
             }
     }
 
     @ViewBuilder
     private func presentationSheet<Content: View>(_ content: Content) -> some View {
-        if #available(macOS 13.3, *) {
-            content.presentationBackground(.clear)
-        } else {
-            content
-        }
+        content
     }
 
     private var searchSidebarBadgeText: String {

@@ -136,6 +136,57 @@ final class ECPreferencesParserTests: XCTestCase {
         XCTAssertNil(prefs.statsDisplayLimit)
     }
 
+    func testParsesAdditionalAmuleGuiPreferenceGroupsFromPrefsPacket() throws {
+        let userHash = Data((0..<16).map(UInt8.init))
+        let prefs = try ECResponseParser.parseConnectionPrefs(ECPacket(opcode: 0x40, tags: [
+            ECTag(name: 0x1200, type: .custom, children: [
+                ECTag(name: 0x1201, type: .string, value: .string("native-user")),
+                ECTag(name: 0x1202, type: .hash16, value: .hash16(userHash)),
+                ECTag(name: 0x1203, type: .string, value: .string("example-host")),
+                ECTag(name: 0x1204, type: .unknown),
+            ]),
+            ECTag(name: 0x1400, type: .custom, children: [
+                ECTag(name: 0x1401, type: .unknown),
+                .integer(name: 0x1402, value: 0),
+                ECTag(name: 0x1403, type: .unknown),
+                .integer(name: 0x1404, value: 0),
+                ECTag(name: 0x1405, type: .unknown),
+                ECTag(name: 0x1406, type: .string, value: .string("spam|bot")),
+            ]),
+            ECTag(name: 0x1600, type: .custom, children: [
+                ECTag(name: 0x1601, type: .unknown),
+            ]),
+            ECTag(name: 0x1D00, type: .custom, children: [
+                .integer(name: 0x1D01, value: 20),
+                .integer(name: 0x1D02, value: 0),
+                .integer(name: 0x1D03, value: 1_500_000),
+                .integer(name: 0x1D04, value: 5_000),
+                .integer(name: 0x1D05, value: 30),
+            ]),
+            ECTag(name: 0x1E00, type: .custom, children: [
+                ECTag(name: 0x1E01, type: .string, value: .string("https://example.test/nodes.dat")),
+            ]),
+        ]))
+
+        XCTAssertEqual(prefs.userNick, "native-user")
+        XCTAssertEqual(prefs.userHash, "000102030405060708090a0b0c0d0e0f")
+        XCTAssertEqual(prefs.userHost, "example-host")
+        XCTAssertEqual(prefs.checkNewVersion, true)
+        XCTAssertEqual(prefs.messageFilterEnabled, true)
+        XCTAssertEqual(prefs.messageFilterAll, false)
+        XCTAssertEqual(prefs.messageFilterFriends, true)
+        XCTAssertEqual(prefs.messageFilterSecure, false)
+        XCTAssertEqual(prefs.messageFilterByKeyword, true)
+        XCTAssertEqual(prefs.messageFilterKeywords, "spam|bot")
+        XCTAssertEqual(prefs.onlineSignatureEnabled, true)
+        XCTAssertEqual(prefs.maxConnectionsPerFive, 20)
+        XCTAssertEqual(prefs.verboseLogging, false)
+        XCTAssertEqual(prefs.fileBufferSize, 1_500_000)
+        XCTAssertEqual(prefs.uploadQueueSize, 5_000)
+        XCTAssertEqual(prefs.serverKeepaliveTimeout, 30)
+        XCTAssertEqual(prefs.kademliaUpdateURL, "https://example.test/nodes.dat")
+    }
+
     func testBuildsGroupLimitedPreferencesSetPackets() throws {
         let prefs = ECConnectionPrefs(maxDownload: 1024, maxUpload: 128, tcpPort: 4662, udpPort: 4672, udpEnabled: false, ed2kEnabled: true, kadEnabled: false)
         let packet = try ECOperations.prefsConnectionSet(prefs: prefs, group: .connection)

@@ -424,6 +424,54 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
         XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x0D, 0x52, 0x0D, 0x52])
     }
 
+    func testAdapterSourcesUsesRequestContextForMixedExplicitAndMissingSourceIDs() async throws {
+        let mock = AdapterMockTransport(replies: [
+            Self.salt,
+            Self.authOK,
+            ECPacket(opcode: 0x1F, tags: [
+                try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
+            ]),
+            ECPacket(opcode: 0x22, tags: [
+                ECDownloadPacketFixtures.client(id: 99, children: [
+                    .integer(name: 0x0620, value: 42),
+                    ECTag(name: 0x0100, type: .string, value: .string("peer-a")),
+                ]),
+                ECDownloadPacketFixtures.client(id: 100, children: [
+                    ECTag(name: 0x0100, type: .string, value: .string("peer-b")),
+                ]),
+            ]),
+        ])
+        let session = ECSession(configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false), transportFactory: { mock })
+        let adapter = SwiftECBridgeAdapter(session: session)
+
+        let (sources, _) = try await adapter.sources(hash: Self.hash, config: AMuleConnectionConfig(password: "secret"))
+
+        XCTAssertEqual(sources.map(\.clientID), [99, 100])
+        XCTAssertEqual(sources.map(\.requestFileID), [42, 42])
+    }
+
+    func testAdapterSourcesSurfacesUpdateFailuresInsteadOfReturningEmptySources() async throws {
+        let mock = AdapterMockTransport(replies: [
+            Self.salt,
+            Self.authOK,
+            ECPacket(opcode: 0x1F, tags: [
+                try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
+            ]),
+            ECPacket(opcode: 0x05, tags: [
+                ECTag(name: 0x0000, type: .string, value: .string("source update failed")),
+            ]),
+        ])
+        let session = ECSession(configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false), transportFactory: { mock })
+        let adapter = SwiftECBridgeAdapter(session: session)
+
+        do {
+            _ = try await adapter.sources(hash: Self.hash, config: AMuleConnectionConfig(password: "secret"))
+            XCTFail("Expected source update failure to propagate")
+        } catch let error as ECResponseParserError {
+            XCTAssertEqual(error, .operationFailed("source update failed"))
+        }
+    }
+
     func testAdapterFriendsUsesFriendsCapabilityRatherThanSourcesCapability() async throws {
         let mock = AdapterMockTransport(replies: [
             Self.salt,
@@ -546,6 +594,8 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
                     ECTag(name: 0x0612, type: .ipv4, value: .ipv4(ECIPv4Address(1, 2, 3, 4, port: 0))),
                     .integer(name: 0x0613, value: 4661),
                     .integer(name: 0x0601, value: 9),
+                    .integer(name: 0x060A, value: 8_192),
+                    .integer(name: 0x060B, value: 4_096),
                     ECTag(name: 0x0615, type: .string, value: .string("2.3.3")),
                     .integer(name: 0x060C, value: 3),
                     .integer(name: 0x060F, value: 2),
@@ -555,6 +605,8 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
                     .integer(name: 0x0618, value: 1),
                     .integer(name: 0x061D, value: 1),
                     ECTag(name: 0x0627, type: .string, value: .string("fixture.iso")),
+                    ECTag(name: 0x0628, type: .string, value: .string("Community")),
+                    .integer(name: 0x061B, value: 0),
                 ]),
             ]),
         ])

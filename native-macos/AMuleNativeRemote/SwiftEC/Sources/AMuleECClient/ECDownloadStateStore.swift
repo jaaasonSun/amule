@@ -449,6 +449,7 @@ public struct ECDownloadStateStore: Sendable {
         static let partFilePartMetID: UInt16 = 0x0302
         static let partFileSizeFull: UInt16 = 0x0303
         static let partFileSizeTransfer: UInt16 = 0x0304
+        static let partFileSizeXferUp: UInt16 = 0x0305
         static let partFileSizeDone: UInt16 = 0x0306
         static let partFileSpeed: UInt16 = 0x0307
         static let partFileStatus: UInt16 = 0x0308
@@ -461,7 +462,13 @@ public struct ECDownloadStateStore: Sendable {
         static let partFileLastReceived: UInt16 = 0x0310
         static let partFileLastSeenComplete: UInt16 = 0x0311
         static let partFileSourceNames: UInt16 = 0x0315
+        static let partFileA4AFAuto: UInt16 = 0x0321
+        static let partFileComments: UInt16 = 0x0316
         static let partFileStopped: UInt16 = 0x0317
+        static let partFileDownloadActive: UInt16 = 0x0318
+        static let partFileLostCorruption: UInt16 = 0x0319
+        static let partFileGainedCompression: UInt16 = 0x031A
+        static let partFileSavedICH: UInt16 = 0x031B
         static let partFileSourceNameCounts: UInt16 = 0x031C
         static let partFileAvailableParts: UInt16 = 0x031D
         static let partFileHash: UInt16 = 0x031E
@@ -470,6 +477,8 @@ public struct ECDownloadStateStore: Sendable {
         static let partFilePartStatus: UInt16 = 0x0312
         static let partFileRequestStatus: UInt16 = 0x0314
         static let partFileHashedPartCount: UInt16 = 0x0320
+        static let partFileEd2kLink: UInt16 = 0x030E
+        static let partFileA4AFSources: UInt16 = 0x0322
     }
 
     private struct ProgressRLEState: Sendable {
@@ -558,11 +567,14 @@ extension ECDownload {
             size: size,
             done: done,
             transferred: transferred,
+            transferredUp: transferredUp,
             progress: progress,
             sourcesCurrent: sourcesCurrent,
             sourcesTotal: sourcesTotal,
             sourcesTransferring: sourcesTransferring,
             sourcesA4AF: sourcesA4AF,
+            a4afAuto: a4afAuto,
+            downloadActive: downloadActive,
             statusCode: statusCode,
             isCompleted: isCompleted,
             status: status,
@@ -572,9 +584,15 @@ extension ECDownload {
             partMet: partMet,
             lastSeenComplete: lastSeenComplete,
             lastReceived: lastReceived,
+            lostCorruption: lostCorruption,
+            gainedCompression: gainedCompression,
+            savedICH: savedICH,
             activeSeconds: activeSeconds,
             availableParts: availableParts,
             shared: shared,
+            ed2kLink: ed2kLink,
+            comments: comments,
+            a4afSources: a4afSources,
             alternativeNames: alternativeNames,
             progressColors: progressColors,
             isStopped: isStopped,
@@ -593,11 +611,14 @@ extension ECDownload {
             size: size,
             done: done,
             transferred: transferred,
+            transferredUp: transferredUp,
             progress: progress,
             sourcesCurrent: sourcesCurrent,
             sourcesTotal: sourcesTotal,
             sourcesTransferring: sourcesTransferring,
             sourcesA4AF: sourcesA4AF,
+            a4afAuto: a4afAuto,
+            downloadActive: downloadActive,
             statusCode: statusCode,
             isCompleted: isCompleted,
             status: status,
@@ -607,9 +628,15 @@ extension ECDownload {
             partMet: partMet,
             lastSeenComplete: lastSeenComplete,
             lastReceived: lastReceived,
+            lostCorruption: lostCorruption,
+            gainedCompression: gainedCompression,
+            savedICH: savedICH,
             activeSeconds: activeSeconds,
             availableParts: availableParts,
             shared: shared,
+            ed2kLink: ed2kLink,
+            comments: comments,
+            a4afSources: a4afSources,
             alternativeNames: alternativeNames,
             progressColors: progressColors,
             isStopped: isStopped,
@@ -628,11 +655,14 @@ extension ECDownload {
             size: size,
             done: done,
             transferred: transferred,
+            transferredUp: transferredUp,
             progress: progress,
             sourcesCurrent: sourcesCurrent,
             sourcesTotal: sourcesTotal,
             sourcesTransferring: sourcesTransferring,
             sourcesA4AF: sourcesA4AF,
+            a4afAuto: a4afAuto,
+            downloadActive: downloadActive,
             statusCode: statusCode,
             isCompleted: isCompleted,
             status: status,
@@ -642,9 +672,15 @@ extension ECDownload {
             partMet: partMet,
             lastSeenComplete: lastSeenComplete,
             lastReceived: lastReceived,
+            lostCorruption: lostCorruption,
+            gainedCompression: gainedCompression,
+            savedICH: savedICH,
             activeSeconds: activeSeconds,
             availableParts: availableParts,
             shared: shared,
+            ed2kLink: ed2kLink,
+            comments: comments,
+            a4afSources: a4afSources,
             alternativeNames: alternativeNames,
             progressColors: colors,
             isStopped: isStopped,
@@ -667,6 +703,7 @@ extension ECDownload {
         let hasSize = tag?.child(named: ECDownloadStateStore.TagName.partFileSizeFull) != nil
         let hasDone = tag?.child(named: ECDownloadStateStore.TagName.partFileSizeDone) != nil
         let hasTransferred = tag?.child(named: ECDownloadStateStore.TagName.partFileSizeTransfer) != nil
+        let hasTransferredUp = tag?.child(named: ECDownloadStateStore.TagName.partFileSizeXferUp) != nil
         let hasSpeed = tag?.child(named: ECDownloadStateStore.TagName.partFileSpeed) != nil
         let hasStatusCode = tag?.child(named: ECDownloadStateStore.TagName.partFileStatus) != nil
         let hasPriority = tag?.child(named: ECDownloadStateStore.TagName.partFilePriority) != nil
@@ -674,14 +711,22 @@ extension ECDownload {
         let hasSourceA4AF = tag?.child(named: ECDownloadStateStore.TagName.partFileSourceCountA4AF) != nil
         let hasSourceNotCurrent = tag?.child(named: ECDownloadStateStore.TagName.partFileSourceCountNotCurrent) != nil
         let hasSourceTransfer = tag?.child(named: ECDownloadStateStore.TagName.partFileSourceCountTransfer) != nil
+        let hasA4AFAuto = tag?.child(named: ECDownloadStateStore.TagName.partFileA4AFAuto) != nil
+        let hasDownloadActive = tag?.child(named: ECDownloadStateStore.TagName.partFileDownloadActive) != nil
         let hasCategory = tag?.child(named: ECDownloadStateStore.TagName.partFileCategory) != nil
         let hasLastReceived = tag?.child(named: ECDownloadStateStore.TagName.partFileLastReceived) != nil
         let hasLastSeenComplete = tag?.child(named: ECDownloadStateStore.TagName.partFileLastSeenComplete) != nil
+        let hasLostCorruption = tag?.child(named: ECDownloadStateStore.TagName.partFileLostCorruption) != nil
+        let hasGainedCompression = tag?.child(named: ECDownloadStateStore.TagName.partFileGainedCompression) != nil
+        let hasSavedICH = tag?.child(named: ECDownloadStateStore.TagName.partFileSavedICH) != nil
         let hasPartMet = tag?.child(named: ECDownloadStateStore.TagName.partFilePartMetID) != nil
         let hasStopped = tag?.child(named: ECDownloadStateStore.TagName.partFileStopped) != nil
         let hasHashingProgress = tag?.child(named: ECDownloadStateStore.TagName.partFileHashedPartCount) != nil
         let hasAvailableParts = tag?.child(named: ECDownloadStateStore.TagName.partFileAvailableParts) != nil
         let hasShared = tag?.child(named: ECDownloadStateStore.TagName.partFileShared) != nil
+        let hasEd2kLink = tag?.child(named: ECDownloadStateStore.TagName.partFileEd2kLink) != nil
+        let hasComments = tag?.child(named: ECDownloadStateStore.TagName.partFileComments) != nil
+        let hasA4afSources = tag?.child(named: ECDownloadStateStore.TagName.partFileA4AFSources) != nil
         let nextSize = hasSize ? update.size : size
         let nextDone = hasDone ? update.done : done
         let nextTransferred = hasTransferred ? update.transferred : transferred
@@ -711,11 +756,14 @@ extension ECDownload {
             size: nextSize,
             done: nextDone,
             transferred: nextTransferred,
+            transferredUp: hasTransferredUp ? update.transferredUp : transferredUp,
             progress: nextProgress,
             sourcesCurrent: nextSourcesCurrent,
             sourcesTotal: nextSourcesTotal,
             sourcesTransferring: nextSourcesTransferring,
             sourcesA4AF: hasSourceA4AF ? update.sourcesA4AF : sourcesA4AF,
+            a4afAuto: hasA4AFAuto ? update.a4afAuto : a4afAuto,
+            downloadActive: hasDownloadActive ? update.downloadActive : downloadActive,
             statusCode: nextStatusCode,
             isCompleted: nextIsCompleted,
             status: nextStatus,
@@ -725,9 +773,15 @@ extension ECDownload {
             partMet: hasPartMet ? update.partMet : partMet,
             lastSeenComplete: hasLastSeenComplete ? update.lastSeenComplete : lastSeenComplete,
             lastReceived: hasLastReceived ? update.lastReceived : lastReceived,
+            lostCorruption: hasLostCorruption ? update.lostCorruption : lostCorruption,
+            gainedCompression: hasGainedCompression ? update.gainedCompression : gainedCompression,
+            savedICH: hasSavedICH ? update.savedICH : savedICH,
             activeSeconds: activeSeconds,
             availableParts: hasAvailableParts ? update.availableParts : availableParts,
             shared: hasShared ? update.shared : shared,
+            ed2kLink: hasEd2kLink ? update.ed2kLink : ed2kLink,
+            comments: hasComments ? update.comments : comments,
+            a4afSources: hasA4afSources ? update.a4afSources : a4afSources,
             alternativeNames: alternativeNames,
             progressColors: hasProgressTags && !update.progressColors.isEmpty ? update.progressColors : progressColors,
             isStopped: nextIsStopped,

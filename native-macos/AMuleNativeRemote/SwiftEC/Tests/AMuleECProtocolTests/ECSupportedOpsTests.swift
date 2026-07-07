@@ -8,6 +8,8 @@ final class ECSupportedOpsTests: XCTestCase {
         let expected = [
             "capabilities",
             "status",
+            "shutdown",
+            "connection-state",
             "downloads",
             "sources",
             "search",
@@ -49,7 +51,9 @@ final class ECSupportedOpsTests: XCTestCase {
             "shared-file-priority",
             "shared-file-comment-rating",
             "log",
+            "last-log-entry",
             "debug-log",
+            "reset-debug-log",
             "reset-log",
             "categories",
             "category-create",
@@ -63,6 +67,7 @@ final class ECSupportedOpsTests: XCTestCase {
             "friend-slot",
             "stats-tree",
             "stats-graphs",
+            "client-swap-to-another-file",
         ]
 
         XCTAssertEqual(ECSupportedOps.allOperations, expected)
@@ -73,6 +78,8 @@ final class ECSupportedOpsTests: XCTestCase {
         let canonical = Set([
             "capabilities",
             "status",
+            "shutdown",
+            "connection-state",
             "downloads",
             "sources",
             "search",
@@ -114,7 +121,9 @@ final class ECSupportedOpsTests: XCTestCase {
             "shared-file-priority",
             "shared-file-comment-rating",
             "log",
+            "last-log-entry",
             "debug-log",
+            "reset-debug-log",
             "reset-log",
             "categories",
             "category-create",
@@ -128,6 +137,7 @@ final class ECSupportedOpsTests: XCTestCase {
             "friend-slot",
             "stats-tree",
             "stats-graphs",
+            "client-swap-to-another-file",
         ])
 
         let unauthorizedOperations = ECSupportedOps.allOperations.filter { !canonical.contains($0) }

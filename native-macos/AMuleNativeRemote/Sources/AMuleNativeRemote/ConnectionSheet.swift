@@ -116,6 +116,22 @@ struct NetworkStatusSummary: Equatable {
     }
 }
 
+@ViewBuilder
+private func connectionStateBadge(label: String, isOn: Bool, isConnecting: Bool = false, isFirewalled: Bool = false) -> some View {
+    HStack(spacing: 4) {
+        Circle()
+            .fill(isOn ? Color.green : (isConnecting ? Color.orange : Color.secondary))
+            .frame(width: 6, height: 6)
+        Text(label)
+            .font(.caption2)
+        if isFirewalled {
+            Image(systemName: "flame.fill")
+                .font(.caption2)
+                .foregroundStyle(.orange)
+        }
+    }
+}
+
 struct ConnectionSheet: View {
     @EnvironmentObject private var model: AppModel
     @Binding var isPresented: Bool
@@ -155,6 +171,19 @@ struct ConnectionSheet: View {
             SecureField("Password", text: $model.password)
                 .textFieldStyle(.roundedBorder)
 
+            if model.isBridgeOpSupported("connection-state"), let state = model.connectionState {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Connection State")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    HStack(spacing: 12) {
+                        connectionStateBadge(label: "ED2K", isOn: state.ed2kConnected, isConnecting: state.ed2kConnecting)
+                        connectionStateBadge(label: "Kad", isOn: state.kadConnected, isFirewalled: state.kadFirewalled)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
             HStack {
                 if model.isBusy {
                     ProgressView()
@@ -181,7 +210,6 @@ struct ConnectionSheet: View {
         }
         .padding(16)
         .frame(minWidth: 300, idealWidth: 320, maxWidth: 360, minHeight: 188)
-        .background(.regularMaterial)
     }
 }
 
@@ -309,7 +337,6 @@ struct KadSheet: View {
         }
         .padding(16)
         .frame(minWidth: 420, idealWidth: 460, maxWidth: 520)
-        .background(.regularMaterial)
     }
 
     private var statusDotColor: Color {
@@ -322,164 +349,6 @@ struct KadSheet: View {
             return .orange
         case .unknown:
             return .secondary
-        }
-    }
-}
-
-struct MainFooterBar: View {
-    @EnvironmentObject private var model: AppModel
-    @Binding var showLoginSheet: Bool
-    @Binding var showKadSheet: Bool
-    let showServers: () -> Void
-
-    var body: some View {
-        HStack(spacing: 6) {
-            footerStatusControl(state: amuleServerFooterConnectionState) {
-                Button {
-                    showLoginSheet = true
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "link")
-                            .foregroundStyle(.secondary)
-                        Text(L("aMule Server"))
-                        footerConnectionStateSymbol(amuleServerFooterConnectionState)
-                    }
-                    .font(.caption)
-                }
-                .buttonStyle(.bordered)
-                .help("Open Connection Panel")
-            }
-
-            footerStatusControl(state: ed2kFooterConnectionState) {
-                ControlGroup {
-                    Button {
-                        showServers()
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "rectangle.connected.to.line.below")
-                                .foregroundStyle(.secondary)
-                            switch ed2kFooterConnectionState {
-                            case .connected:
-                                Text(ed2kFooterPrimaryText)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
-                            case .transitional:
-                                Text(ed2kFooterPrimaryText)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
-                                footerConnectionStateSymbol(ed2kFooterConnectionState)
-                            case .disconnected, .unknown:
-                                Text("eD2k")
-                                footerConnectionStateSymbol(ed2kFooterConnectionState)
-                            }
-                        }
-                        .font(.caption)
-                        .padding(.leading, 3)
-                    }
-                    .help("Show Servers")
-
-                    Button {
-                        if ed2kFooterConnectionState == .connected {
-                            model.connectServer(nil)
-                        } else {
-                            model.connectServer(bestServerForED2KConnect)
-                        }
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    .help("Reconnect")
-                    .disabled(model.isBusy)
-                }
-                .controlGroupStyle(.navigation)
-            }
-
-            footerStatusControl(state: kadFooterConnectionState) {
-                Button {
-                    showKadSheet = true
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "point.3.filled.connected.trianglepath.dotted")
-                            .foregroundStyle(.secondary)
-                        Text("Kad")
-                        footerConnectionStateSymbol(kadFooterConnectionState)
-                    }
-                    .font(.caption)
-                }
-                .buttonStyle(.bordered)
-                .help("Open Kad Panel")
-            }
-
-            Spacer(minLength: 8)
-
-            HStack(spacing: 6) {
-                footerMetricChip(title: L("Download"), value: model.status.downloadSpeed)
-                footerMetricChip(title: L("Upload"), value: model.status.uploadSpeed)
-            }
-            .padding(.trailing, 8)
-        }
-        .controlSize(.small)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
-    }
-
-    private var amuleServerFooterConnectionState: ConnectionState { model.isSessionConnected ? .connected : .disconnected }
-    private var ed2kFooterConnectionState: ConnectionState { connectionState(from: model.status.ed2k) }
-    private var kadFooterConnectionState: ConnectionState { connectionState(from: model.status.kad) }
-    private var ed2kFooterStatusText: String { compactED2kBadgeValue(model.status.ed2k) }
-
-    private var ed2kFooterPrimaryText: String {
-        let compact = ed2kFooterStatusText
-        let stateText = compactConnectionState(model.status.ed2k)
-        if compact != stateText && compact != "?" && !compact.isEmpty {
-            return compact
-        }
-        return "eD2k"
-    }
-
-    private var bestServerForED2KConnect: ServerItem? {
-        model.servers
-            .filter { !$0.ip.isEmpty && $0.port > 0 }
-            .sorted {
-                if $0.files != $1.files { return $0.files > $1.files }
-                if $0.users != $1.users { return $0.users > $1.users }
-                return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
-            }
-            .first
-    }
-
-    private func footerMetricChip(title: String, value: String) -> some View {
-        HStack(spacing: 4) {
-            Text(title)
-            Text(value)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-                .lineLimit(1)
-        }
-        .font(.caption)
-    }
-
-    @ViewBuilder
-    private func footerStatusControl<Content: View>(state: ConnectionState, @ViewBuilder content: () -> Content) -> some View {
-        if case .disconnected = state {
-            content().tint(.red)
-        } else {
-            content()
-        }
-    }
-
-    @ViewBuilder
-    private func footerConnectionStateSymbol(_ state: ConnectionState) -> some View {
-        switch state {
-        case .connected:
-            Image(systemName: "checkmark.circle")
-        case .disconnected:
-            Image(systemName: "xmark.circle")
-        case .transitional:
-            ProgressView().controlSize(.small)
-        case .unknown:
-            Image(systemName: "questionmark.circle").foregroundStyle(.secondary)
         }
     }
 }

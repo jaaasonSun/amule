@@ -26,7 +26,4 @@ final class DownloadTableColumnLayoutTests: XCTestCase {
         )
     }
 
-    func testDownloadsWindowFrameUsesAppKitAutosave() {
-        XCTAssertEqual(DownloadsWindowPersistence.frameAutosaveName, "AMuleNativeRemote.DownloadsWindow")
-    }
 }

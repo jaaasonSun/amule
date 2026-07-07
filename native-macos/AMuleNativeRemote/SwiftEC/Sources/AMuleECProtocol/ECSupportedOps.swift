@@ -6,6 +6,8 @@ public struct ECSupportedOps {
     public static let capabilities = "capabilities"
     /// Returns the current remote status.
     public static let status = "status"
+    public static let shutdown = "shutdown"
+    public static let connectionState = "connection-state"
     /// Lists active and queued downloads.
     public static let downloads = "downloads"
     /// Returns sources for a download.
@@ -66,7 +68,9 @@ public struct ECSupportedOps {
     public static let sharedFiles = "shared-files"
     public static let sharedFilesReload = "shared-files-reload"
     public static let log = "log"
+    public static let lastLogEntry = "last-log-entry"
     public static let debugLog = "debug-log"
+    public static let resetDebugLog = "reset-debug-log"
     public static let categories = "categories"
     public static let categoryCreate = "category-create"
     public static let categoryUpdate = "category-update"
@@ -88,6 +92,7 @@ public struct ECSupportedOps {
     public static let friendShared = "friend-shared"
     public static let statsTree = "stats-tree"
     public static let statsGraphs = "stats-graphs"
+    public static let clientSwapToAnotherFile = "client-swap-to-another-file"
 
     /// Known operation names that remain intentionally absent from capability
     /// advertisement until they have a complete builder, adapter endpoint, and
@@ -100,6 +105,8 @@ public struct ECSupportedOps {
     public static let allOperations: [String] = [
         capabilities,
         status,
+        shutdown,
+        connectionState,
         downloads,
         sources,
         search,
@@ -141,7 +148,9 @@ public struct ECSupportedOps {
         sharedFilePriority,
         sharedFileCommentRating,
         log,
+        lastLogEntry,
         debugLog,
+        resetDebugLog,
         resetLog,
         categories,
         categoryCreate,
@@ -155,5 +164,6 @@ public struct ECSupportedOps {
         friendSlot,
         statsTree,
         statsGraphs,
+        clientSwapToAnotherFile,
     ]
 }

@@ -14,10 +14,7 @@ struct AMuleNativeRemoteApp: App {
                 .environmentObject(model)
         }
         .windowStyle(.automatic)
-        .defaultSize(
-            width: DownloadsWindowPersistence.defaultWidth,
-            height: DownloadsWindowPersistence.defaultHeight
-        )
+        .defaultSize(width: 1040, height: 620)
         .commands {
             AppMenuCommands(model: model)
         }
@@ -30,13 +27,13 @@ struct AMuleNativeRemoteApp: App {
         .windowResizability(.contentSize)
         .defaultSize(width: 820, height: 620)
 
-        WindowGroup("Diagnostics", id: "diagnostics-window") {
+        Window("Diagnostics", id: "diagnostics-window") {
             DiagnosticsWindowView()
                 .environmentObject(model)
         }
         .windowStyle(.automatic)
 
-        WindowGroup("Server Logs", id: "server-logs-window") {
+        Window("Server Logs", id: "server-logs-window") {
             ServerLogsWindowView()
                 .environmentObject(model)
         }
@@ -52,7 +49,6 @@ struct AMuleNativeRemoteApp: App {
 private struct AppMenuCommands: Commands {
     @ObservedObject var model: AppModel
     @Environment(\.openWindow) private var openWindow
-    @AppStorage("amule.ui.alwaysShowSuggestedFilename") private var alwaysShowSuggestedFilename = false
 
     var body: some Commands {
         CommandGroup(after: .appInfo) {
@@ -60,6 +56,11 @@ private struct AppMenuCommands: Commands {
                 Task { await model.refreshStatus() }
             }
             .keyboardShortcut("r", modifiers: [.command])
+
+            Button("Connection Settings…") {
+                model.requestConnectionSheet()
+            }
+            .keyboardShortcut("k", modifiers: [.command])
         }
 
         CommandGroup(replacing: .newItem) {
@@ -71,27 +72,23 @@ private struct AppMenuCommands: Commands {
             .keyboardShortcut("n", modifiers: [.command])
         }
 
-        ToolbarCommands()
-
-        CommandMenu("Tools") {
-            Button("Show Details") {
-                openWindow(id: "download-details-window")
-            }
-            .keyboardShortcut("i", modifiers: [.command])
-            .disabled(model.selectedDownloadID == nil)
-
-            Toggle("Always Show Suggested Filename", isOn: $alwaysShowSuggestedFilename)
-
+        CommandGroup(after: .windowList) {
             Button("Diagnostics") {
                 openWindow(id: "diagnostics-window")
+                NSApp.activate(ignoringOtherApps: true)
             }
-            .keyboardShortcut("d", modifiers: [.command, .shift])
+            .keyboardShortcut("d", modifiers: [.command, .option])
+            .disabled(!model.isBridgeOpSupported("log") && !model.isBridgeOpSupported("debug-log") && !model.isBridgeOpSupported("server-info"))
 
             Button("Server Logs") {
                 openWindow(id: "server-logs-window")
+                NSApp.activate(ignoringOtherApps: true)
             }
+            .keyboardShortcut("l", modifiers: [.command, .option])
             .disabled(!model.isBridgeOpSupported("server-info"))
-
         }
+
+        ToolbarCommands()
+        SidebarCommands()
     }
 }

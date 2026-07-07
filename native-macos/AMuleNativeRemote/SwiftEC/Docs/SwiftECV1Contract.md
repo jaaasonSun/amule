@@ -6,7 +6,7 @@ This document defines the V1 contract for the Swift Native EC Bridge, a pure-Swi
 
 **Implementation Status:** COMPLETE
 
-**Last Updated:** May 2026
+**Last Updated:** July 2026
 
 ## Implementation Summary
 
@@ -16,7 +16,7 @@ SwiftEC implements a three-layer architecture:
 2. **AMuleECClient**: Session management, Network.framework transport, operation builders, response parsing
 3. **AMuleECBridgeAdapter**: BridgeProtocol conformance, JSON envelope generation, platform integration
 
-The native SwiftEC operation surface is defined in `ECSupportedOps` and covered by tests.
+The native SwiftEC operation surface is defined in `ECSupportedOps` and covered by tests. SwiftEC advertises approximately 57 bridge operations across fourteen categories. The canonical source of truth is `Sources/AMuleECProtocol/ECSupportedOps.swift`.
 
 ## Canonical V1 Operation Surface
 
@@ -25,41 +25,80 @@ The Swift EC bridge operation surface is owned by
 `ECSupportedOpsTests` as the canonical list instead of duplicating operation
 membership in older bridge-specific code or documents.
 
-The table below summarizes common operations; it is not the authoritative list.
+The table below summarizes representative operations from each category. It is not the authoritative list.
 
 | # | Operation | Handler | Category | Status | Swift Method |
 |---|-----------|---------|----------|--------|--------------|
-| 1 | `capabilities` | ECOperations.capabilities() | Info | ✅ Complete | `capabilities()` |
-| 2 | `status` | ECOperations.status() | Info | ✅ Complete | `status()` |
-| 3 | `downloads` | ECOperations.downloads() | Read | ✅ Complete | `downloads()` |
-| 4 | `sources` | ECOperations.sources() | Read | ✅ Complete | `sources(hash:)` |
-| 5 | `search` | ECOperations.search() | Action | ✅ Complete | `search(scope:query:)` |
-| 6 | `search-stop` | ECOperations.searchStop() | Action | ✅ Complete | `searchStop()` |
-| 7 | `download` | ECOperations.download() | Action | ✅ Complete | `download(hash:)` |
-| 8 | `add-link` | ECOperations.addLink() | Action | ✅ Complete | `addLink(_:)` |
-| 9 | `pause` | ECOperations.pause() | Action | ✅ Complete | `pause(hash:)` |
-| 10 | `resume` | ECOperations.resume() | Action | ✅ Complete | `resume(hash:)` |
-| 11 | `connect` | ECOperations.coreConnect() | Network | ✅ Complete | `coreConnect()` |
-| 12 | `disconnect` | ECOperations.coreDisconnect() | Network | ✅ Complete | `coreDisconnect()` |
-| 13 | `server-connect` | ECOperations.serverConnect() | Network | ✅ Complete | `serverConnect(ip:port:)` |
-| 14 | `server-disconnect` | ECOperations.serverDisconnect() | Network | ✅ Complete | `serverDisconnect()` |
-| 15 | `server-add` | ECOperations.serverAdd() | Management | ✅ Complete | `serverAdd(address:name:)` |
-| 16 | `server-remove` | ECOperations.serverRemove() | Management | ✅ Complete | `serverRemove(ip:port:)` |
-| 17 | `servers` | ECOperations.servers() | Read | ✅ Complete | `servers()` |
-| 18 | `prefs-connection-get` | ECOperations.prefsConnectionGet() | Prefs | ✅ Complete | `prefsConnectionGet()` |
-| 19 | `prefs-connection-set` | ECOperations.prefsConnectionSet() | Prefs | ✅ Complete | `prefsConnectionSet(maxDownload:maxUpload:)` |
+| 1 | `capabilities` | ECOperations.capabilities() | Info | Complete | `capabilities()` |
+| 2 | `status` | ECOperations.status() | Info | Complete | `status()` |
+| 3 | `shutdown` | ECOperations.shutdown() | Admin | Complete | `shutdown()` |
+| 4 | `connection-state` | ECOperations.connectionState() | Info | Complete | `connectionState()` |
+| 5 | `downloads` | ECOperations.downloads() | Read | Complete | `downloads()` |
+| 6 | `sources` | ECOperations.sources() | Read | Complete | `sources(hash:)` |
+| 7 | `search` | ECOperations.search() | Action | Complete | `search(scope:query:)` |
+| 8 | `search-stop` | ECOperations.searchStop() | Action | Complete | `searchStop()` |
+| 9 | `download` | ECOperations.download() | Action | Complete | `download(hash:)` |
+| 10 | `add-link` | ECOperations.addLink() | Action | Complete | `addLink(_:)` |
+| 11 | `pause` | ECOperations.pause() | Action | Complete | `pause(hash:)` |
+| 12 | `resume` | ECOperations.resume() | Action | Complete | `resume(hash:)` |
+| 13 | `connect` | ECOperations.coreConnect() | Network | Complete | `coreConnect()` |
+| 14 | `disconnect` | ECOperations.coreDisconnect() | Network | Complete | `coreDisconnect()` |
+| 15 | `server-connect` | ECOperations.serverConnect() | Network | Complete | `serverConnect(ip:port:)` |
+| 16 | `server-disconnect` | ECOperations.serverDisconnect() | Network | Complete | `serverDisconnect()` |
+| 17 | `server-add` | ECOperations.serverAdd() | Server Management | Complete | `serverAdd(address:name:)` |
+| 18 | `server-remove` | ECOperations.serverRemove() | Server Management | Complete | `serverRemove(ip:port:)` |
+| 19 | `servers` | ECOperations.servers() | Read | Complete | `servers()` |
+| 20 | `prefs-connection-get` | ECOperations.prefsConnectionGet() | Preferences | Complete | `prefsConnectionGet()` |
+| 21 | `prefs-connection-set` | ECOperations.prefsConnectionSet() | Preferences | Complete | `prefsConnectionSet(maxDownload:maxUpload:)` |
+| 22 | `kad-start` | ECOperations.kadStart() | Kad | Complete | `kadStart()` |
+| 23 | `kad-stop` | ECOperations.kadStop() | Kad | Complete | `kadStop()` |
+| 24 | `kad-bootstrap` | ECOperations.kadBootstrap() | Kad | Complete | `kadBootstrap(ip:port:)` |
+| 25 | `kad-update-from-url` | ECOperations.kadUpdateFromURL() | Kad | Complete | `kadUpdateFromURL(url:)` |
+| 26 | `uploads` | ECOperations.uploads() | Read | Complete | `uploads()` |
+| 27 | `shared-files` | ECOperations.sharedFiles() | Read | Complete | `sharedFiles()` |
+| 28 | `shared-files-reload` | ECOperations.sharedFilesReload() | Shared Files | Complete | `sharedFilesReload()` |
+| 29 | `log` | ECOperations.log() | Logs | Complete | `log()` |
+| 30 | `debug-log` | ECOperations.debugLog() | Logs | Complete | `debugLog()` |
+| 31 | `categories` | ECOperations.categories() | Read | Complete | `categories()` |
+| 32 | `category-create` | ECOperations.categoryCreate() | Categories | Complete | `categoryCreate(...)` |
+| 33 | `category-update` | ECOperations.categoryUpdate() | Categories | Complete | `categoryUpdate(...)` |
+| 34 | `category-delete` | ECOperations.categoryDelete() | Categories | Complete | `categoryDelete(categoryID:)` |
+| 35 | `ipfilter-reload` | ECOperations.ipfilterReload() | IP Filter | Complete | `ipfilterReload()` |
+| 36 | `ipfilter-update` | ECOperations.ipfilterUpdate() | IP Filter | Complete | `ipfilterUpdate(url:)` |
+| 37 | `friends` | ECOperations.friends() | Read | Complete | `friends()` |
+| 38 | `friend-add` | ECOperations.friendAdd() | Friends | Complete | `friendAdd(...)` |
+| 39 | `friend-remove` | ECOperations.friendRemove() | Friends | Complete | `friendRemove(friendID:)` |
+| 40 | `friend-slot` | ECOperations.friendSlot() | Friends | Complete | `friendSlot(friendID:enabled:)` |
+| 41 | `stats-tree` | ECOperations.statsTree() | Stats | Complete | `statsTree(capping:)` |
+| 42 | `stats-graphs` | ECOperations.statsGraphs() | Stats | Complete | `statsGraphs(width:scale:last:)` |
+| 43 | `clear-completed` | ECOperations.clearCompleted() | Action | Complete | `clearCompleted(ecids:)` |
+| 44 | `download-stop` | ECOperations.stop() | Action | Complete | `stop(hash:)` |
+| 45 | `cancel` | ECOperations.cancel() | Action | Complete | `cancel(hash:)` |
+| 46 | `priority` | ECOperations.priority() | Action | Complete | `priority(hash:value:)` |
+| 47 | `rename` | ECOperations.rename() | Action | Complete | `rename(hash:name:)` |
+| 48 | `download-a4af-this` | ECOperations.swapA4AF() | Action | Complete | `swapA4AF(hash:mode:)` |
+| 49 | `download-set-category` | ECOperations.downloadSetCategory() | Action | Complete | `downloadSetCategory(hash:categoryID:)` |
+| 50 | `server-update-from-url` | ECOperations.serverUpdateFromURL() | Server Management | Complete | `serverUpdateFromURL(url:)` |
+| 51 | `server-set-static` | ECOperations.serverSetStatic() | Server Management | Complete | `serverSetStatic(ecid:isStatic:)` |
+| 52 | `server-set-priority` | ECOperations.serverSetPriority() | Server Management | Complete | `serverSetPriority(ecid:priority:)` |
+| 53 | `server-info` | ECOperations.serverInfo() | Logs | Complete | `serverInfo()` |
+| 54 | `clear-server-info` | ECOperations.clearServerInfo() | Logs | Complete | `clearServerInfo()` |
+| 55 | `reset-log` | ECOperations.resetLog() | Logs | Complete | `resetLog()` |
+| 56 | `shared-file-priority` | ECOperations.sharedFilePriority() | Shared Files | Complete | `sharedFilePriority(hash:priority:)` |
+| 57 | `shared-file-comment-rating` | ECOperations.sharedFileCommentRating() | Shared Files | Complete | `sharedFileCommentRating(hash:comment:rating:)` |
 
 **Notes:**
 - Supported operation names are advertised by SwiftEC capabilities.
 - BridgeProtocol exposes supported operations uniformly.
 - Platform-specific feature flags control availability in apps.
+- The full canonical list is in `ECSupportedOps.swift`.
 
 ## Protocol Compatibility
 
 ### SwiftEC BridgeAdapter
 
 **SwiftECBridgeAdapter** (`Sources/AMuleECBridgeAdapter/SwiftECBridgeAdapter.swift`):
-- Implements all 23 canonical EC operations
+- Implements the full advertised SwiftEC operation surface
 - Conforms to BridgeProtocol for seamless integration
 - Provides JSON envelope output for all responses
 - Supports capability gating for progressive enhancement
@@ -75,16 +114,16 @@ The table below summarizes common operations; it is not the authoritative list.
 
 | Component | Status | File |
 |-----------|--------|------|
-| Binary Protocol | ✅ Complete | `AMuleECProtocol/ECPacket.swift` |
-| Tag Serialization | ✅ Complete | `AMuleECProtocol/ECTag.swift` |
-| MD5 Authentication | ✅ Complete | `AMuleECProtocol/ECLegacyAuth.swift` |
-| Zlib Compression | ✅ Complete | `AMuleECProtocol/ECCompression.swift` |
-| Session Management | ✅ Complete | `AMuleECClient/ECSession.swift` |
-| Network Transport | ✅ Complete | `AMuleECClient/ECConnection.swift` |
-| Operation Builders | ✅ Complete | `AMuleECClient/ECOperations.swift` |
-| Response Parsing | ✅ Complete | `AMuleECClient/ECResponseParser.swift` |
-| JSON Envelopes | ✅ Complete | `AMuleECClient/ECJSONEnvelope.swift` |
-| Bridge Adapter | ✅ Complete | `AMuleECBridgeAdapter/SwiftECBridgeAdapter.swift` |
+| Binary Protocol | Complete | `AMuleECProtocol/ECPacket.swift` |
+| Tag Serialization | Complete | `AMuleECProtocol/ECTag.swift` |
+| MD5 Authentication | Complete | `AMuleECProtocol/ECLegacyAuth.swift` |
+| Zlib Compression | Complete | `AMuleECProtocol/ECCompression.swift` |
+| Session Management | Complete | `AMuleECClient/ECSession.swift` |
+| Network Transport | Complete | `AMuleECClient/ECConnection.swift` |
+| Operation Builders | Complete | `AMuleECClient/ECOperations.swift` |
+| Response Parsing | Complete | `AMuleECClient/ECResponseParser.swift` |
+| JSON Envelopes | Complete | `AMuleECClient/ECJSONEnvelope.swift` |
+| Bridge Adapter | Complete | `AMuleECBridgeAdapter/SwiftECBridgeAdapter.swift` |
 
 ## Envelope Schema Version 1
 
@@ -103,6 +142,13 @@ All responses follow this envelope format defined in `ECJSONEnvelope`:
   "downloads": [ ... ],
   "sources": [ ... ],
   "servers": [ ... ],
+  "uploads": [ ... ],
+  "shared_files": [ ... ],
+  "categories": [ ... ],
+  "friends": [ ... ],
+  "stats_tree": { ... },
+  "stats_graphs": { ... },
+  "log": { ... },
   "progress": number,
   "results": [ ... ],
   "prefs_connection": { ... }
@@ -120,6 +166,13 @@ All responses follow this envelope format defined in `ECJSONEnvelope`:
 - `downloads`: Array of download payloads (downloads op)
 - `sources`: Array of source payloads (sources op)
 - `servers`: Array of server payloads (servers op)
+- `uploads`: Array of upload payloads (uploads op)
+- `shared_files`: Array of shared file payloads (shared-files op)
+- `categories`: Array of category payloads (categories op)
+- `friends`: Array of friend payloads (friends op)
+- `stats_tree`: Statistics tree payload (stats-tree op)
+- `stats_graphs`: Statistics graphs payload (stats-graphs op)
+- `log`: Log payload (log or debug-log op)
 - `progress`: Search progress percentage 0-100 (search op)
 - `results`: Array of search results (search op)
 - `prefs_connection`: Connection preferences (prefs-connection-get op)
@@ -137,6 +190,13 @@ public struct ECBridgeEnvelope<Payload: Encodable>: Encodable {
     public let downloads: [ECDownload]?
     public let sources: [ECSource]?
     public let servers: [ECServer]?
+    public let uploads: [ECUpload]?
+    public let sharedFiles: [ECSharedFile]?
+    public let categories: [ECCategory]?
+    public let friends: [ECFriend]?
+    public let statsTree: ECStatsTreeNode?
+    public let statsGraphs: ECStatsGraphs?
+    public let log: ECCoreLog?
     public let progress: Int?
     public let results: [ECSearchResult]?
     public let prefsConnection: ECConnectionPrefs?
@@ -147,33 +207,96 @@ public struct ECBridgeEnvelope<Payload: Encodable>: Encodable {
 
 ### SwiftECBridgeAdapter
 
-The unified adapter conforms to BridgeProtocol and supports all 23 operations:
+The unified adapter conforms to BridgeProtocol and implements the full advertised operation surface:
 
 ```swift
-@available(macOS 27, iOS 27, *)
+@available(macOS 10.15, iOS 13.0, *)
 public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
     public init(session: ECSession? = nil)
 
-    // All 23 operations implemented
-    public func connect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
-    public func disconnect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    // Info
     public func capabilities(config: AMuleConnectionConfig) async throws -> (schemaVersion: Int?, capabilities: BridgeCapabilitiesPayload, raw: String)
     public func status(config: AMuleConnectionConfig) async throws -> (BridgeStatusPayload, String)
+
+    // Network
+    public func connect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    public func disconnect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+
+    // Read
     public func downloads(config: AMuleConnectionConfig) async throws -> ([BridgeDownloadPayload], String)
+    public func sources(hash: String, config: AMuleConnectionConfig) async throws -> ([BridgeDownloadSourcePayload], String)
+    public func servers(config: AMuleConnectionConfig) async throws -> ([BridgeServerPayload], String)
+    public func uploads(config: AMuleConnectionConfig) async throws -> ([BridgeUploadPayload], String)
+    public func sharedFiles(config: AMuleConnectionConfig) async throws -> ([BridgeSharedFilePayload], String)
+    public func categories(config: AMuleConnectionConfig) async throws -> ([BridgeCategoryPayload], String)
+    public func friends(config: AMuleConnectionConfig) async throws -> ([BridgeFriendPayload], String)
+    public func statsTree(capping: Int?, config: AMuleConnectionConfig) async throws -> (BridgeStatsTreeNodePayload, String)
+    public func statsGraphs(width: Int, scale: Int, last: Double?, config: AMuleConnectionConfig) async throws -> (BridgeStatsGraphsPayload, String)
+
+    // Search
     public func search(scope: String, query: String, polls: Int, pollIntervalMs: Int, config: AMuleConnectionConfig) async throws -> (progress: Int, results: [BridgeSearchPayload], raw: String)
+    public func search(request: ECSearchRequest, polls: Int, pollIntervalMs: Int, config: AMuleConnectionConfig) async throws -> (progress: Int, results: [BridgeSearchPayload], raw: String)
     public func searchStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+
+    // Action
     public func download(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     public func addLink(link: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    public func rename(hash: String, name: String, config: AMuleConnectionConfig) async throws -> RenameAcknowledgement
     public func pause(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     public func resume(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    public func stop(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    public func swapA4AF(hash: String, mode: ECOperations.A4AFSwapMode, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    public func cancel(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    public func priority(hash: String, value: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    public func downloadSetCategory(hash: String, categoryID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    public func clearCompleted(ecids: [Int], config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+
+    // Server Management
     public func serverConnect(ip: String?, port: Int?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     public func serverDisconnect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     public func serverAdd(address: String, name: String?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     public func serverRemove(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
-    public func servers(config: AMuleConnectionConfig) async throws -> ([BridgeServerPayload], String)
-    public func sources(hash: String, config: AMuleConnectionConfig) async throws -> ([DownloadSourceItem], String)
+    public func serverUpdateFromURL(url: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    public func serverSetStatic(ecid: Int, isStatic: Bool, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    public func serverSetPriority(ecid: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+
+    // Kad
+    public func kadStart(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    public func kadStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    public func kadBootstrap(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    public func kadUpdateFromURL(url: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+
+    // Shared Files
+    public func sharedFilesReload(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    public func sharedFilePriority(hash: String, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    public func sharedFileCommentRating(hash: String, comment: String, rating: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+
+    // Preferences
     public func prefsConnectionGet(config: AMuleConnectionConfig) async throws -> (BridgeConnectionPrefsPayload, String)
     public func prefsConnectionSet(maxDownload: Int, maxUpload: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    public func prefsConnectionSet(prefs: BridgeConnectionPrefsPayload, group: ECOperations.PreferencesGroup, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+
+    // Categories
+    public func categoryCreate(name: String, path: String, comment: String, color: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    public func categoryUpdate(id: Int, name: String, path: String, comment: String, color: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    public func categoryDelete(categoryID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+
+    // Logs
+    public func coreLog(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String)
+    public func debugLog(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String)
+    public func serverInfo(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String)
+    public func clearServerInfo(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    public func resetLog(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+
+    // IP Filter
+    public func ipfilterReload(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    public func ipfilterUpdate(url: String?, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+
+    // Friends
+    public func friendAdd(hash: String, ip: String, port: Int, name: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    public func friendRemove(friendID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    public func friendRequestSharedList(friendID: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    public func friendSlot(friendID: Int, enabled: Bool, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
 }
 ```
 
@@ -191,16 +314,7 @@ public struct ECCapabilities: Codable, Equatable, Sendable {
 }
 ```
 
-Default capability set includes all 23 operations:
-```swift
-ECOperationName.allCases.map(\.rawValue) = [
-    "capabilities", "status", "downloads", "sources", "servers",
-    "search", "search-stop", "download", "add-link", "pause",
-    "resume", "connect", "disconnect", "server-connect",
-    "server-disconnect", "server-add", "server-remove",
-    "prefs-connection-get", "prefs-connection-set"
-]
-```
+Default capability set includes all advertised operations from `ECSupportedOps.allOperations`.
 
 ## Binary Protocol Layer
 
@@ -486,4 +600,5 @@ ECOperationError         - Operation validation errors
 ## Document History
 
 - **Initial**: Contract specification for SwiftEC implementation
-- **May 2026**: Updated with final implementation details, confirmed all 23 operations complete
+- **May 2026**: Updated with final implementation details, confirmed core operation set complete
+- **July 2026**: Expanded to reflect the full ~57-operation advertised surface across fourteen categories

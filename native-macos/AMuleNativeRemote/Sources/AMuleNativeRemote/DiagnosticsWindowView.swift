@@ -24,11 +24,13 @@ struct DiagnosticsWindowView: View {
         case serverInfo = "Server Info"
         case coreLog = "Core Log"
         case coreDebugLog = "Core Debug"
+        case lastLogEntry = "Last Log Entry"
 
         var localizedTitle: String { L2(rawValue) }
     }
 
     @State private var diagnosticsTab: DiagnosticsTab = .log
+    @State private var showResetDebugLogConfirmation = false
 
     private var availableTabs: [DiagnosticsTab] {
         var tabs: [DiagnosticsTab] = [.log, .downloads, .sources, .search, .servers]
@@ -41,6 +43,9 @@ struct DiagnosticsWindowView: View {
         if model.isBridgeOpSupported("debug-log") {
             tabs.append(.coreDebugLog)
         }
+        if model.isBridgeOpSupported("last-log-entry") {
+            tabs.append(.lastLogEntry)
+        }
         return tabs
     }
 
@@ -48,7 +53,7 @@ struct DiagnosticsWindowView: View {
         GeometryReader { proxy in
             VStack(spacing: 12) {
                 HStack(spacing: 10) {
-                    Picker("Diagnostics", selection: $diagnosticsTab) {
+                    Picker(L2("Diagnostics"), selection: $diagnosticsTab) {
                         ForEach(availableTabs, id: \.self) { tab in
                             Text(tab.localizedTitle).tag(tab)
                         }
@@ -58,20 +63,28 @@ struct DiagnosticsWindowView: View {
 
                     Spacer()
 
-                    Button("Copy") {
+                    Button(L2("Copy")) {
                         copyCurrentDiagnostics()
                     }
                     .buttonStyle(.bordered)
 
                     if diagnosticsTab == .log {
-                        Button("Clear Log") {
+                        Button(L2("Clear Log")) {
                             model.resetLog()
                         }
                         .buttonStyle(.bordered)
+                        .help(L2("Clear local and remote log"))
+
+                        if model.isBridgeOpSupported("reset-debug-log") {
+                            Button(L2("Reset Debug Log")) {
+                                showResetDebugLogConfirmation = true
+                            }
+                            .buttonStyle(.bordered)
+                        }
                     }
 
                     if diagnosticsTab == .coreLog {
-                        Button("Refresh") {
+                        Button(L2("Refresh")) {
                             model.refreshCoreLog()
                         }
                         .buttonStyle(.bordered)
@@ -79,15 +92,23 @@ struct DiagnosticsWindowView: View {
                     }
 
                     if diagnosticsTab == .coreDebugLog {
-                        Button("Refresh") {
+                        Button(L2("Refresh")) {
                             model.refreshCoreDebugLog()
                         }
                         .buttonStyle(.bordered)
                         .disabled(model.isBusy || !model.isBridgeOpSupported("debug-log"))
                     }
 
+                    if diagnosticsTab == .lastLogEntry {
+                        Button(L2("Refresh")) {
+                            model.refreshLastLogEntry()
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(model.isBusy || !model.isBridgeOpSupported("last-log-entry"))
+                    }
+
                     if diagnosticsTab == .serverInfo {
-                        Button("Refresh") {
+                        Button(L2("Refresh")) {
                             model.refreshServerInfo()
                         }
                         .buttonStyle(.bordered)
@@ -118,6 +139,12 @@ struct DiagnosticsWindowView: View {
                 diagnosticsTab = first
             }
         }
+        .alert(L2("Reset Debug Log?"), isPresented: $showResetDebugLogConfirmation) {
+            Button(L2("Cancel"), role: .cancel) {}
+            Button(L2("Reset"), role: .destructive) { model.resetDebugLog() }
+        } message: {
+            Text(L2("This will clear the remote debug log. This action cannot be undone."))
+        }
     }
 
     private var currentDiagnosticsText: String {
@@ -138,6 +165,8 @@ struct DiagnosticsWindowView: View {
             return model.coreLogLines.isEmpty ? L2("No core log lines captured yet.") : model.coreLogLines.joined(separator: "\n")
         case .coreDebugLog:
             return model.coreDebugLogLines.isEmpty ? L2("No core debug log lines captured yet.") : model.coreDebugLogLines.joined(separator: "\n")
+        case .lastLogEntry:
+            return model.lastLogEntryText.isEmpty ? L2("No last log entry captured yet.") : model.lastLogEntryText
         }
     }
 
@@ -159,6 +188,8 @@ struct DiagnosticsWindowView: View {
             model.copyCoreLogRawToClipboard()
         case .coreDebugLog:
             model.copyCoreDebugLogRawToClipboard()
+        case .lastLogEntry:
+            model.pasteboardShare.writeString(model.lastLogEntryText)
         }
     }
 }

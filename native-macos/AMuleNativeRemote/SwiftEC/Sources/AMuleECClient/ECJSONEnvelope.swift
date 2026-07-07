@@ -19,8 +19,9 @@ public struct ECBridgeEnvelope<Payload: Encodable>: Encodable {
     public let progress: Int?
     public let results: [ECSearchResult]?
     public let prefsConnection: ECConnectionPrefs?
+    public let connectionState: ECConnectionState?
 
-    public init(ok: Bool, schemaVersion: Int? = nil, error: String? = nil, message: String? = nil, capabilities: ECCapabilities? = nil, status: ECStatus? = nil, downloads: [ECDownload]? = nil, sources: [ECSource]? = nil, servers: [ECServer]? = nil, uploads: [ECUpload]? = nil, sharedFiles: [ECSharedFile]? = nil, log: ECCoreLog? = nil, categories: [ECCategory]? = nil, friends: [ECFriend]? = nil, stats: ECStatsPayload? = nil, progress: Int? = nil, results: [ECSearchResult]? = nil, prefsConnection: ECConnectionPrefs? = nil) {
+    public init(ok: Bool, schemaVersion: Int? = nil, error: String? = nil, message: String? = nil, capabilities: ECCapabilities? = nil, status: ECStatus? = nil, downloads: [ECDownload]? = nil, sources: [ECSource]? = nil, servers: [ECServer]? = nil, uploads: [ECUpload]? = nil, sharedFiles: [ECSharedFile]? = nil, log: ECCoreLog? = nil, categories: [ECCategory]? = nil, friends: [ECFriend]? = nil, stats: ECStatsPayload? = nil, progress: Int? = nil, results: [ECSearchResult]? = nil, prefsConnection: ECConnectionPrefs? = nil, connectionState: ECConnectionState? = nil) {
         self.ok = ok
         self.schemaVersion = schemaVersion
         self.error = error
@@ -39,6 +40,7 @@ public struct ECBridgeEnvelope<Payload: Encodable>: Encodable {
         self.progress = progress
         self.results = results
         self.prefsConnection = prefsConnection
+        self.connectionState = connectionState
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -46,6 +48,7 @@ public struct ECBridgeEnvelope<Payload: Encodable>: Encodable {
         case schemaVersion = "schema_version"
         case sharedFiles = "shared_files"
         case prefsConnection = "prefs_connection"
+        case connectionState = "connection_state"
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -68,6 +71,7 @@ public struct ECBridgeEnvelope<Payload: Encodable>: Encodable {
         try container.encodeIfPresent(progress, forKey: .progress)
         try container.encodeIfPresent(results, forKey: .results)
         try container.encodeIfPresent(prefsConnection, forKey: .prefsConnection)
+        try container.encodeIfPresent(connectionState, forKey: .connectionState)
     }
 }
 
@@ -126,6 +130,10 @@ public enum ECJSONEnvelope {
 
     public static func prefsConnection(_ prefs: ECConnectionPrefs) throws -> Data {
         try encode(ECBridgeEnvelope<EmptyPayload>(ok: true, prefsConnection: prefs))
+    }
+
+    public static func connectionState(_ state: ECConnectionState) throws -> Data {
+        try encode(ECBridgeEnvelope<EmptyPayload>(ok: true, connectionState: state))
     }
 
     public static func message(_ message: String) throws -> Data {

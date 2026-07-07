@@ -59,14 +59,15 @@ final class AppModel: ObservableObject {
     @Published var lastStatsTreeRawOutput = ""
     @Published var lastStatsGraphsRawOutput = ""
     @Published var lastServersRawOutput = ""
+    @Published var lastConnectionStateRawOutput = ""
     @Published var lastError = ""
     @Published var isRefreshingSources = false
+    @Published var downloadSourceErrorsByHash: [String: String] = [:]
     @Published var shouldAutoRefreshDownloads = false
     @Published var addLinksPanelRequestID: Int = 0
+    @Published var connectionSheetRequestID: Int = 0
     @Published var selectedDownloadID: String? = nil
     @Published var renameSuggestionRequestID: Int = 0
-    @Published var hudMessage: String = ""
-    @Published var showHUD = false
     @Published var bridgeSchemaVersion: Int?
     @Published var bridgeOps: Set<String> = []
     @Published var uploads: [BridgeUploadPayload] = []
@@ -74,6 +75,7 @@ final class AppModel: ObservableObject {
     @Published var coreLogLines: [String] = []
     @Published var coreDebugLogLines: [String] = []
     @Published var serverInfoLines: [String] = []
+    @Published var lastLogEntryText: String = ""
     @Published var connectionMaxDownloadKBps: Int = 0
     @Published var connectionMaxUploadKBps: Int = 0
     @Published var connectionMaxDownloadInput: String = "0"
@@ -132,11 +134,11 @@ final class AppModel: ObservableObject {
     @Published var statsTree: BridgeStatsTreeNodePayload?
     @Published var statsGraphs: BridgeStatsGraphsPayload?
     @Published var statsGraphsLastTimestamp: Double?
+    @Published var connectionState: BridgeConnectionStatePayload?
     @Published var ipFilterURLInput: String = ""
 
     var autoRefreshTask: Task<Void, Never>?
     var pendingRenameSuggestionRequest: DownloadRenameSuggestionRequest?
-    var hudDismissTask: Task<Void, Never>?
     var searchTask: Task<Void, Never>?
     var renameVerificationMaxAttempts = 3
     var renameVerificationRetryDelayNanoseconds: UInt64 = 300_000_000

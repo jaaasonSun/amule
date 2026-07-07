@@ -76,7 +76,7 @@ final class DownloadParityActionTests: XCTestCase {
         XCTAssertEqual(model.lastError, "")
     }
 
-    func testCategoryPreloadSkipsUnsupportedCapability() async throws {
+    func testCategoryPreloadReadsWithoutAdvertisedCapability() async throws {
         let bridge = FakeBridgeAdapter()
         bridge.capabilityOps = Set(["downloads", "servers", "status"])
         bridge.categoriesResult = ([.fixture(id: 3, title: "Video")], #"{"ok":true,"categories":[{"id":3,"title":"Video"}]}"#)
@@ -85,8 +85,8 @@ final class DownloadParityActionTests: XCTestCase {
         await model.refreshBridgeCapabilitiesAndPreloadCategories(logOutput: false, suppressErrors: true)
 
         XCTAssertTrue(bridge.invokedOperations.contains("capabilities"))
-        XCTAssertFalse(bridge.invokedOperations.contains("categories"))
-        XCTAssertEqual(model.categories, [])
+        XCTAssertTrue(bridge.invokedOperations.contains("categories"))
+        XCTAssertEqual(model.categories.map(\.title), ["Video"])
         XCTAssertEqual(model.lastError, "")
     }
 

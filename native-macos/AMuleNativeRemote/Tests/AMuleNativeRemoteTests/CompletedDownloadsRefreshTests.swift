@@ -147,6 +147,7 @@ final class CompletedDownloadsRefreshTests: XCTestCase {
         XCTAssertEqual(bridge.sourceCalls, [item.id])
         XCTAssertEqual(model.sources(for: item), [])
         XCTAssertEqual(model.lastError, "")
+        XCTAssertNil(model.sourceError(for: item))
     }
 
     @MainActor
@@ -162,7 +163,26 @@ final class CompletedDownloadsRefreshTests: XCTestCase {
 
         XCTAssertEqual(bridge.sourceCalls, [item.id])
         XCTAssertEqual(model.lastError, "Source refresh exploded")
+        XCTAssertEqual(model.sourceError(for: item), "Source refresh exploded")
         XCTAssertTrue(model.outputLog.contains("! sources failed\nSource refresh exploded"))
+    }
+
+    @MainActor
+    func testRefreshDownloadSourcesSuccessClearsPerDownloadErrorAndPreservesRawOutput() async throws {
+        let bridge = RecordingFakeBridgeAdapter()
+        bridge.sourcesResult = .success(([sampleSourcePayload()], #"{"ok":true,"sources":[{"client_id":1}]}"#))
+
+        let model = AppModel(bridge: bridge)
+        let item = try makeDownloadItem(from: BridgeEnvelopeFixtures.activePart())
+        model.downloadSourceErrorsByHash[item.id] = "Previous failure"
+
+        model.refreshDownloadSources(for: item)
+        await waitForSourceRefresh(in: model)
+
+        XCTAssertEqual(bridge.sourceCalls, [item.id])
+        XCTAssertEqual(model.sources(for: item).map(\.id), [1])
+        XCTAssertNil(model.sourceError(for: item))
+        XCTAssertEqual(model.lastSourcesRawOutput, #"{"ok":true,"sources":[{"client_id":1}]}"#)
     }
 
     @MainActor
@@ -179,6 +199,7 @@ final class CompletedDownloadsRefreshTests: XCTestCase {
         XCTAssertEqual(model.sources(for: item), [])
         XCTAssertFalse(model.isRefreshingSources)
         XCTAssertEqual(model.lastError, "")
+        XCTAssertNil(model.sourceError(for: item))
     }
 
     @MainActor
@@ -218,6 +239,31 @@ final class CompletedDownloadsRefreshTests: XCTestCase {
     private func sampleSourceItem() -> DownloadSourceItem {
         DownloadSourceItem(
             id: 1,
+            requestFileID: 101,
+            clientName: "peer",
+            userIP: "127.0.0.1",
+            userPort: 4662,
+            serverName: "Example",
+            serverIP: "1.2.3.4",
+            serverPort: 4661,
+            software: "aMule",
+            softwareVersion: "2.3.3",
+            downloadState: 3,
+            downloadStateText: "Downloading",
+            sourceFrom: 0,
+            sourceFromText: "Unknown",
+            downSpeedKBps: 12.5,
+            availableParts: 8,
+            remoteQueueRank: 1,
+            obfuscationStatus: 0,
+            extendedProtocol: true,
+            remoteFilename: "Active Part.iso"
+        )
+    }
+
+    private func sampleSourcePayload() -> BridgeDownloadSourcePayload {
+        BridgeDownloadSourcePayload(
+            clientID: 1,
             requestFileID: 101,
             clientName: "peer",
             userIP: "127.0.0.1",

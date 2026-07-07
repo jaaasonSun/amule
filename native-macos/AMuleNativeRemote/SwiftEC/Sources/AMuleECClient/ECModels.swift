@@ -4,6 +4,8 @@ import AMuleECProtocol
 public enum ECOperationName: String, CaseIterable, Codable, Sendable {
     case capabilities
     case status
+    case shutdown
+    case connectionState = "connection-state"
     case downloads
     case sources
     case servers
@@ -38,7 +40,9 @@ public enum ECOperationName: String, CaseIterable, Codable, Sendable {
     case sharedFiles = "shared-files"
     case sharedFilesReload = "shared-files-reload"
     case log
+    case lastLogEntry = "last-log-entry"
     case debugLog = "debug-log"
+    case resetDebugLog = "reset-debug-log"
     case categories
     case categoryCreate = "category-create"
     case categoryUpdate = "category-update"
@@ -60,6 +64,7 @@ public enum ECOperationName: String, CaseIterable, Codable, Sendable {
     case friendShared = "friend-shared"
     case statsTree = "stats-tree"
     case statsGraphs = "stats-graphs"
+    case clientSwapToAnotherFile = "client-swap-to-another-file"
 }
 
 public struct ECCapabilities: Codable, Equatable, Sendable {
@@ -155,6 +160,10 @@ public struct ECSearchRequest: Equatable, Sendable {
 }
 
 public struct ECConnectionPrefs: Codable, Equatable, Sendable {
+    public let userNick: String?
+    public let userHash: String?
+    public let userHost: String?
+    public let checkNewVersion: Bool?
     public let maxDownload: Int
     public let maxUpload: Int
     public let tcpPort: Int?
@@ -162,6 +171,13 @@ public struct ECConnectionPrefs: Codable, Equatable, Sendable {
     public let udpEnabled: Bool?
     public let ed2kEnabled: Bool?
     public let kadEnabled: Bool?
+    public let messageFilterEnabled: Bool?
+    public let messageFilterAll: Bool?
+    public let messageFilterFriends: Bool?
+    public let messageFilterSecure: Bool?
+    public let messageFilterByKeyword: Bool?
+    public let messageFilterKeywords: String?
+    public let onlineSignatureEnabled: Bool?
     public let incomingDirectory: String?
     public let tempDirectory: String?
     public let sharedDirectories: [String]?
@@ -176,6 +192,11 @@ public struct ECConnectionPrefs: Codable, Equatable, Sendable {
     public let checkFreeSpace: Bool?
     public let minFreeDiskSpaceMB: Int?
     public let createSparseFiles: Bool?
+    public let maxConnectionsPerFive: Int?
+    public let verboseLogging: Bool?
+    public let fileBufferSize: Int?
+    public let uploadQueueSize: Int?
+    public let serverKeepaliveTimeout: Int?
     public let serverUpdateURL: String?
     public let removeDeadServers: Bool?
     public let deadServerRetries: Int?
@@ -204,11 +225,24 @@ public struct ECConnectionPrefs: Codable, Equatable, Sendable {
     public let webServerRefreshSeconds: Int?
     public let webServerTemplate: String?
     public let remoteAuthMetadata: String?
+    public let dlCap: Int?
+    public let ulCap: Int?
+    public let slotAllocation: Int?
+    public let maxFileSources: Int?
+    public let maxConn: Int?
+    public let autoConnect: Bool?
+    public let reconnect: Bool?
+    public let canSeeShares: Bool?
     public let statisticsSupported: Bool
     public let statsGraphUpdateInterval: Int?
     public let statsDisplayLimit: Int?
+    public let kademliaUpdateURL: String?
 
     public init(
+        userNick: String? = nil,
+        userHash: String? = nil,
+        userHost: String? = nil,
+        checkNewVersion: Bool? = nil,
         maxDownload: Int,
         maxUpload: Int,
         tcpPort: Int? = nil,
@@ -216,6 +250,13 @@ public struct ECConnectionPrefs: Codable, Equatable, Sendable {
         udpEnabled: Bool? = nil,
         ed2kEnabled: Bool? = nil,
         kadEnabled: Bool? = nil,
+        messageFilterEnabled: Bool? = nil,
+        messageFilterAll: Bool? = nil,
+        messageFilterFriends: Bool? = nil,
+        messageFilterSecure: Bool? = nil,
+        messageFilterByKeyword: Bool? = nil,
+        messageFilterKeywords: String? = nil,
+        onlineSignatureEnabled: Bool? = nil,
         incomingDirectory: String? = nil,
         tempDirectory: String? = nil,
         sharedDirectories: [String]? = nil,
@@ -230,6 +271,11 @@ public struct ECConnectionPrefs: Codable, Equatable, Sendable {
         checkFreeSpace: Bool? = nil,
         minFreeDiskSpaceMB: Int? = nil,
         createSparseFiles: Bool? = nil,
+        maxConnectionsPerFive: Int? = nil,
+        verboseLogging: Bool? = nil,
+        fileBufferSize: Int? = nil,
+        uploadQueueSize: Int? = nil,
+        serverKeepaliveTimeout: Int? = nil,
         serverUpdateURL: String? = nil,
         removeDeadServers: Bool? = nil,
         deadServerRetries: Int? = nil,
@@ -258,10 +304,23 @@ public struct ECConnectionPrefs: Codable, Equatable, Sendable {
         webServerRefreshSeconds: Int? = nil,
         webServerTemplate: String? = nil,
         remoteAuthMetadata: String? = nil,
+        dlCap: Int? = nil,
+        ulCap: Int? = nil,
+        slotAllocation: Int? = nil,
+        maxFileSources: Int? = nil,
+        maxConn: Int? = nil,
+        autoConnect: Bool? = nil,
+        reconnect: Bool? = nil,
+        canSeeShares: Bool? = nil,
         statisticsSupported: Bool = false,
         statsGraphUpdateInterval: Int? = nil,
-        statsDisplayLimit: Int? = nil
+        statsDisplayLimit: Int? = nil,
+        kademliaUpdateURL: String? = nil
     ) {
+        self.userNick = userNick
+        self.userHash = userHash
+        self.userHost = userHost
+        self.checkNewVersion = checkNewVersion
         self.maxDownload = maxDownload
         self.maxUpload = maxUpload
         self.tcpPort = tcpPort
@@ -269,6 +328,13 @@ public struct ECConnectionPrefs: Codable, Equatable, Sendable {
         self.udpEnabled = udpEnabled
         self.ed2kEnabled = ed2kEnabled
         self.kadEnabled = kadEnabled
+        self.messageFilterEnabled = messageFilterEnabled
+        self.messageFilterAll = messageFilterAll
+        self.messageFilterFriends = messageFilterFriends
+        self.messageFilterSecure = messageFilterSecure
+        self.messageFilterByKeyword = messageFilterByKeyword
+        self.messageFilterKeywords = messageFilterKeywords
+        self.onlineSignatureEnabled = onlineSignatureEnabled
         self.incomingDirectory = incomingDirectory
         self.tempDirectory = tempDirectory
         self.sharedDirectories = sharedDirectories
@@ -283,6 +349,11 @@ public struct ECConnectionPrefs: Codable, Equatable, Sendable {
         self.checkFreeSpace = checkFreeSpace
         self.minFreeDiskSpaceMB = minFreeDiskSpaceMB
         self.createSparseFiles = createSparseFiles
+        self.maxConnectionsPerFive = maxConnectionsPerFive
+        self.verboseLogging = verboseLogging
+        self.fileBufferSize = fileBufferSize
+        self.uploadQueueSize = uploadQueueSize
+        self.serverKeepaliveTimeout = serverKeepaliveTimeout
         self.serverUpdateURL = serverUpdateURL
         self.removeDeadServers = removeDeadServers
         self.deadServerRetries = deadServerRetries
@@ -311,12 +382,25 @@ public struct ECConnectionPrefs: Codable, Equatable, Sendable {
         self.webServerRefreshSeconds = webServerRefreshSeconds
         self.webServerTemplate = webServerTemplate
         self.remoteAuthMetadata = remoteAuthMetadata
+        self.dlCap = dlCap
+        self.ulCap = ulCap
+        self.slotAllocation = slotAllocation
+        self.maxFileSources = maxFileSources
+        self.maxConn = maxConn
+        self.autoConnect = autoConnect
+        self.reconnect = reconnect
+        self.canSeeShares = canSeeShares
         self.statisticsSupported = statisticsSupported
         self.statsGraphUpdateInterval = statsGraphUpdateInterval
         self.statsDisplayLimit = statsDisplayLimit
+        self.kademliaUpdateURL = kademliaUpdateURL
     }
 
     private enum CodingKeys: String, CodingKey {
+        case userNick = "user_nick"
+        case userHash = "user_hash"
+        case userHost = "user_host"
+        case checkNewVersion = "check_new_version"
         case maxDownload = "max_dl"
         case maxUpload = "max_ul"
         case tcpPort = "tcp_port"
@@ -324,6 +408,13 @@ public struct ECConnectionPrefs: Codable, Equatable, Sendable {
         case udpEnabled = "udp_enabled"
         case ed2kEnabled = "ed2k_enabled"
         case kadEnabled = "kad_enabled"
+        case messageFilterEnabled = "message_filter_enabled"
+        case messageFilterAll = "message_filter_all"
+        case messageFilterFriends = "message_filter_friends"
+        case messageFilterSecure = "message_filter_secure"
+        case messageFilterByKeyword = "message_filter_by_keyword"
+        case messageFilterKeywords = "message_filter_keywords"
+        case onlineSignatureEnabled = "online_signature_enabled"
         case incomingDirectory = "incoming_dir"
         case tempDirectory = "temp_dir"
         case sharedDirectories = "shared_dirs"
@@ -338,6 +429,11 @@ public struct ECConnectionPrefs: Codable, Equatable, Sendable {
         case checkFreeSpace = "check_free_space"
         case minFreeDiskSpaceMB = "min_free_disk_space_mb"
         case createSparseFiles = "create_sparse_files"
+        case maxConnectionsPerFive = "max_connections_per_five"
+        case verboseLogging = "verbose_logging"
+        case fileBufferSize = "file_buffer_size"
+        case uploadQueueSize = "upload_queue_size"
+        case serverKeepaliveTimeout = "server_keepalive_timeout"
         case serverUpdateURL = "server_update_url"
         case removeDeadServers = "remove_dead_servers"
         case deadServerRetries = "dead_server_retries"
@@ -366,14 +462,27 @@ public struct ECConnectionPrefs: Codable, Equatable, Sendable {
         case webServerRefreshSeconds = "webserver_refresh_seconds"
         case webServerTemplate = "webserver_template"
         case remoteAuthMetadata = "remote_auth_metadata"
+        case dlCap = "dl_cap"
+        case ulCap = "ul_cap"
+        case slotAllocation = "slot_allocation"
+        case maxFileSources = "max_file_sources"
+        case maxConn = "max_conn"
+        case autoConnect = "auto_connect"
+        case reconnect
+        case canSeeShares = "can_see_shares"
         case statisticsSupported = "statistics_supported"
         case statsGraphUpdateInterval = "stats_graph_update_interval"
         case statsDisplayLimit = "stats_display_limit"
+        case kademliaUpdateURL = "kademlia_update_url"
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.init(
+            userNick: try container.decodeIfPresent(String.self, forKey: .userNick),
+            userHash: try container.decodeIfPresent(String.self, forKey: .userHash),
+            userHost: try container.decodeIfPresent(String.self, forKey: .userHost),
+            checkNewVersion: try container.decodeIfPresent(Bool.self, forKey: .checkNewVersion),
             maxDownload: try container.decodeIfPresent(Int.self, forKey: .maxDownload) ?? 0,
             maxUpload: try container.decodeIfPresent(Int.self, forKey: .maxUpload) ?? 0,
             tcpPort: try container.decodeIfPresent(Int.self, forKey: .tcpPort),
@@ -381,6 +490,13 @@ public struct ECConnectionPrefs: Codable, Equatable, Sendable {
             udpEnabled: try container.decodeIfPresent(Bool.self, forKey: .udpEnabled),
             ed2kEnabled: try container.decodeIfPresent(Bool.self, forKey: .ed2kEnabled),
             kadEnabled: try container.decodeIfPresent(Bool.self, forKey: .kadEnabled),
+            messageFilterEnabled: try container.decodeIfPresent(Bool.self, forKey: .messageFilterEnabled),
+            messageFilterAll: try container.decodeIfPresent(Bool.self, forKey: .messageFilterAll),
+            messageFilterFriends: try container.decodeIfPresent(Bool.self, forKey: .messageFilterFriends),
+            messageFilterSecure: try container.decodeIfPresent(Bool.self, forKey: .messageFilterSecure),
+            messageFilterByKeyword: try container.decodeIfPresent(Bool.self, forKey: .messageFilterByKeyword),
+            messageFilterKeywords: try container.decodeIfPresent(String.self, forKey: .messageFilterKeywords),
+            onlineSignatureEnabled: try container.decodeIfPresent(Bool.self, forKey: .onlineSignatureEnabled),
             incomingDirectory: try container.decodeIfPresent(String.self, forKey: .incomingDirectory),
             tempDirectory: try container.decodeIfPresent(String.self, forKey: .tempDirectory),
             sharedDirectories: try container.decodeIfPresent([String].self, forKey: .sharedDirectories),
@@ -395,6 +511,11 @@ public struct ECConnectionPrefs: Codable, Equatable, Sendable {
             checkFreeSpace: try container.decodeIfPresent(Bool.self, forKey: .checkFreeSpace),
             minFreeDiskSpaceMB: try container.decodeIfPresent(Int.self, forKey: .minFreeDiskSpaceMB),
             createSparseFiles: try container.decodeIfPresent(Bool.self, forKey: .createSparseFiles),
+            maxConnectionsPerFive: try container.decodeIfPresent(Int.self, forKey: .maxConnectionsPerFive),
+            verboseLogging: try container.decodeIfPresent(Bool.self, forKey: .verboseLogging),
+            fileBufferSize: try container.decodeIfPresent(Int.self, forKey: .fileBufferSize),
+            uploadQueueSize: try container.decodeIfPresent(Int.self, forKey: .uploadQueueSize),
+            serverKeepaliveTimeout: try container.decodeIfPresent(Int.self, forKey: .serverKeepaliveTimeout),
             serverUpdateURL: try container.decodeIfPresent(String.self, forKey: .serverUpdateURL),
             removeDeadServers: try container.decodeIfPresent(Bool.self, forKey: .removeDeadServers),
             deadServerRetries: try container.decodeIfPresent(Int.self, forKey: .deadServerRetries),
@@ -423,9 +544,18 @@ public struct ECConnectionPrefs: Codable, Equatable, Sendable {
             webServerRefreshSeconds: try container.decodeIfPresent(Int.self, forKey: .webServerRefreshSeconds),
             webServerTemplate: try container.decodeIfPresent(String.self, forKey: .webServerTemplate),
             remoteAuthMetadata: try container.decodeIfPresent(String.self, forKey: .remoteAuthMetadata),
+            dlCap: try container.decodeIfPresent(Int.self, forKey: .dlCap),
+            ulCap: try container.decodeIfPresent(Int.self, forKey: .ulCap),
+            slotAllocation: try container.decodeIfPresent(Int.self, forKey: .slotAllocation),
+            maxFileSources: try container.decodeIfPresent(Int.self, forKey: .maxFileSources),
+            maxConn: try container.decodeIfPresent(Int.self, forKey: .maxConn),
+            autoConnect: try container.decodeIfPresent(Bool.self, forKey: .autoConnect),
+            reconnect: try container.decodeIfPresent(Bool.self, forKey: .reconnect),
+            canSeeShares: try container.decodeIfPresent(Bool.self, forKey: .canSeeShares),
             statisticsSupported: try container.decodeIfPresent(Bool.self, forKey: .statisticsSupported) ?? false,
             statsGraphUpdateInterval: try container.decodeIfPresent(Int.self, forKey: .statsGraphUpdateInterval),
-            statsDisplayLimit: try container.decodeIfPresent(Int.self, forKey: .statsDisplayLimit)
+            statsDisplayLimit: try container.decodeIfPresent(Int.self, forKey: .statsDisplayLimit),
+            kademliaUpdateURL: try container.decodeIfPresent(String.self, forKey: .kademliaUpdateURL)
         )
     }
 }
@@ -440,6 +570,30 @@ public struct ECStatus: Codable, Equatable, Sendable {
     public let uploadSpeed: Int
     public let queue: Int
     public let sources: Int
+    public let uploadSpeedLimit: Int
+    public let downloadSpeedLimit: Int
+    public let uploadOverhead: Int
+    public let downloadOverhead: Int
+    public let bannedCount: Int
+    public let ed2kUsers: Int
+    public let kadUsers: Int
+    public let ed2kFiles: Int
+    public let kadFiles: Int
+    public let kadFirewalledUDP: Bool
+    public let totalSentBytes: UInt64
+    public let totalReceivedBytes: UInt64
+    public let sharedFileCount: Int
+    public let kadNodes: Int
+    public let loggerMessage: String?
+    public let kadIndexedSources: Int
+    public let kadIndexedKeywords: Int
+    public let kadIndexedNotes: Int
+    public let kadIndexedLoad: Int
+    public let kadIP: String?
+    public let buddyStatus: Int
+    public let buddyIP: String?
+    public let buddyPort: Int
+    public let kadInLANMode: Bool
 
     public init(
         connected: Bool,
@@ -450,7 +604,31 @@ public struct ECStatus: Codable, Equatable, Sendable {
         downloadSpeed: Int,
         uploadSpeed: Int,
         queue: Int,
-        sources: Int
+        sources: Int,
+        uploadSpeedLimit: Int = 0,
+        downloadSpeedLimit: Int = 0,
+        uploadOverhead: Int = 0,
+        downloadOverhead: Int = 0,
+        bannedCount: Int = 0,
+        ed2kUsers: Int = 0,
+        kadUsers: Int = 0,
+        ed2kFiles: Int = 0,
+        kadFiles: Int = 0,
+        kadFirewalledUDP: Bool = false,
+        totalSentBytes: UInt64 = 0,
+        totalReceivedBytes: UInt64 = 0,
+        sharedFileCount: Int = 0,
+        kadNodes: Int = 0,
+        loggerMessage: String? = nil,
+        kadIndexedSources: Int = 0,
+        kadIndexedKeywords: Int = 0,
+        kadIndexedNotes: Int = 0,
+        kadIndexedLoad: Int = 0,
+        kadIP: String? = nil,
+        buddyStatus: Int = 0,
+        buddyIP: String? = nil,
+        buddyPort: Int = 0,
+        kadInLANMode: Bool = false
     ) {
         self.connected = connected
         self.ed2k = ed2k
@@ -461,6 +639,30 @@ public struct ECStatus: Codable, Equatable, Sendable {
         self.uploadSpeed = uploadSpeed
         self.queue = queue
         self.sources = sources
+        self.uploadSpeedLimit = uploadSpeedLimit
+        self.downloadSpeedLimit = downloadSpeedLimit
+        self.uploadOverhead = uploadOverhead
+        self.downloadOverhead = downloadOverhead
+        self.bannedCount = bannedCount
+        self.ed2kUsers = ed2kUsers
+        self.kadUsers = kadUsers
+        self.ed2kFiles = ed2kFiles
+        self.kadFiles = kadFiles
+        self.kadFirewalledUDP = kadFirewalledUDP
+        self.totalSentBytes = totalSentBytes
+        self.totalReceivedBytes = totalReceivedBytes
+        self.sharedFileCount = sharedFileCount
+        self.kadNodes = kadNodes
+        self.loggerMessage = loggerMessage
+        self.kadIndexedSources = kadIndexedSources
+        self.kadIndexedKeywords = kadIndexedKeywords
+        self.kadIndexedNotes = kadIndexedNotes
+        self.kadIndexedLoad = kadIndexedLoad
+        self.kadIP = kadIP
+        self.buddyStatus = buddyStatus
+        self.buddyIP = buddyIP
+        self.buddyPort = buddyPort
+        self.kadInLANMode = kadInLANMode
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -469,6 +671,93 @@ public struct ECStatus: Codable, Equatable, Sendable {
         case idStatus = "id_status"
         case downloadSpeed = "download_speed"
         case uploadSpeed = "upload_speed"
+        case uploadSpeedLimit = "upload_speed_limit"
+        case downloadSpeedLimit = "download_speed_limit"
+        case uploadOverhead = "upload_overhead"
+        case downloadOverhead = "download_overhead"
+        case bannedCount = "banned_count"
+        case ed2kUsers = "ed2k_users"
+        case kadUsers = "kad_users"
+        case ed2kFiles = "ed2k_files"
+        case kadFiles = "kad_files"
+        case kadFirewalledUDP = "kad_firewalled_udp"
+        case totalSentBytes = "total_sent_bytes"
+        case totalReceivedBytes = "total_received_bytes"
+        case sharedFileCount = "shared_file_count"
+        case kadNodes = "kad_nodes"
+        case loggerMessage = "logger_message"
+        case kadIndexedSources = "kad_indexed_sources"
+        case kadIndexedKeywords = "kad_indexed_keywords"
+        case kadIndexedNotes = "kad_indexed_notes"
+        case kadIndexedLoad = "kad_indexed_load"
+        case kadIP = "kad_ip"
+        case buddyStatus = "buddy_status"
+        case buddyIP = "buddy_ip"
+        case buddyPort = "buddy_port"
+        case kadInLANMode = "kad_in_lan_mode"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            connected: try container.decode(Bool.self, forKey: .connected),
+            ed2k: try container.decode(String.self, forKey: .ed2k),
+            kad: try container.decode(String.self, forKey: .kad),
+            currentServer: try container.decodeIfPresent(ECServer.self, forKey: .currentServer),
+            idStatus: try container.decodeIfPresent(String.self, forKey: .idStatus),
+            downloadSpeed: try container.decode(Int.self, forKey: .downloadSpeed),
+            uploadSpeed: try container.decode(Int.self, forKey: .uploadSpeed),
+            queue: try container.decode(Int.self, forKey: .queue),
+            sources: try container.decode(Int.self, forKey: .sources),
+            uploadSpeedLimit: try container.decodeIfPresent(Int.self, forKey: .uploadSpeedLimit) ?? 0,
+            downloadSpeedLimit: try container.decodeIfPresent(Int.self, forKey: .downloadSpeedLimit) ?? 0,
+            uploadOverhead: try container.decodeIfPresent(Int.self, forKey: .uploadOverhead) ?? 0,
+            downloadOverhead: try container.decodeIfPresent(Int.self, forKey: .downloadOverhead) ?? 0,
+            bannedCount: try container.decodeIfPresent(Int.self, forKey: .bannedCount) ?? 0,
+            ed2kUsers: try container.decodeIfPresent(Int.self, forKey: .ed2kUsers) ?? 0,
+            kadUsers: try container.decodeIfPresent(Int.self, forKey: .kadUsers) ?? 0,
+            ed2kFiles: try container.decodeIfPresent(Int.self, forKey: .ed2kFiles) ?? 0,
+            kadFiles: try container.decodeIfPresent(Int.self, forKey: .kadFiles) ?? 0,
+            kadFirewalledUDP: try container.decodeIfPresent(Bool.self, forKey: .kadFirewalledUDP) ?? false,
+            totalSentBytes: try container.decodeIfPresent(UInt64.self, forKey: .totalSentBytes) ?? 0,
+            totalReceivedBytes: try container.decodeIfPresent(UInt64.self, forKey: .totalReceivedBytes) ?? 0,
+            sharedFileCount: try container.decodeIfPresent(Int.self, forKey: .sharedFileCount) ?? 0,
+            kadNodes: try container.decodeIfPresent(Int.self, forKey: .kadNodes) ?? 0,
+            loggerMessage: try container.decodeIfPresent(String.self, forKey: .loggerMessage),
+            kadIndexedSources: try container.decodeIfPresent(Int.self, forKey: .kadIndexedSources) ?? 0,
+            kadIndexedKeywords: try container.decodeIfPresent(Int.self, forKey: .kadIndexedKeywords) ?? 0,
+            kadIndexedNotes: try container.decodeIfPresent(Int.self, forKey: .kadIndexedNotes) ?? 0,
+            kadIndexedLoad: try container.decodeIfPresent(Int.self, forKey: .kadIndexedLoad) ?? 0,
+            kadIP: try container.decodeIfPresent(String.self, forKey: .kadIP),
+            buddyStatus: try container.decodeIfPresent(Int.self, forKey: .buddyStatus) ?? 0,
+            buddyIP: try container.decodeIfPresent(String.self, forKey: .buddyIP),
+            buddyPort: try container.decodeIfPresent(Int.self, forKey: .buddyPort) ?? 0,
+            kadInLANMode: try container.decodeIfPresent(Bool.self, forKey: .kadInLANMode) ?? false
+        )
+    }
+}
+
+public struct ECConnectionState: Codable, Equatable, Sendable {
+    public let ed2kConnected: Bool
+    public let ed2kConnecting: Bool
+    public let kadConnected: Bool
+    public let kadFirewalled: Bool
+    public let kadRunning: Bool
+
+    public init(ed2kConnected: Bool, ed2kConnecting: Bool, kadConnected: Bool, kadFirewalled: Bool, kadRunning: Bool) {
+        self.ed2kConnected = ed2kConnected
+        self.ed2kConnecting = ed2kConnecting
+        self.kadConnected = kadConnected
+        self.kadFirewalled = kadFirewalled
+        self.kadRunning = kadRunning
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case ed2kConnected = "ed2k_connected"
+        case ed2kConnecting = "ed2k_connecting"
+        case kadConnected = "kad_connected"
+        case kadFirewalled = "kad_firewalled"
+        case kadRunning = "kad_running"
     }
 }
 
@@ -491,11 +780,14 @@ public struct ECDownload: Codable, Equatable, Sendable {
     public let size: UInt64
     public let done: UInt64
     public let transferred: UInt64
+    public let transferredUp: UInt64
     public let progress: Double
     public let sourcesCurrent: Int
     public let sourcesTotal: Int
     public let sourcesTransferring: Int
     public let sourcesA4AF: Int
+    public let a4afAuto: Bool
+    public let downloadActive: Bool
     public let statusCode: Int
     public let isCompleted: Bool
     public let status: String
@@ -505,9 +797,15 @@ public struct ECDownload: Codable, Equatable, Sendable {
     public let partMet: String
     public let lastSeenComplete: UInt64
     public let lastReceived: UInt64
+    public let lostCorruption: UInt64
+    public let gainedCompression: UInt64
+    public let savedICH: UInt64
     public let activeSeconds: Int
     public let availableParts: Int
     public let shared: Bool
+    public let ed2kLink: String?
+    public let comments: String?
+    public let a4afSources: [Int]?
     public let alternativeNames: [AlternativeName]
     public let progressColors: [UInt32]
     public let isStopped: Bool
@@ -523,11 +821,14 @@ public struct ECDownload: Codable, Equatable, Sendable {
         size: UInt64,
         done: UInt64,
         transferred: UInt64,
+        transferredUp: UInt64 = 0,
         progress: Double,
         sourcesCurrent: Int,
         sourcesTotal: Int,
         sourcesTransferring: Int,
         sourcesA4AF: Int,
+        a4afAuto: Bool = false,
+        downloadActive: Bool = false,
         statusCode: Int,
         isCompleted: Bool,
         status: String,
@@ -537,9 +838,15 @@ public struct ECDownload: Codable, Equatable, Sendable {
         partMet: String,
         lastSeenComplete: UInt64,
         lastReceived: UInt64,
+        lostCorruption: UInt64 = 0,
+        gainedCompression: UInt64 = 0,
+        savedICH: UInt64 = 0,
         activeSeconds: Int,
         availableParts: Int,
         shared: Bool,
+        ed2kLink: String? = nil,
+        comments: String? = nil,
+        a4afSources: [Int]? = nil,
         alternativeNames: [AlternativeName] = [],
         progressColors: [UInt32] = [],
         isStopped: Bool = false,
@@ -560,11 +867,14 @@ public struct ECDownload: Codable, Equatable, Sendable {
         self.size = size
         self.done = done
         self.transferred = transferred
+        self.transferredUp = transferredUp
         self.progress = progress
         self.sourcesCurrent = sourcesCurrent
         self.sourcesTotal = sourcesTotal
         self.sourcesTransferring = sourcesTransferring
         self.sourcesA4AF = sourcesA4AF
+        self.a4afAuto = a4afAuto
+        self.downloadActive = downloadActive
         self.statusCode = statusCode
         self.isCompleted = isCompleted
         self.status = status
@@ -574,9 +884,15 @@ public struct ECDownload: Codable, Equatable, Sendable {
         self.partMet = partMet
         self.lastSeenComplete = lastSeenComplete
         self.lastReceived = lastReceived
+        self.lostCorruption = lostCorruption
+        self.gainedCompression = gainedCompression
+        self.savedICH = savedICH
         self.activeSeconds = activeSeconds
         self.availableParts = availableParts
         self.shared = shared
+        self.ed2kLink = ed2kLink
+        self.comments = comments
+        self.a4afSources = a4afSources
         self.alternativeNames = alternativeNames
         self.progressColors = progressColors
         self.isStopped = isStopped
@@ -586,19 +902,28 @@ public struct ECDownload: Codable, Equatable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case ecid, hash, name, size, done, transferred, progress, status, speed, priority, category, shared
+        case transferredUp = "transferred_up"
         case nameEncodingSuspect = "name_encoding_suspect"
         case nameEncodingSuggestion = "name_encoding_suggestion"
         case sourcesCurrent = "sources_current"
         case sourcesTotal = "sources_total"
         case sourcesTransferring = "sources_transferring"
         case sourcesA4AF = "sources_a4af"
+        case a4afAuto = "a4af_auto"
+        case downloadActive = "download_active"
         case statusCode = "status_code"
         case isCompleted = "is_completed"
         case partMet = "part_met"
         case lastSeenComplete = "last_seen_complete"
         case lastReceived = "last_received"
+        case lostCorruption = "lost_corruption"
+        case gainedCompression = "gained_compression"
+        case savedICH = "saved_ich"
         case activeSeconds = "active_seconds"
         case availableParts = "available_parts"
+        case ed2kLink = "ed2k_link"
+        case comments
+        case a4afSources = "a4af_sources"
         case alternativeNames = "alternative_names"
         case progressColors = "progress_colors"
         case isStopped = "is_stopped"
@@ -624,11 +949,14 @@ public struct ECDownload: Codable, Equatable, Sendable {
         self.size = try container.decode(UInt64.self, forKey: .size)
         self.done = try container.decode(UInt64.self, forKey: .done)
         self.transferred = try container.decode(UInt64.self, forKey: .transferred)
+        self.transferredUp = try container.decodeIfPresent(UInt64.self, forKey: .transferredUp) ?? 0
         self.progress = try container.decode(Double.self, forKey: .progress)
         self.sourcesCurrent = try container.decode(Int.self, forKey: .sourcesCurrent)
         self.sourcesTotal = try container.decode(Int.self, forKey: .sourcesTotal)
         self.sourcesTransferring = try container.decode(Int.self, forKey: .sourcesTransferring)
         self.sourcesA4AF = try container.decode(Int.self, forKey: .sourcesA4AF)
+        self.a4afAuto = try container.decodeIfPresent(Bool.self, forKey: .a4afAuto) ?? false
+        self.downloadActive = try container.decodeIfPresent(Bool.self, forKey: .downloadActive) ?? false
         self.statusCode = try container.decode(Int.self, forKey: .statusCode)
         self.isCompleted = try container.decode(Bool.self, forKey: .isCompleted)
         self.status = try container.decode(String.self, forKey: .status)
@@ -638,9 +966,15 @@ public struct ECDownload: Codable, Equatable, Sendable {
         self.partMet = try container.decode(String.self, forKey: .partMet)
         self.lastSeenComplete = try container.decode(UInt64.self, forKey: .lastSeenComplete)
         self.lastReceived = try container.decode(UInt64.self, forKey: .lastReceived)
+        self.lostCorruption = try container.decodeIfPresent(UInt64.self, forKey: .lostCorruption) ?? 0
+        self.gainedCompression = try container.decodeIfPresent(UInt64.self, forKey: .gainedCompression) ?? 0
+        self.savedICH = try container.decodeIfPresent(UInt64.self, forKey: .savedICH) ?? 0
         self.activeSeconds = try container.decode(Int.self, forKey: .activeSeconds)
         self.availableParts = try container.decode(Int.self, forKey: .availableParts)
         self.shared = try container.decode(Bool.self, forKey: .shared)
+        self.ed2kLink = try container.decodeIfPresent(String.self, forKey: .ed2kLink)
+        self.comments = try container.decodeIfPresent(String.self, forKey: .comments)
+        self.a4afSources = try container.decodeIfPresent([Int].self, forKey: .a4afSources)
         self.alternativeNames = try container.decodeIfPresent([AlternativeName].self, forKey: .alternativeNames) ?? []
         self.progressColors = try container.decodeIfPresent([UInt32].self, forKey: .progressColors) ?? []
         self.isStopped = try container.decodeIfPresent(Bool.self, forKey: .isStopped) ?? false
@@ -660,18 +994,44 @@ public struct ECSource: Codable, Equatable, Sendable {
     public let serverPort: Int
     public let software: String
     public let softwareVersion: String
+    public let downloadedTotal: Int?
+    public let uploadedTotal: Int?
+    public let versionString: String?
+    public let clientHash: Data
+    public let score: Int
+    public let friendSlot: Bool
+    public let waitTime: Int
+    public let xferTime: Int
+    public let queueTime: Int
+    public let lastTime: Int
+    public let isModded: Bool
+    public let uploadSession: Int
     public let downloadState: Int
     public let downloadStateText: String
+    public let uploadState: Int
+    public let identState: Int
     public let sourceFrom: Int
     public let sourceFromText: String
+    public let uploadSpeed: Int
     public let downSpeedKBps: Double
     public let availableParts: Int
     public let remoteQueueRank: Int
+    public let oldRemoteQueueRank: Int
+    public let waitingPosition: Int
+    public let userID: Int
+    public let kadPort: Int
     public let obfuscationStatus: Int
     public let extendedProtocol: Bool
     public let remoteFilename: String
+    public let osInfo: String
+    public let partStatus: Data
+    public let nextRequestedPart: Int
+    public let lastDownloadingPart: Int
+    public let a4afFiles: Data
+    public let uploadPartStatus: Data
+    public let sharesFileList: Bool?
 
-    public init(clientID: Int, requestFileID: Int, clientName: String, userIP: String, userPort: Int, serverName: String, serverIP: String, serverPort: Int, software: String, softwareVersion: String, downloadState: Int, downloadStateText: String, sourceFrom: Int, sourceFromText: String, downSpeedKBps: Double, availableParts: Int, remoteQueueRank: Int, obfuscationStatus: Int, extendedProtocol: Bool, remoteFilename: String) {
+    public init(clientID: Int, requestFileID: Int, clientName: String, userIP: String, userPort: Int, serverName: String, serverIP: String, serverPort: Int, software: String, softwareVersion: String, downloadedTotal: Int? = nil, uploadedTotal: Int? = nil, versionString: String? = nil, downloadState: Int, downloadStateText: String, sourceFrom: Int, sourceFromText: String, downSpeedKBps: Double, availableParts: Int, remoteQueueRank: Int, obfuscationStatus: Int, extendedProtocol: Bool, remoteFilename: String, sharesFileList: Bool? = nil, clientHash: Data = Data(), score: Int = 0, friendSlot: Bool = false, waitTime: Int = 0, xferTime: Int = 0, queueTime: Int = 0, lastTime: Int = 0, isModded: Bool = false, uploadSession: Int = 0, uploadState: Int = 0, identState: Int = 0, uploadSpeed: Int = 0, oldRemoteQueueRank: Int = 0, waitingPosition: Int = 0, userID: Int = 0, kadPort: Int = 0, osInfo: String = "", partStatus: Data = Data(), nextRequestedPart: Int = 0, lastDownloadingPart: Int = 0, a4afFiles: Data = Data(), uploadPartStatus: Data = Data()) {
         self.clientID = clientID
         self.requestFileID = requestFileID
         self.clientName = clientName
@@ -682,16 +1042,42 @@ public struct ECSource: Codable, Equatable, Sendable {
         self.serverPort = serverPort
         self.software = software
         self.softwareVersion = softwareVersion
+        self.downloadedTotal = downloadedTotal
+        self.uploadedTotal = uploadedTotal
+        self.versionString = versionString
+        self.clientHash = clientHash
+        self.score = score
+        self.friendSlot = friendSlot
+        self.waitTime = waitTime
+        self.xferTime = xferTime
+        self.queueTime = queueTime
+        self.lastTime = lastTime
+        self.isModded = isModded
+        self.uploadSession = uploadSession
         self.downloadState = downloadState
         self.downloadStateText = downloadStateText
+        self.uploadState = uploadState
+        self.identState = identState
         self.sourceFrom = sourceFrom
         self.sourceFromText = sourceFromText
+        self.uploadSpeed = uploadSpeed
         self.downSpeedKBps = downSpeedKBps
         self.availableParts = availableParts
         self.remoteQueueRank = remoteQueueRank
+        self.oldRemoteQueueRank = oldRemoteQueueRank
+        self.waitingPosition = waitingPosition
+        self.userID = userID
+        self.kadPort = kadPort
         self.obfuscationStatus = obfuscationStatus
         self.extendedProtocol = extendedProtocol
         self.remoteFilename = remoteFilename
+        self.osInfo = osInfo
+        self.partStatus = partStatus
+        self.nextRequestedPart = nextRequestedPart
+        self.lastDownloadingPart = lastDownloadingPart
+        self.a4afFiles = a4afFiles
+        self.uploadPartStatus = uploadPartStatus
+        self.sharesFileList = sharesFileList
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -705,16 +1091,42 @@ public struct ECSource: Codable, Equatable, Sendable {
         case serverIP = "server_ip"
         case serverPort = "server_port"
         case softwareVersion = "software_version"
+        case downloadedTotal = "downloaded_total"
+        case uploadedTotal = "uploaded_total"
+        case versionString = "version_string"
+        case clientHash = "client_hash"
+        case score
+        case friendSlot = "friend_slot"
+        case waitTime = "wait_time"
+        case xferTime = "xfer_time"
+        case queueTime = "queue_time"
+        case lastTime = "last_time"
+        case isModded = "is_modded"
+        case uploadSession = "upload_session"
         case downloadState = "download_state"
         case downloadStateText = "download_state_text"
+        case uploadState = "upload_state"
+        case identState = "ident_state"
         case sourceFrom = "source_from"
         case sourceFromText = "source_from_text"
+        case uploadSpeed = "upload_speed"
         case downSpeedKBps = "down_speed_kbps"
         case availableParts = "available_parts"
         case remoteQueueRank = "remote_queue_rank"
+        case oldRemoteQueueRank = "old_remote_queue_rank"
+        case waitingPosition = "waiting_position"
+        case userID = "user_id"
+        case kadPort = "kad_port"
         case obfuscationStatus = "obfuscation_status"
         case extendedProtocol = "extended_protocol"
         case remoteFilename = "remote_filename"
+        case osInfo = "os_info"
+        case partStatus = "part_status"
+        case nextRequestedPart = "next_requested_part"
+        case lastDownloadingPart = "last_downloading_part"
+        case a4afFiles = "a4af_files"
+        case uploadPartStatus = "upload_part_status"
+        case sharesFileList = "shares_file_list"
     }
 }
 
@@ -813,10 +1225,15 @@ public struct ECSharedFile: Codable, Equatable, Sendable {
     public let acceptsAll: Int
     public let xferred: UInt64
     public let xferredAll: UInt64
+    public let aichMasterHash: String?
+    public let onQueue: Int
+    public let completeSources: Int
+    public let completeSourcesLow: Int
+    public let completeSourcesHigh: Int
     public let comment: String?
     public let rating: Int?
 
-    public init(hash: String, name: String, path: String, size: UInt64, ed2kLink: String, priority: Int, requests: Int, requestsAll: Int, accepts: Int, acceptsAll: Int, xferred: UInt64, xferredAll: UInt64, comment: String?, rating: Int?) {
+    public init(hash: String, name: String, path: String, size: UInt64, ed2kLink: String, priority: Int, requests: Int, requestsAll: Int, accepts: Int, acceptsAll: Int, xferred: UInt64, xferredAll: UInt64, aichMasterHash: String? = nil, onQueue: Int = 0, completeSources: Int = 0, completeSourcesLow: Int = 0, completeSourcesHigh: Int = 0, comment: String?, rating: Int?) {
         self.hash = hash
         self.name = name
         self.path = path
@@ -829,6 +1246,11 @@ public struct ECSharedFile: Codable, Equatable, Sendable {
         self.acceptsAll = acceptsAll
         self.xferred = xferred
         self.xferredAll = xferredAll
+        self.aichMasterHash = aichMasterHash
+        self.onQueue = onQueue
+        self.completeSources = completeSources
+        self.completeSourcesLow = completeSourcesLow
+        self.completeSourcesHigh = completeSourcesHigh
         self.comment = comment
         self.rating = rating
     }
@@ -839,6 +1261,11 @@ public struct ECSharedFile: Codable, Equatable, Sendable {
         case requestsAll = "requests_all"
         case acceptsAll = "accepts_all"
         case xferredAll = "xferred_all"
+        case aichMasterHash = "aich_master_hash"
+        case onQueue = "on_queue"
+        case completeSources = "complete_sources"
+        case completeSourcesLow = "complete_sources_low"
+        case completeSourcesHigh = "complete_sources_high"
     }
 }
 

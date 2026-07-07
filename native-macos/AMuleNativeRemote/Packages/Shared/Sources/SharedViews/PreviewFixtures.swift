@@ -270,7 +270,11 @@ public enum PreviewFixtures {
                 remoteQueueRank: 4,
                 obfuscationStatus: 1,
                 extendedProtocol: true,
-                remoteFilename: "Ubuntu 24.04.iso"
+                remoteFilename: "Ubuntu 24.04.iso",
+                downloadedTotal: 8_388_608,
+                uploadedTotal: 1_048_576,
+                versionString: "0.60d",
+                sharesFileList: true
             ),
             DownloadSourceItem(
                 id: 7_002,
@@ -292,7 +296,11 @@ public enum PreviewFixtures {
                 remoteQueueRank: 12,
                 obfuscationStatus: 0,
                 extendedProtocol: false,
-                remoteFilename: "Ubuntu 24.04.iso"
+                remoteFilename: "Ubuntu 24.04.iso",
+                downloadedTotal: 524_288,
+                uploadedTotal: 0,
+                versionString: "2.4.2",
+                sharesFileList: false
             )
         ]
     }

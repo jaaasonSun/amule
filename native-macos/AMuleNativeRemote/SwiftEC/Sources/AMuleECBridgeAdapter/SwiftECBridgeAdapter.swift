@@ -49,6 +49,15 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
         }
     }
 
+    public func connectionState(config: AMuleConnectionConfig) async throws -> (BridgeConnectionStatePayload, String) {
+        try await withAuthenticatedSession(for: config) { session in
+            let packet = try await session.send(try ECOperations.connectionState(gate: capabilityGate))
+            let state = try ECResponseParser.parseConnectionState(packet)
+            let raw = ECJSONEnvelope.jsonString(try ECJSONEnvelope.connectionState(state))
+            return (state, raw)
+        }
+    }
+
     public func downloads(config: AMuleConnectionConfig) async throws -> ([BridgeDownloadPayload], String) {
         try await withAuthenticatedSession(for: config) { session in
             guard await modelState.hasDownloadBaseline else {
@@ -56,6 +65,7 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
                 let downloads = try ECResponseParser.parseDownloads(packet)
                 _ = await modelState.replaceDownloads(downloads, sourcePacket: packet)
                 let updatePacket = try await session.send(try ECOperations.downloadsUpdate(gate: capabilityGate))
+                _ = await modelState.applySourceUpdate(updatePacket)
                 let result: [ECDownload]
                 if await modelState.downloadUpdateNeedsFullResync(updatePacket) {
                     let fullPacket = try await session.send(try ECOperations.downloads(gate: capabilityGate))
@@ -70,6 +80,7 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
             }
 
             let packet = try await session.send(try ECOperations.downloadsUpdate(gate: capabilityGate))
+            _ = await modelState.applySourceUpdate(packet)
             if await modelState.downloadUpdateNeedsFullResync(packet) {
                 let fullPacket = try await session.send(try ECOperations.downloads(gate: capabilityGate))
                 let downloads = try ECResponseParser.parseDownloads(fullPacket)
@@ -240,14 +251,9 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
                 let snapshot = try ECResponseParser.parseDownloads(queuePacket)
                 _ = await modelState.replaceDownloads(snapshot, sourcePacket: queuePacket)
 
-                let sources: [ECSource]
-                do {
-                    let packet = try await session.send(try ECOperations.sourcesUpdate(gate: capabilityGate))
-                    try ECResponseParser.validateSharedFilesUpdate(packet)
-                    sources = await modelState.applySourceUpdate(packet, requestFileID: fileID)
-                } catch {
-                    sources = await modelState.sources(for: fileID)
-                }
+                let packet = try await session.send(try ECOperations.sourcesUpdate(gate: capabilityGate))
+                try ECResponseParser.validateSharedFilesUpdate(packet)
+                let sources = await modelState.applySourceUpdate(packet, requestFileID: fileID)
                 let raw = ECJSONEnvelope.jsonString(try ECJSONEnvelope.sources(sources))
                 return (sources, raw)
             }
@@ -261,6 +267,10 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
 
     public func serverUpdateFromURL(url: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await mutation(try ECOperations.serverUpdateFromURL(url: url, gate: capabilityGate), message: "Server list update requested", config: config)
+    }
+
+    public func shutdown(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        try await mutation(try ECOperations.shutdown(gate: capabilityGate), message: "Shutdown requested", config: config)
     }
 
     public func kadStart(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
@@ -329,6 +339,19 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
 
     public func resetLog(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         try await mutation(try ECOperations.resetLog(gate: capabilityGate), message: "Core log cleared", config: config)
+    }
+
+    public func lastLogEntry(config: AMuleConnectionConfig) async throws -> String {
+        try await withAuthenticatedSession(for: config) { session in
+            let packet = try await session.send(try ECOperations.lastLogEntry(gate: capabilityGate))
+            return try ECResponseParser.parseLastLogEntry(packet)
+        }
+    }
+
+    public func resetDebugLog(config: AMuleConnectionConfig) async throws {
+        try await withAuthenticatedSession(for: config) { session in
+            try await session.sendWithoutReply(try ECOperations.resetDebugLog(gate: capabilityGate))
+        }
     }
 
     public func categories(config: AMuleConnectionConfig) async throws -> ([BridgeCategoryPayload], String) {
@@ -507,9 +530,13 @@ private actor ECBridgeModelState {
         downloadStore.acknowledgeClearCompleted(ecids: ecids)
     }
 
-    func applySourceUpdate(_ packet: ECPacket, requestFileID: Int) -> [ECSource] {
-        sourceStore.applyIncrementalUpdate(packet)
-        return sourceStore.sources(for: requestFileID)
+    @discardableResult
+    func applySourceUpdate(_ packet: ECPacket, requestFileID: Int? = nil) -> [ECSource] {
+        sourceStore.applyIncrementalUpdate(packet, contextRequestFileID: requestFileID)
+        guard let requestFileID else { return [] }
+        let storedSources = sourceStore.sources(for: requestFileID)
+        guard storedSources.isEmpty else { return storedSources }
+        return (try? ECResponseParser.parseSources(packet, requestFileID: requestFileID)) ?? []
     }
 
     func sources(for requestFileID: Int) -> [ECSource] {
@@ -576,6 +603,7 @@ public protocol BridgeProtocol: Sendable {
     func disconnect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func capabilities(config: AMuleConnectionConfig) async throws -> (schemaVersion: Int?, capabilities: BridgeCapabilitiesPayload, raw: String)
     func status(config: AMuleConnectionConfig) async throws -> (BridgeStatusPayload, String)
+    func connectionState(config: AMuleConnectionConfig) async throws -> (BridgeConnectionStatePayload, String)
     func downloads(config: AMuleConnectionConfig) async throws -> ([BridgeDownloadPayload], String)
     func search(request: ECSearchRequest, polls: Int, pollIntervalMs: Int, config: AMuleConnectionConfig) async throws -> (progress: Int, results: [BridgeSearchPayload], raw: String)
     func search(scope: String, query: String, polls: Int, pollIntervalMs: Int, config: AMuleConnectionConfig) async throws -> (progress: Int, results: [BridgeSearchPayload], raw: String)
@@ -601,6 +629,7 @@ public protocol BridgeProtocol: Sendable {
     func servers(config: AMuleConnectionConfig) async throws -> ([BridgeServerPayload], String)
     func sources(hash: String, config: AMuleConnectionConfig) async throws -> ([BridgeDownloadSourcePayload], String)
     func serverUpdateFromURL(url: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func shutdown(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func kadStart(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func kadStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func kadBootstrap(ip: String, port: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
@@ -613,6 +642,8 @@ public protocol BridgeProtocol: Sendable {
     func serverInfo(config: AMuleConnectionConfig) async throws -> (BridgeCoreLogPayload, String)
     func clearServerInfo(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func resetLog(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
+    func lastLogEntry(config: AMuleConnectionConfig) async throws -> String
+    func resetDebugLog(config: AMuleConnectionConfig) async throws
     func categories(config: AMuleConnectionConfig) async throws -> ([BridgeCategoryPayload], String)
     func categoryCreate(name: String, path: String, comment: String, color: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
     func categoryUpdate(id: Int, name: String, path: String, comment: String, color: Int, priority: Int, config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
@@ -674,6 +705,7 @@ public typealias BridgeStatsGraphsPayload = ECStatsGraphs
 
 public typealias BridgeSearchPayload = ECSearchResult
 public typealias BridgeConnectionPrefsPayload = ECConnectionPrefs
+public typealias BridgeConnectionStatePayload = ECConnectionState
 
 public enum ECError: Error, Equatable, LocalizedError, Sendable {
     case notImplemented(String)

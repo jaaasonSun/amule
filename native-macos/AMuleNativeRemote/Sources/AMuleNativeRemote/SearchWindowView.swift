@@ -71,6 +71,10 @@ struct SearchWindowView: View {
         !selectedSearchResults.isEmpty && !model.isBusy
     }
 
+    private var isSearchSupported: Bool {
+        model.isBridgeOpSupported("search")
+    }
+
     var body: some View {
         if embeddedInMainWindow {
             baseSearchContent
@@ -90,43 +94,42 @@ struct SearchWindowView: View {
                 sortDescriptors: $searchSortDescriptors,
                 autosaveName: searchOutlineAutosaveName
             )
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .frame(minHeight: 320)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .layoutPriority(1)
         }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
                     model.downloadResults(selectedSearchResults)
                 } label: {
-                    Label("Download", systemImage: "arrow.down.circle")
+                    Label(L2("Download"), systemImage: "arrow.down.circle")
                 }
-                .help("Download Selected")
-                .disabled(!canDownloadSelectedSearchResults)
+                .help(L2("Download Selected"))
+                .disabled(!canDownloadSelectedSearchResults || !model.isBridgeOpSupported("download"))
 
                 Button {
                     model.stopSearch()
                 } label: {
-                    Label("Stop", systemImage: "stop.fill")
+                    Label(L2("Stop"), systemImage: "stop.fill")
                 }
-                .help("Stop Search")
-                .disabled(!isSearchInProgressForUI)
+                .help(L2("Stop Search"))
+                .disabled(!isSearchInProgressForUI || !isSearchSupported)
 
                 SearchScopePicker(
                     activeScopeValue: activeSearchScopeValue,
                     label: searchScopeMenuLabel,
                     setSearchScope: setSearchScope
                 )
-                .help("Search Scope")
+                .help(L2("Search Scope"))
+                .disabled(!isSearchSupported)
             }
         }
-        .searchable(
-            text: searchQueryBinding,
-            placement: .toolbar,
-            prompt: Text(searchToolbarPlaceholder)
-        )
-        .onSubmit(of: .search) {
-            model.performSearch()
-        }
+        .modifier(SearchCapabilityGate(
+            isSearchSupported: isSearchSupported,
+            query: searchQueryBinding,
+            placeholder: searchToolbarPlaceholder,
+            onSubmit: { model.performSearch() }
+        ))
         .task {
             refreshDisplayedSearchResults()
         }
@@ -202,7 +205,6 @@ struct SearchWindowView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(.bar)
     }
 
     private func refreshDisplayedSearchResults() {
@@ -312,6 +314,25 @@ struct SearchWindowView: View {
             return lhsValue < rhsValue ? .orderedAscending : .orderedDescending
         case .hash:
             return lhs.hash.localizedCaseInsensitiveCompare(rhs.hash)
+        }
+    }
+}
+
+private struct SearchCapabilityGate: ViewModifier {
+    let isSearchSupported: Bool
+    let query: Binding<String>
+    let placeholder: String
+    let onSubmit: () -> Void
+
+    func body(content: Content) -> some View {
+        if isSearchSupported {
+            content
+                .searchable(text: query, placement: .toolbar, prompt: Text(placeholder))
+                .onSubmit(of: .search) {
+                    onSubmit()
+                }
+        } else {
+            content
         }
     }
 }

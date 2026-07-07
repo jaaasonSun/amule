@@ -23,6 +23,10 @@ public struct DownloadSourceItem: Identifiable, Hashable, Sendable {
     public let obfuscationStatus: Int
     public let extendedProtocol: Bool
     public let remoteFilename: String
+    public let downloadedTotal: Int?
+    public let uploadedTotal: Int?
+    public let versionString: String?
+    public let sharesFileList: Bool?
 
     public init(
         id: Int,
@@ -44,7 +48,11 @@ public struct DownloadSourceItem: Identifiable, Hashable, Sendable {
         remoteQueueRank: Int,
         obfuscationStatus: Int,
         extendedProtocol: Bool,
-        remoteFilename: String
+        remoteFilename: String,
+        downloadedTotal: Int? = nil,
+        uploadedTotal: Int? = nil,
+        versionString: String? = nil,
+        sharesFileList: Bool? = nil
     ) {
         self.id = id
         self.requestFileID = requestFileID
@@ -66,6 +74,10 @@ public struct DownloadSourceItem: Identifiable, Hashable, Sendable {
         self.obfuscationStatus = obfuscationStatus
         self.extendedProtocol = extendedProtocol
         self.remoteFilename = remoteFilename
+        self.downloadedTotal = downloadedTotal
+        self.uploadedTotal = uploadedTotal
+        self.versionString = versionString
+        self.sharesFileList = sharesFileList
     }
 
     public var clientDisplayName: String {
@@ -111,6 +123,27 @@ public struct DownloadSourceItem: Identifiable, Hashable, Sendable {
         return AMuleFormatter.speed(bytesPerSecond: bytesPerSecond)
     }
 
+    public var downloadedText: String {
+        guard let downloadedTotal else { return "-" }
+        return AMuleFormatter.fileSize(Int64(downloadedTotal))
+    }
+
+    public var uploadedText: String {
+        guard let uploadedTotal else { return "-" }
+        return AMuleFormatter.fileSize(Int64(uploadedTotal))
+    }
+
+    public var versionDisplay: String {
+        guard let versionString else { return "-" }
+        let trimmedVersion = versionString.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedVersion.isEmpty ? "-" : trimmedVersion
+    }
+
+    public var sharesFileListText: String {
+        guard let sharesFileList else { return "-" }
+        return NSLocalizedString(sharesFileList ? "Yes" : "No", comment: "")
+    }
+
     public var queueRankText: String {
         remoteQueueRank == 0xffff ? "Full" : String(remoteQueueRank)
     }
@@ -137,7 +170,11 @@ public struct DownloadSourceItem: Identifiable, Hashable, Sendable {
                 remoteQueueRank: $0.remoteQueueRank,
                 obfuscationStatus: $0.obfuscationStatus,
                 extendedProtocol: $0.extendedProtocol,
-                remoteFilename: $0.remoteFilename
+                remoteFilename: $0.remoteFilename,
+                downloadedTotal: $0.downloadedTotal,
+                uploadedTotal: $0.uploadedTotal,
+                versionString: $0.versionString,
+                sharesFileList: $0.sharesFileList
             )
         }
     }

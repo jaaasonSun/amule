@@ -17,12 +17,14 @@ extension AppModel {
             // Completed files are no longer in the active queue, so per-file
             // source queries are expected to be unavailable.
             downloadSourcesByHash[item.id] = []
+            downloadSourceErrorsByHash[item.id] = nil
             isRefreshingSources = false
             return
         }
 
         isRefreshingSources = true
         lastError = ""
+        downloadSourceErrorsByHash[item.id] = nil
         Task {
             do {
                 try await self.refreshDownloadSourcesNow(for: item)
@@ -30,9 +32,11 @@ extension AppModel {
                 await MainActor.run {
                     if let clientError = error as? AMuleClientError, clientError.isDownloadNotFound {
                         self.downloadSourcesByHash[item.id] = []
+                        self.downloadSourceErrorsByHash[item.id] = nil
                     } else {
                         let message = error.localizedDescription
                         self.lastError = message
+                        self.downloadSourceErrorsByHash[item.id] = message
                         self.appendLog("! sources failed\n\(message)")
                     }
                 }
@@ -46,6 +50,11 @@ extension AppModel {
     func sources(for item: DownloadItem?) -> [DownloadSourceItem] {
         guard let item else { return [] }
         return downloadSourcesByHash[item.id] ?? []
+    }
+
+    func sourceError(for item: DownloadItem?) -> String? {
+        guard let item else { return nil }
+        return downloadSourceErrorsByHash[item.id]
     }
 
     func clearCompletedDownloads(_ items: [DownloadItem]) {
@@ -235,6 +244,7 @@ extension AppModel {
         let parsed = DownloadSourceItem.fromBridge(payloads)
         await MainActor.run {
             self.downloadSourcesByHash[item.id] = parsed
+            self.downloadSourceErrorsByHash[item.id] = nil
             self.lastSourcesRawOutput = raw
             if logOutput {
                 self.appendLog("$ sources \(item.id)\n\(raw)")

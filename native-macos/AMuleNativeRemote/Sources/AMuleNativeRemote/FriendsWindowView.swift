@@ -54,8 +54,7 @@ struct FriendsWindowView: View {
                     friendName = ""
                     showingAddFriendSheet = false
                 }
-                .presentationDetents([.height(260)])
-                .presentationDragIndicator(.hidden)
+
             }
             .toolbar {
                 ToolbarItemGroup(placement: .primaryAction) {
