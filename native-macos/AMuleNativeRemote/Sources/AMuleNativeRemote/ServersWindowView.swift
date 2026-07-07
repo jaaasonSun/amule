@@ -16,6 +16,11 @@ private func LF2(_ key: String, _ args: CVarArg...) -> String {
 
 struct ServersWindowView: View {
     @EnvironmentObject private var model: AppModel
+    let embeddedInMainWindow: Bool
+
+    init(embeddedInMainWindow: Bool = false) {
+        self.embeddedInMainWindow = embeddedInMainWindow
+    }
 
     @State private var serverSortOrder = [
         KeyPathComparator(\ServerItem.files, order: .reverse),
@@ -136,8 +141,12 @@ struct ServersWindowView: View {
     }
 
     var body: some View {
-        baseServersContent
-            .frame(minWidth: 1040, minHeight: 620)
+        if embeddedInMainWindow {
+            baseServersContent
+        } else {
+            baseServersContent
+                .frame(minWidth: 1040, minHeight: 620)
+        }
     }
 
     private var baseServersContent: some View {

@@ -328,9 +328,9 @@ struct KadSheet: View {
 
 struct MainFooterBar: View {
     @EnvironmentObject private var model: AppModel
-    @Environment(\.openWindow) private var openWindow
     @Binding var showLoginSheet: Bool
     @Binding var showKadSheet: Bool
+    let showServers: () -> Void
 
     var body: some View {
         HStack(spacing: 6) {
@@ -353,8 +353,7 @@ struct MainFooterBar: View {
             footerStatusControl(state: ed2kFooterConnectionState) {
                 ControlGroup {
                     Button {
-                        openWindow(id: "servers-window")
-                        NSApp.activate(ignoringOtherApps: true)
+                        showServers()
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "rectangle.connected.to.line.below")
@@ -379,7 +378,7 @@ struct MainFooterBar: View {
                         .font(.caption)
                         .padding(.leading, 3)
                     }
-                    .help("Open eD2k Window")
+                    .help("Show Servers")
 
                     Button {
                         if ed2kFooterConnectionState == .connected {

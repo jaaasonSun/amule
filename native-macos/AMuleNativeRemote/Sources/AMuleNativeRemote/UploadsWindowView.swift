@@ -16,8 +16,22 @@ private func LF2(_ key: String, _ args: CVarArg...) -> String {
 
 struct UploadsWindowView: View {
     @EnvironmentObject private var model: AppModel
+    let embeddedInMainWindow: Bool
+
+    init(embeddedInMainWindow: Bool = false) {
+        self.embeddedInMainWindow = embeddedInMainWindow
+    }
 
     var body: some View {
+        content
+            .frame(
+                minWidth: embeddedInMainWindow ? nil : 760,
+                minHeight: embeddedInMainWindow ? nil : 500
+            )
+            .task { model.refreshUploads() }
+    }
+
+    private var content: some View {
         VStack(spacing: 0) {
             HStack {
                 Button {
@@ -60,7 +74,5 @@ struct UploadsWindowView: View {
                 .listStyle(.inset)
             }
         }
-        .frame(minWidth: 760, minHeight: 500)
-        .task { model.refreshUploads() }
     }
 }

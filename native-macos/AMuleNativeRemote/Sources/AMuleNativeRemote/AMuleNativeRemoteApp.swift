@@ -18,18 +18,9 @@ struct AMuleNativeRemoteApp: App {
             width: DownloadsWindowPersistence.defaultWidth,
             height: DownloadsWindowPersistence.defaultHeight
         )
-
-        WindowGroup("Search", id: "search-window") {
-            SearchWindowView()
-                .environmentObject(model)
+        .commands {
+            AppMenuCommands(model: model)
         }
-        .windowStyle(.automatic)
-
-        WindowGroup("eD2k", id: "servers-window") {
-            ServersWindowView()
-                .environmentObject(model)
-        }
-        .windowStyle(.automatic)
 
         Window("Details", id: "download-details-window") {
             DownloadDetailsWindowView()
@@ -51,49 +42,9 @@ struct AMuleNativeRemoteApp: App {
         }
         .windowStyle(.automatic)
 
-        WindowGroup("Uploads", id: "uploads-window") {
-            UploadsWindowView()
-                .environmentObject(model)
-        }
-        .windowStyle(.automatic)
-
-        WindowGroup("Shared Files", id: "shared-files-window") {
-            SharedFilesWindowView()
-                .environmentObject(model)
-        }
-        .windowStyle(.automatic)
-
-        WindowGroup("Categories", id: "categories-window") {
-            CategoriesWindowView()
-                .environmentObject(model)
-        }
-        .windowStyle(.automatic)
-
-        WindowGroup("Friends", id: "friends-window") {
-            FriendsWindowView()
-                .environmentObject(model)
-        }
-        .windowStyle(.automatic)
-
-        WindowGroup("Messages", id: "messages-window") {
-            MessagesWindowView()
-                .environmentObject(model)
-        }
-        .windowStyle(.automatic)
-
-        WindowGroup("Statistics", id: "stats-window") {
-            StatsWindowView()
-                .environmentObject(model)
-        }
-        .windowStyle(.automatic)
-
-        WindowGroup("Preferences", id: "preferences-window") {
+        Settings {
             PreferencesWindowView()
                 .environmentObject(model)
-        }
-        .windowStyle(.automatic)
-        .commands {
-            AppMenuCommands(model: model)
         }
     }
 }
@@ -141,39 +92,6 @@ private struct AppMenuCommands: Commands {
             }
             .disabled(!model.isBridgeOpSupported("server-info"))
 
-            Button("Uploads") {
-                openWindow(id: "uploads-window")
-            }
-            .disabled(!model.isBridgeOpSupported("uploads"))
-
-            Button("Shared Files") {
-                openWindow(id: "shared-files-window")
-            }
-            .disabled(!model.isBridgeOpSupported("shared-files"))
-
-            Button("Categories") {
-                openWindow(id: "categories-window")
-            }
-            .disabled(!model.isBridgeOpSupported("categories"))
-
-            Button("Friends") {
-                openWindow(id: "friends-window")
-            }
-            .disabled(!model.isBridgeOpSupported("friends"))
-
-            Button("Messages") {
-                openWindow(id: "messages-window")
-            }
-
-            Button("Statistics") {
-                openWindow(id: "stats-window")
-            }
-            .disabled(!model.isBridgeOpSupported("stats-tree") && !model.isBridgeOpSupported("stats-graphs"))
-
-            Button("Preferences") {
-                openWindow(id: "preferences-window")
-            }
-            .disabled(!model.isBridgeOpSupported("prefs-connection-get") && !model.isBridgeOpSupported("prefs-connection-set"))
         }
     }
 }

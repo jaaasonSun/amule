@@ -34,6 +34,12 @@ struct ContentView: View {
     private enum SidebarSelection: Hashable {
         case downloads(DownloadSidebarFilter)
         case search
+        case servers
+        case sharedFiles
+        case uploads
+        case categories
+        case friends
+        case statistics
     }
 
     @State private var showLoginSheet = false
@@ -115,6 +121,18 @@ struct ContentView: View {
             return downloadsPageToolbarTitle
         case .search:
             return L("Search")
+        case .servers:
+            return L("Servers")
+        case .sharedFiles:
+            return L("Shared Files")
+        case .uploads:
+            return L("Uploads")
+        case .categories:
+            return L("Categories")
+        case .friends:
+            return L("Friends")
+        case .statistics:
+            return L("Statistics")
         }
     }
 
@@ -122,19 +140,52 @@ struct ContentView: View {
         VStack(spacing: 0) {
             NavigationSplitView {
                 List(selection: sidebarSelectionBinding) {
-                    ForEach(DownloadSidebarFilter.allCases) { filter in
-                        Label(filter.localizedTitle, systemImage: filter.symbolName)
-                            .badge(downloadFilterCount(for: filter))
-                            .tag(SidebarSelection.downloads(filter))
+                    Section(L("Downloads")) {
+                        ForEach(DownloadSidebarFilter.allCases) { filter in
+                            Label(filter.localizedTitle, systemImage: filter.symbolName)
+                                .badge(downloadFilterCount(for: filter))
+                                .tag(SidebarSelection.downloads(filter))
+                        }
                     }
 
-                    Label("Search", systemImage: "magnifyingglass")
-                        .lineLimit(1)
-                        .badge(searchSidebarBadgeText)
-                        .tag(SidebarSelection.search)
+                    Section(L("Remote")) {
+                        Label("Search", systemImage: "magnifyingglass")
+                            .lineLimit(1)
+                            .badge(searchSidebarBadgeText)
+                            .tag(SidebarSelection.search)
+
+                        Label("Servers", systemImage: "server.rack")
+                            .lineLimit(1)
+                            .badge(model.servers.count)
+                            .tag(SidebarSelection.servers)
+
+                        Label("Shared Files", systemImage: "folder")
+                            .lineLimit(1)
+                            .badge(model.sharedFiles.count)
+                            .tag(SidebarSelection.sharedFiles)
+
+                        Label("Uploads", systemImage: "arrow.up")
+                            .lineLimit(1)
+                            .badge(model.uploads.count)
+                            .tag(SidebarSelection.uploads)
+
+                        Label("Categories", systemImage: "tag")
+                            .lineLimit(1)
+                            .badge(model.categories.count)
+                            .tag(SidebarSelection.categories)
+
+                        Label("Friends", systemImage: "person.2")
+                            .lineLimit(1)
+                            .badge(model.friends.count)
+                            .tag(SidebarSelection.friends)
+
+                        Label("Statistics", systemImage: "chart.xyaxis.line")
+                            .lineLimit(1)
+                            .tag(SidebarSelection.statistics)
+                    }
                 }
                 .listStyle(.sidebar)
-                .navigationSplitViewColumnWidth(min: 150, ideal: 180, max: 220)
+                .navigationSplitViewColumnWidth(min: 170, ideal: 210, max: 260)
             } detail: {
                 VStack(spacing: 0) {
                     Group {
@@ -143,6 +194,18 @@ struct ContentView: View {
                             downloadsPanel
                         case .search:
                             SearchPanel()
+                        case .servers:
+                            ServersWindowView(embeddedInMainWindow: true)
+                        case .sharedFiles:
+                            SharedFilesWindowView(embeddedInMainWindow: true)
+                        case .uploads:
+                            UploadsWindowView(embeddedInMainWindow: true)
+                        case .categories:
+                            CategoriesWindowView(embeddedInMainWindow: true)
+                        case .friends:
+                            FriendsWindowView(embeddedInMainWindow: true)
+                        case .statistics:
+                            StatsWindowView(embeddedInMainWindow: true)
                         }
                     }
                     .padding(.top, 0)
@@ -156,7 +219,13 @@ struct ContentView: View {
                             .padding(.vertical, 6)
                     }
                     Divider()
-                    MainFooterBar(showLoginSheet: $showLoginSheet, showKadSheet: $showKadSheet)
+                    MainFooterBar(
+                        showLoginSheet: $showLoginSheet,
+                        showKadSheet: $showKadSheet,
+                        showServers: {
+                            selectedSidebarSelection = .servers
+                        }
+                    )
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }

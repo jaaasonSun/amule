@@ -17,11 +17,30 @@ private func LF2(_ key: String, _ args: CVarArg...) -> String {
 
 struct SharedFilesWindowView: View {
     @EnvironmentObject private var model: AppModel
+    let embeddedInMainWindow: Bool
     @State private var editingSharedFile: BridgeSharedFilePayload?
     @State private var editComment = ""
     @State private var editRating = 0
 
+    init(embeddedInMainWindow: Bool = false) {
+        self.embeddedInMainWindow = embeddedInMainWindow
+    }
+
     var body: some View {
+        content
+            .frame(
+                minWidth: embeddedInMainWindow ? nil : 760,
+                minHeight: embeddedInMainWindow ? nil : 500
+            )
+            .task { model.refreshSharedFiles() }
+            .sheet(isPresented: editSheetBinding) {
+                if let file = editingSharedFile {
+                    sharedFileEditSheet(file)
+                }
+            }
+    }
+
+    private var content: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
                 Button {
@@ -58,13 +77,6 @@ struct SharedFilesWindowView: View {
                         }
                 }
                 .listStyle(.inset)
-            }
-        }
-        .frame(minWidth: 760, minHeight: 500)
-        .task { model.refreshSharedFiles() }
-        .sheet(isPresented: editSheetBinding) {
-            if let file = editingSharedFile {
-                sharedFileEditSheet(file)
             }
         }
     }

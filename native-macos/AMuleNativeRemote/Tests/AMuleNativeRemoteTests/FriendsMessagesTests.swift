@@ -3,6 +3,34 @@ import XCTest
 
 @MainActor
 final class FriendsMessagesTests: XCTestCase {
+    func testFriendInputValidationAcceptsValidInput() throws {
+        let request = try FriendAddInput(
+            hash: "00112233445566778899aabbccddeeff",
+            ip: "1.2.3.4",
+            port: "4662",
+            name: " Alice "
+        ).validated()
+
+        XCTAssertEqual(request.hash, "00112233445566778899aabbccddeeff")
+        XCTAssertEqual(request.ip, "1.2.3.4")
+        XCTAssertEqual(request.port, 4662)
+        XCTAssertEqual(request.name, "Alice")
+    }
+
+    func testFriendInputValidationKeepsSpecificErrors() {
+        XCTAssertThrowsError(try FriendAddInput(hash: "bad", ip: "1.2.3.4", port: "4662", name: "").validated()) { error in
+            XCTAssertEqual(error as? FriendAddInput.ValidationError, .invalidHash)
+        }
+
+        XCTAssertThrowsError(try FriendAddInput(hash: "00112233445566778899aabbccddeeff", ip: "999.2.3.4", port: "4662", name: "").validated()) { error in
+            XCTAssertEqual(error as? FriendAddInput.ValidationError, .invalidIP)
+        }
+
+        XCTAssertThrowsError(try FriendAddInput(hash: "00112233445566778899aabbccddeeff", ip: "1.2.3.4", port: "not-a-port", name: "").validated()) { error in
+            XCTAssertEqual(error as? FriendAddInput.ValidationError, .invalidPort)
+        }
+    }
+
     func testAddFriendInvokesBridgeAndRefreshesFriends() async throws {
         let bridge = FakeBridgeAdapter()
         bridge.capabilityOps = Set(["friend-add", "friends"])

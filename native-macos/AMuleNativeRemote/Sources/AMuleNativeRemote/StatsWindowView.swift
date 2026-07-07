@@ -17,10 +17,27 @@ private func LF2(_ key: String, _ args: CVarArg...) -> String {
 
 struct StatsWindowView: View {
     @EnvironmentObject private var model: AppModel
+    let embeddedInMainWindow: Bool
     @State private var widthInput = "480"
     @State private var scaleInput = "1"
 
+    init(embeddedInMainWindow: Bool = false) {
+        self.embeddedInMainWindow = embeddedInMainWindow
+    }
+
     var body: some View {
+        content
+            .frame(
+                minWidth: embeddedInMainWindow ? nil : 780,
+                minHeight: embeddedInMainWindow ? nil : 520
+            )
+            .task {
+                model.refreshStatsTree()
+                model.refreshStatsGraphs()
+            }
+    }
+
+    private var content: some View {
         VStack(spacing: 0) {
             statusHeader
 
@@ -35,11 +52,6 @@ struct StatsWindowView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(14)
             }
-        }
-        .frame(minWidth: 780, minHeight: 520)
-        .task {
-            model.refreshStatsTree()
-            model.refreshStatsGraphs()
         }
     }
 
