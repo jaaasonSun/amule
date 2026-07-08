@@ -63,7 +63,7 @@ public enum ECOperations {
         public static let searchStop: UInt8 = 0x27
         public static let searchResults: UInt8 = 0x28
         public static let searchProgress: UInt8 = 0x29
-        public static let clientSwapToAnotherFile: UInt8 = 0x2A
+        public static let clientSwapToAnotherFile: UInt8 = 0x54
         public static let downloadSearchResult: UInt8 = 0x2A
         public static let getDownloadQueue: UInt8 = 0x0D
         public static let downloadQueue: UInt8 = 0x1F
@@ -449,10 +449,11 @@ public enum ECOperations {
         ])
     }
 
-    public static func swapClientToAnotherFile(hash: String, gate: ECCapabilityGate? = nil) throws -> ECPacket {
+    public static func swapClientToAnotherFile(clientID: Int, hash: String, gate: ECCapabilityGate? = nil) throws -> ECPacket {
         try gate?.require(.clientSwapToAnotherFile)
         return ECPacket(opcode: OpCode.clientSwapToAnotherFile, tags: [
-            ECTag(name: TagName.client, type: .hash16, value: .hash16(try hashData(hash)))
+            ECTag.integer(name: TagName.client, value: UInt64(max(0, clientID))),
+            ECTag(name: TagName.partFile, type: .hash16, value: .hash16(try hashData(hash))),
         ])
     }
 

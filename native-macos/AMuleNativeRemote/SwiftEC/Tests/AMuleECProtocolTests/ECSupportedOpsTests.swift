@@ -67,7 +67,6 @@ final class ECSupportedOpsTests: XCTestCase {
             "friend-slot",
             "stats-tree",
             "stats-graphs",
-            "client-swap-to-another-file",
         ]
 
         XCTAssertEqual(ECSupportedOps.allOperations, expected)
@@ -137,7 +136,6 @@ final class ECSupportedOpsTests: XCTestCase {
             "friend-slot",
             "stats-tree",
             "stats-graphs",
-            "client-swap-to-another-file",
         ])
 
         let unauthorizedOperations = ECSupportedOps.allOperations.filter { !canonical.contains($0) }
@@ -146,7 +144,10 @@ final class ECSupportedOpsTests: XCTestCase {
     }
 
     func testUnsupportedDisabledOperationsAreNotAdvertised() {
-        XCTAssertEqual(ECSupportedOps.unsupportedDisabledOperations, [ECSupportedOps.friendShared])
+        XCTAssertEqual(ECSupportedOps.unsupportedDisabledOperations, [
+            ECSupportedOps.friendShared,
+            ECSupportedOps.clientSwapToAnotherFile,
+        ])
 
         for operation in ECSupportedOps.unsupportedDisabledOperations {
             XCTAssertFalse(ECSupportedOps.allOperations.contains(operation), operation)

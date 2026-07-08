@@ -99,6 +99,7 @@ public struct ECSupportedOps {
     /// app bridge contract.
     public static let unsupportedDisabledOperations: [String] = [
         friendShared,
+        clientSwapToAnotherFile,
     ]
 
     /// All supported V1 operations in canonical order.
@@ -164,6 +165,5 @@ public struct ECSupportedOps {
         friendSlot,
         statsTree,
         statsGraphs,
-        clientSwapToAnotherFile,
     ]
 }

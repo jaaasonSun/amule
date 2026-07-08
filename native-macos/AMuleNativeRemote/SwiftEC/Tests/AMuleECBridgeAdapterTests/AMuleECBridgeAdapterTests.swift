@@ -666,6 +666,37 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
         XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x26])
     }
 
+    func testSearchLifecycleAcceptsOriginalSuccessOpcodes() async throws {
+        let mock = AdapterMockTransport(replies: [
+            Self.salt,
+            Self.authOK,
+            ECPacket(opcode: 0x06, tags: [
+                ECTag(name: 0x0000, type: .string, value: .string("Search in progress. Refetch results in a moment!")),
+            ]),
+            ECPacket(opcode: 0x29, tags: [
+                ECTag.integer(name: 0x0708, value: 100),
+            ]),
+            ECPacket(opcode: 0x28, tags: [
+                ECTag.integer(name: 0x0700, value: 7, children: [
+                    ECTag(name: 0x031E, type: .hash16, value: .hash16(Data((0..<16).map(UInt8.init)))),
+                    ECTag(name: 0x0301, type: .string, value: .string("result.bin")),
+                    .integer(name: 0x0303, value: 1234),
+                    .integer(name: 0x030A, value: 5),
+                    .integer(name: 0x030D, value: 2),
+                ]),
+            ]),
+        ])
+        let session = ECSession(configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false), transportFactory: { mock })
+        let adapter = SwiftECBridgeAdapter(session: session)
+
+        let result = try await adapter.search(scope: "global", query: "ubuntu", polls: 1, pollIntervalMs: 0, config: AMuleConnectionConfig(password: "secret"))
+
+        XCTAssertEqual(result.progress, 100)
+        XCTAssertEqual(result.results.map(\.name), ["result.bin"])
+        let sentOpcodes = await mock.sentOpcodes()
+        XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x26, 0x29, 0x28])
+    }
+
     func testAdapterAcceptsOriginalSuccessOpcodesForSearchStopAndSearchDownload() async throws {
         let searchStopMock = AdapterMockTransport(replies: [Self.salt, Self.authOK, ECPacket(opcode: 0x07)])
         let searchStopSession = ECSession(configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false), transportFactory: { searchStopMock })

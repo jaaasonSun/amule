@@ -773,14 +773,15 @@ Reference table of EC protocol opcodes used internally. Several opcodes serve du
 | 0x05 | 5 | failed |
 | 0x06 | 6 | strings |
 | 0x07 | 7 | miscData |
+| 0x08 | 8 | shutdown |
 | 0x09 | 9 | addLink |
-| 0x0A | 10 | shutdown / statRequest |
+| 0x0A | 10 | statRequest |
+| 0x0B | 11 | getConnectionState |
 | 0x0C | 12 | stats |
-| 0x0D | 13 | getConnectionState / getDownloadQueue |
-| 0x0E | 14 | getLastLogEntry / getUploadQueue |
+| 0x0D | 13 | getDownloadQueue |
+| 0x0E | 14 | getUploadQueue |
 | 0x10 | 16 | getSharedFiles |
 | 0x11 | 17 | sharedSetPriority |
-| 0x12 | 18 | resetDebugLog |
 | 0x16 | 22 | partFileSwapA4AFThis |
 | 0x17 | 23 | partFileSwapA4AFThisAuto |
 | 0x18 | 24 | partFileSwapA4AFOthers |
@@ -799,7 +800,7 @@ Reference table of EC protocol opcodes used internally. Several opcodes serve du
 | 0x27 | 39 | searchStop |
 | 0x28 | 40 | searchResults |
 | 0x29 | 41 | searchProgress |
-| 0x2A | 42 | clientSwapToAnotherFile / downloadSearchResult |
+| 0x2A | 42 | downloadSearchResult |
 | 0x2B | 43 | ipfilterReload |
 | 0x2C | 44 | getServerList |
 | 0x2D | 45 | serverList |
@@ -814,7 +815,9 @@ Reference table of EC protocol opcodes used internally. Several opcodes serve du
 | 0x38 | 56 | log |
 | 0x39 | 57 | debugLog |
 | 0x3B | 59 | resetLog |
+| 0x3C | 60 | resetDebugLog |
 | 0x3D | 61 | clearServerInfo |
+| 0x3E | 62 | getLastLogEntry |
 | 0x3F | 63 | getPreferences |
 | 0x40 | 64 | setPreferences |
 | 0x41 | 65 | createCategory |
@@ -833,6 +836,7 @@ Reference table of EC protocol opcodes used internally. Several opcodes serve du
 | 0x51 | 81 | ipfilterUpdate |
 | 0x52 | 82 | getUpdate |
 | 0x53 | 83 | clearCompleted |
+| 0x54 | 84 | clientSwapToAnotherFile (builder only; not advertised) |
 | 0x55 | 85 | sharedFileSetComment |
 | 0x56 | 86 | serverSetStaticPriority |
 | 0x57 | 87 | friend |

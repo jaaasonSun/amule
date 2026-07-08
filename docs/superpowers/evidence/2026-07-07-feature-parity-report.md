@@ -3,12 +3,15 @@
 
 Generated: 2026-07-07
 Status: Synthesis of 4 parallel audits
+Corrected: 2026-07-08 after SwiftEC parity fixes and focused regression tests
 
 ---
 
 ## Executive Summary
 
-The native macOS aMule remote app is a **broad but shallow** implementation of the EC protocol. It covers all major functional areas (downloads, search, servers, shared files, stats, preferences, friends, categories) but has **significant parsing gaps** where it reads only a subset of the data the daemon sends. There is also **one confirmed protocol bug**: the friends request uses the wrong opcode.
+The native macOS aMule remote app is a **broad but shallow** implementation of the EC protocol. It covers all major functional areas (downloads, search, servers, shared files, stats, preferences, friends, categories) but has **significant parsing gaps** where it reads only a subset of the data the daemon sends.
+
+2026-07-08 correction: the previously suspected friends request mismatch was not a bug. SwiftEC intentionally requests mixed update payloads with `GET_UPDATE`, and regression coverage now verifies that downloads, sources, servers, and nested friends are merged from a mixed update packet. The confirmed protocol/capability issue was `client-swap-to-another-file`: the low-level builder now uses daemon opcode `0x54` with `EC_TAG_CLIENT` and `EC_TAG_PARTFILE`, and the operation remains hidden from advertised Bridge capabilities until the UI can select a concrete source client.
 
 **Bottom line**: The UI surface is ~85% complete vs. amulegui. The protocol depth is ~65% complete vs. what the daemon exposes.
 
@@ -31,15 +34,15 @@ The native macOS aMule remote app is a **broad but shallow** implementation of t
 | `0x08` | `STRINGS` | ❌ | ❌ | N/A | Used for connect/disconnect replies |
 | `0x09` | `MISC_DATA` | ❌ | ❌ | N/A | Used for connstate replies |
 | Core / Status |
-| `0x0A` | `SHUTDOWN` | ❌ | ❌ | ❌ | Not implemented |
+| `0x0A` | `SHUTDOWN` | ✅ | N/A | ✅ | Admin command |
 | `0x0B` | `ADD_LINK` | ✅ | N/A | ✅ | Add ed2k/magnet links |
 | `0x0C` | `STAT_REQ` | ✅ | ✅ (status) | ✅ | Main status bar data |
-| `0x0D` | `GET_CONNSTATE` | ❌ | ❌ | ❌ | Status parser only reads connstate from STAT_REQ |
-| `0x0E` | `GET_LAST_LOG_ENTRY` | ❌ | ❌ | ❌ | Not implemented |
+| `0x0D` | `GET_CONNSTATE` | ✅ | ✅ | ✅ | Explicit connection state query |
+| `0x0E` | `GET_LAST_LOG_ENTRY` | ✅ | ✅ | ✅ | Diagnostics/latest log entry |
 | `0x0F` | `GET_LOG` | ✅ | ✅ (log) | ✅ | Diagnostics window |
 | `0x10` | `GET_DEBUGLOG` | ✅ | ✅ (debugLog) | ✅ | Diagnostics window |
 | `0x11` | `RESET_LOG` | ✅ | N/A | ✅ | Diagnostics window |
-| `0x12` | `RESET_DEBUGLOG` | ❌ | N/A | ❌ | Not implemented |
+| `0x12` | `RESET_DEBUGLOG` | ✅ | N/A | ✅ | Diagnostics command |
 | `0x13` | `ADDLOGLINE` | ❌ | N/A | ❌ | Server-side only |
 | `0x14` | `ADDDEBUGLOGLINE` | ❌ | N/A | ❌ | Server-side only |
 | `0x15` | `GET_SERVERINFO` | ✅ | ✅ (serverInfo) | ✅ | Server logs window |
@@ -64,7 +67,7 @@ The native macOS aMule remote app is a **broad but shallow** implementation of t
 | `0x27` | `SHAREDFILES_RELOAD` | ✅ | N/A | ✅ | Shared files window |
 | `0x28` | `RENAME_FILE` | ✅ | N/A | ✅ | Download details |
 | `0x29` | `CLEAR_COMPLETED` | ✅ | N/A | ✅ | Downloads panel |
-| `0x2A` | `CLIENT_SWAP_TO_ANOTHER_FILE` | ❌ | N/A | ❌ | Not implemented |
+| `0x54` | `CLIENT_SWAP_TO_ANOTHER_FILE` | ⚠️ | N/A | ❌ | Low-level builder only; hidden from advertised capabilities pending Bridge/UI source-client contract |
 | `0x2B` | `SHARED_FILE_SET_COMMENT` | ✅ | N/A | ✅ | Shared files window |
 | Server Management |
 | `0x2C` | `GET_SERVER_LIST` | ✅ | ✅ (servers) | ✅ | Servers window |
@@ -106,9 +109,9 @@ The native macOS aMule remote app is a **broad but shallow** implementation of t
 
 - **C++ total opcodes**: 79 (including server replies)
 - **SwiftEC builders implemented**: 60
-- **SwiftEC advertised bridge ops**: 57
-- **Missing as first-class SwiftEC ops**: ~12 (mostly auth/transport internals, `SHUTDOWN`, `ADDLOGLINE`, `ADDDEBUGLOGLINE`, `RESET_DEBUGLOG`, `GET_LAST_LOG_ENTRY`, `CLIENT_SWAP_TO_ANOTHER_FILE`)
-- **Intentionally hidden**: `FRIEND_SHARED` (excluded from `unsupportedDisabledOperations`)
+- **SwiftEC advertised bridge ops**: canonical list lives in `SwiftEC/Sources/AMuleECProtocol/ECSupportedOps.swift`
+- **Missing as first-class SwiftEC ops**: mostly auth/transport internals and server-side log injection commands (`ADDLOGLINE`, `ADDDEBUGLOGLINE`)
+- **Intentionally hidden**: `FRIEND_SHARED` and `CLIENT_SWAP_TO_ANOTHER_FILE` are excluded from advertised operations until their daemon/UI contracts are complete
 
 ---
 
@@ -165,7 +168,7 @@ Our parsers read only a subset of the tags the daemon sends. This is the primary
 - Upload part status
 - Available parts
 
-**Root cause of "Unknown" sources**: The friends opcode bug (see §3.1) also contributes, but the primary cause is that our parser skips most client identity/relationship tags.
+**Root cause of "Unknown" sources**: The primary cause is that our parser skips most client identity/relationship tags.
 
 ### 2.4 Connection Preferences Parser (`parseConnectionPrefs`)
 
@@ -188,15 +191,17 @@ Our parsers read only a subset of the tags the daemon sends. This is the primary
 
 ## 3. Critical Issues
 
-### 3.1 🐛 Friends Opcode Mismatch (HIGH PRIORITY)
+### 3.1 Client Swap Capability Correction (FIXED)
 
 **File**: `SwiftEC/Sources/AMuleECClient/ECOperations.swift`
 
-**Bug**: `friends()` sends opcode `0x52` (`GET_UPDATE`), but `ECResponseParser.parseFriends()` expects opcode `0x22` (`SHARED_FILES`).
+**Bug**: `client-swap-to-another-file` had been modeled with the wrong opcode/payload shape and was advertised too early for the Bridge/UI surface.
 
-**Impact**: The friends request/response pair is mismatched. This likely causes friends list to fail or return wrong data type. It may also explain intermittent issues with incremental updates.
+**Impact**: A future UI call could have sent a request the daemon would not interpret as a client-file swap. Capability advertising also implied parity that the native app could not complete because it had no source-client selection contract.
 
-**Fix**: Change `friends()` builder to send opcode `0x45` (`FRIEND`).
+**Fix**: The low-level builder now sends daemon opcode `0x54` with `EC_TAG_CLIENT` and `EC_TAG_PARTFILE`. `ECSupportedOps` keeps the operation hidden from advertised Bridge capabilities until the UI can supply the required client identity.
+
+**Related correction**: Friends retrieval remains on mixed `GET_UPDATE` semantics; focused tests now verify that a mixed update packet merges downloads, sources, servers, and nested friends.
 
 ### 3.2 🐛 Stats Crash (FIXED)
 
@@ -266,23 +271,23 @@ Our parsers read only a subset of the tags the daemon sends. This is the primary
 
 ### Immediate (P0)
 
-1. **Fix friends opcode mismatch** (`ECOperations.swift`): Change `friends()` to send `0x45` (`FRIEND`) instead of `0x52` (`GET_UPDATE`).
-2. **Expand sources parser** to read all `CLIENT_*` tags so sources show correct names/versions/states.
-3. **Expand status parser** to read speed limits, overhead, and total bytes.
+1. **Expand sources parser** to read all `CLIENT_*` tags so sources show correct names/versions/states.
+2. **Expand status parser** to read speed limits, overhead, and total bytes.
+3. **Keep mixed update regression coverage** for downloads, sources, servers, and nested friends so future parser changes preserve daemon semantics.
 
 ### Short-term (P1)
 
 4. **Expand downloads parser** to read `PARTFILE_SIZE_XFER_UP`, active flags, and corruption/compression stats.
 5. **Expand connection prefs parser** to read all preference groups (general, message filter, online signature, core tweaks, Kademlia).
 6. **Add `UPDATE_CATEGORY` UI** in Categories window.
-7. **Enable `FRIEND_SHARED`** capability and add UI to view friend shared files.
+7. **Keep `FRIEND_SHARED` hidden** until daemon support and the native UI contract are both explicit.
 
 ### Medium-term (P2)
 
-8. **Add missing EC operations**: `SHUTDOWN`, `RESET_DEBUGLOG`, `GET_LAST_LOG_ENTRY`, `CLIENT_SWAP_TO_ANOTHER_FILE`.
+8. **Promote `CLIENT_SWAP_TO_ANOTHER_FILE` only after Bridge/UI source-client selection exists**; the low-level builder is now daemon-aligned but intentionally unadvertised.
 9. **Expand shared files parser** to read all `KNOWNFILE_*` tags.
-10. **Add `GET_CONNSTATE` support** for explicit connection state queries.
-11. **Update SwiftEC docs** (`Operations.md`, `SwiftECV1Contract.md`) to reflect the real 57-op surface, not the stale 23-op snapshot.
+10. **Maintain explicit connection-state coverage** so `GET_CONNSTATE` stays tested separately from status refresh.
+11. **Keep SwiftEC docs** (`Operations.md`, `SwiftECV1Contract.md`) synchronized with `ECSupportedOps.swift` and focused protocol tests.
 
 ### Deferred (P3)
 

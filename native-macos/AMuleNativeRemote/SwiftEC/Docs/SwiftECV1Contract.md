@@ -4,7 +4,7 @@
 
 This document defines the V1 contract for the Swift Native EC Bridge, a pure-Swift implementation of the aMule External Connections (EC) protocol for Apple platforms (macOS and iOS).
 
-**Implementation Status:** COMPLETE
+**Implementation Status:** Complete for the advertised V1 operation surface; intentionally hidden operations are tracked separately.
 
 **Last Updated:** July 2026
 
@@ -16,7 +16,7 @@ SwiftEC implements a three-layer architecture:
 2. **AMuleECClient**: Session management, Network.framework transport, operation builders, response parsing
 3. **AMuleECBridgeAdapter**: BridgeProtocol conformance, JSON envelope generation, platform integration
 
-The native SwiftEC operation surface is defined in `ECSupportedOps` and covered by tests. SwiftEC advertises approximately 57 bridge operations across fourteen categories. The canonical source of truth is `Sources/AMuleECProtocol/ECSupportedOps.swift`.
+The native SwiftEC operation surface is defined in `ECSupportedOps` and covered by tests. SwiftEC advertises the canonical bridge operations across fourteen categories. The canonical source of truth is `Sources/AMuleECProtocol/ECSupportedOps.swift`.
 
 ## Canonical V1 Operation Surface
 
@@ -88,6 +88,9 @@ The table below summarizes representative operations from each category. It is n
 | 57 | `shared-file-comment-rating` | ECOperations.sharedFileCommentRating() | Shared Files | Complete | `sharedFileCommentRating(hash:comment:rating:)` |
 
 **Notes:**
+
+- `friend-shared` is intentionally absent from `ECSupportedOps.allOperations` because current daemon support is incomplete for a Bridge/UI contract.
+- `client-swap-to-another-file` has a low-level builder matching the daemon's `0x54` opcode and required `EC_TAG_CLIENT` plus `EC_TAG_PARTFILE` payload, but is intentionally not advertised until the Bridge/UI can choose a concrete source client.
 - Supported operation names are advertised by SwiftEC capabilities.
 - BridgeProtocol exposes supported operations uniformly.
 - Platform-specific feature flags control availability in apps.

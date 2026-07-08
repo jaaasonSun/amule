@@ -44,10 +44,11 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertEqual(try ECOperations.shutdown().opcode, 0x08)
         XCTAssertEqual(try ECOperations.resetDebugLog().opcode, 0x3C)
         XCTAssertEqual(try ECOperations.download(hash: hash).opcode, 0x2A)
-        let swapClient = try ECOperations.swapClientToAnotherFile(hash: hash)
-        XCTAssertEqual(swapClient.opcode, 0x2A)
-        XCTAssertEqual(swapClient.tags.map(\.name), [ECOperations.TagName.client])
-        XCTAssertEqual(swapClient.tags.first?.hashStringValue, hash)
+        let swapClient = try ECOperations.swapClientToAnotherFile(clientID: 99, hash: hash)
+        XCTAssertEqual(swapClient.opcode, 0x54)
+        XCTAssertEqual(swapClient.tags.map(\.name), [ECOperations.TagName.client, ECOperations.TagName.partFile])
+        XCTAssertEqual(swapClient.tags.first?.intValue, 99)
+        XCTAssertEqual(swapClient.tags.last?.hashStringValue, hash)
         XCTAssertEqual(try ECOperations.addLink("ed2k://|file|x|1|00112233445566778899aabbccddeeff|h=abc|").opcode, 0x09)
         XCTAssertEqual(try ECOperations.pause(hash: hash).opcode, 0x19)
         XCTAssertEqual(try ECOperations.resume(hash: hash).opcode, 0x1A)
@@ -370,7 +371,7 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertThrowsError(try ECOperations.lastLogEntry(gate: emptyGate)) { error in
             XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("last-log-entry"))
         }
-        XCTAssertThrowsError(try ECOperations.swapClientToAnotherFile(hash: hash, gate: emptyGate)) { error in
+        XCTAssertThrowsError(try ECOperations.swapClientToAnotherFile(clientID: 42, hash: hash, gate: emptyGate)) { error in
             XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("client-swap-to-another-file"))
         }
         XCTAssertThrowsError(try ECOperations.connectionState(gate: emptyGate)) { error in
@@ -396,8 +397,12 @@ final class ECOperationsTests: XCTestCase {
     }
 
     func testUnsupportedDisabledOperationNamesRemainUnadvertised() throws {
-        XCTAssertEqual(ECSupportedOps.unsupportedDisabledOperations, [ECSupportedOps.friendShared])
+        XCTAssertEqual(ECSupportedOps.unsupportedDisabledOperations, [
+            ECSupportedOps.friendShared,
+            ECSupportedOps.clientSwapToAnotherFile,
+        ])
         XCTAssertFalse(ECSupportedOps.allOperations.contains(ECSupportedOps.friendShared))
+        XCTAssertFalse(ECSupportedOps.allOperations.contains(ECSupportedOps.clientSwapToAnotherFile))
 
         let gate = ECCapabilityGate(capabilities: ECOperations.capabilities())
         XCTAssertNoThrow(try gate.require(.categoryUpdate))
@@ -406,7 +411,9 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertNoThrow(try gate.require(.connectionState))
         XCTAssertNoThrow(try gate.require(.lastLogEntry))
         XCTAssertNoThrow(try gate.require(.resetDebugLog))
-        XCTAssertNoThrow(try gate.require(.clientSwapToAnotherFile))
+        XCTAssertThrowsError(try gate.require(.clientSwapToAnotherFile)) { error in
+            XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("client-swap-to-another-file"))
+        }
         XCTAssertThrowsError(try gate.require(.friendShared)) { error in
             XCTAssertEqual(error as? ECOperationError, .unsupportedOperation("friend-shared"))
         }
@@ -1111,6 +1118,51 @@ final class ECOperationsTests: XCTestCase {
         let payload = try XCTUnwrap((json["friends"] as? [[String: Any]])?.first)
         XCTAssertEqual(payload["id"] as? Int, 7)
         XCTAssertEqual(payload["name"] as? String, "Peer")
+    }
+
+    func testMixedGetUpdatePacketMergesDownloadsSourcesAndFriends() throws {
+        let hash = "00112233445566778899aabbccddeeff"
+        let otherHash = "ffeeddccbbaa99887766554433221100"
+        var downloadStore = ECDownloadStateStore()
+        var sourceStore = ECSourceStateStore()
+        let baselinePacket = ECDownloadPacketFixtures.snapshotPacket(downloads: [
+            try ECDownloadPacketFixtures.partFile(ecid: 42, hash: hash, name: "current.iso"),
+        ])
+        downloadStore.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(baselinePacket), sourcePacket: baselinePacket)
+
+        let mixedUpdate = ECPacket(opcode: 0x22, tags: [
+            try ECDownloadPacketFixtures.partFile(ecid: 42, hash: hash, name: "current.iso", sourceNameEntries: [
+                ECDownloadPacketFixtures.sourceNameEntry(id: 7, name: "better.iso", count: 3),
+            ]),
+            try ECDownloadPacketFixtures.knownFile(ecid: 77, hash: otherHash, name: "/Shared/shared.iso", size: 100),
+            ECTag.integer(name: 0x0600, value: 99, children: [
+                .integer(name: 0x0620, value: 42),
+                ECTag(name: 0x0100, type: .string, value: .string("Peer")),
+                .integer(name: 0x060C, value: 3),
+                ECTag(name: 0x060E, type: .double, value: .double(12.5)),
+            ]),
+            ECTag(name: 0x0500, type: .ipv4, value: .ipv4(ECIPv4Address(1, 2, 3, 4, port: 4661))),
+            ECTag(name: 0x0800, type: .unknown, children: [
+                ECTag.integer(name: 0x0800, value: 7, children: [
+                    ECTag(name: 0x0801, type: .string, value: .string("Friend")),
+                    ECTag(name: 0x0802, type: .hash16, value: .hash16(Data((0..<16).map(UInt8.init)))),
+                    .integer(name: 0x0803, value: 0x05060708),
+                    .integer(name: 0x0804, value: 4662),
+                ]),
+            ]),
+        ])
+
+        downloadStore.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(mixedUpdate), sourcePacket: mixedUpdate)
+        sourceStore.applyIncrementalUpdate(mixedUpdate)
+        let friends = try ECResponseParser.parseFriends(mixedUpdate)
+
+        XCTAssertEqual(downloadStore.downloads.map { $0.name }, ["current.iso"])
+        XCTAssertEqual(downloadStore.downloads.first?.alternativeNames, [
+            ECDownload.AlternativeName(name: "better.iso", count: 3),
+        ])
+        XCTAssertEqual(sourceStore.sources(for: 42).map { $0.clientName }, ["Peer"])
+        XCTAssertEqual(sourceStore.sources(for: 42).first?.downSpeedKBps, 12.5)
+        XCTAssertEqual(friends.map { $0.name }, ["Friend"])
     }
 
     func testMutationParsersAndEnvelopesMatchBridgeShape() throws {
