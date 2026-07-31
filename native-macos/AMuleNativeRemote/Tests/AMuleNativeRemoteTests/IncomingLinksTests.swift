@@ -82,4 +82,32 @@ final class IncomingLinksTests: XCTestCase {
         )
     }
 
+    @MainActor
+    func testAddingLinkPresentsCompletionHUD() async throws {
+        let bridge = FakeBridgeAdapter()
+        let model = AppModel(bridge: bridge)
+
+        model.addLinks("ed2k://|file|alpha.bin|1|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|/")
+
+        try await waitUntil {
+            !model.isBusy && model.showHUD
+        }
+
+        XCTAssertEqual(model.hudMessage, LF3("Added %lld link(s)", Int64(0)))
+    }
+
+    @MainActor
+    private func waitUntil(
+        timeoutNanoseconds: UInt64 = 2_000_000_000,
+        condition: @escaping @MainActor () -> Bool
+    ) async throws {
+        let deadline = ContinuousClock.now.advanced(by: .nanoseconds(Int(timeoutNanoseconds)))
+        while ContinuousClock.now < deadline {
+            if condition() { return }
+            await Task.yield()
+        }
+
+        XCTFail("Timed out waiting for condition")
+    }
+
 }

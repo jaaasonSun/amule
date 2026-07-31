@@ -26,6 +26,8 @@ extension AppModel {
             return
         }
 
+        presentHUD(message: LF3("Adding %lld link(s)...", Int64(importPlan.count)), autoDismissAfter: nil)
+
         run(label: "add-link") {
             let beforeHashes = Set(self.downloads.map { $0.id.uppercased() })
 
@@ -50,7 +52,7 @@ extension AppModel {
 
             var actualAddedCount = 0
             if successCount > 0 {
-                try await self.refreshDownloadsNow(logOutput: false)
+                try await self.mutationRefreshDownloadsNow(logOutput: false)
                 let afterHashes = Set(self.downloads.map { $0.id.uppercased() })
 
                 if importPlan.requestedHashes.isEmpty {
@@ -63,18 +65,60 @@ extension AppModel {
                     }
                 }
 
-                await self.refreshStatus(logOutput: false, suppressErrors: true)
+                await self.mutationRefreshStatus(logOutput: false, suppressErrors: true)
             }
 
-            if failureCount > 0 {
-                await MainActor.run {
+            await MainActor.run {
+                if failureCount > 0 {
+                    self.presentHUD(message: LF3(
+                        "Added %lld link(s), failed %lld.",
+                        Int64(actualAddedCount),
+                        Int64(failureCount)
+                    ))
                     self.lastError = LF3(
                         "Added %lld link(s), failed %lld.",
                         Int64(actualAddedCount),
                         Int64(failureCount)
                     )
+                } else {
+                    self.presentHUD(message: LF3("Added %lld link(s)", Int64(actualAddedCount)))
                 }
             }
+        }
+    }
+
+    func presentHUD(message: String) {
+        presentHUD(message: message, autoDismissAfter: 2_000_000_000)
+    }
+
+    func presentHUD(message: String, autoDismissAfter nanoseconds: UInt64?) {
+        hudDismissTask?.cancel()
+        hudDismissTask = nil
+        hudMessage = message
+        withAnimation(.easeOut(duration: 0.15)) {
+            showHUD = true
+        }
+
+        guard let nanoseconds else { return }
+
+        hudDismissTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: nanoseconds)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                guard let self else { return }
+                self.hudDismissTask = nil
+                withAnimation(.easeIn(duration: 0.18)) {
+                    self.showHUD = false
+                }
+            }
+        }
+    }
+
+    func hideHUD() {
+        hudDismissTask?.cancel()
+        hudDismissTask = nil
+        withAnimation(.easeIn(duration: 0.18)) {
+            showHUD = false
         }
     }
 }
