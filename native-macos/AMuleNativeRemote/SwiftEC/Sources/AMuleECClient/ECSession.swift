@@ -58,6 +58,7 @@ public actor ECSession {
     }
 
     public private(set) var state: State = .disconnected
+    public private(set) var reconnectGeneration: UInt = 0
 
     private let configuration: Configuration
     private let makeTransport: @Sendable () throws -> any ECConnectionTransport
@@ -228,6 +229,7 @@ public actor ECSession {
             try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             _ = try await connectAndAuthenticate()
         }
+        reconnectGeneration &+= 1
     }
 
     private func disconnectTransport() async {
