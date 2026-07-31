@@ -31,6 +31,12 @@ final class PlatformModernizationTests: XCTestCase {
             XCTAssertFalse(text.contains("IPHONEOS_DEPLOYMENT_TARGET = 26.0"), "\(file) still declares iOS 26")
             XCTAssertFalse(text.contains("default `26.0`"), "\(file) still documents a 26.0 default")
         }
+
+        let iosProject = try read("AMuleRemoteiOS.xcodeproj/project.pbxproj")
+        XCTAssertTrue(
+            iosProject.contains("IPHONEOS_DEPLOYMENT_TARGET = 27.0"),
+            "AMuleRemoteiOS.xcodeproj must declare iOS 27.0 as its deployment target"
+        )
     }
 
     func testAvailabilityAndWarningChecksStayEnabled() throws {
