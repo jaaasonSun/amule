@@ -111,8 +111,8 @@ extension AppModel {
                     }
                 }
             }
-            try await self.refreshDownloadsNow()
-            await self.refreshStatus(logOutput: false)
+            try await self.mutationRefreshDownloadsNow()
+            await self.mutationRefreshStatus(logOutput: false)
 
             await MainActor.run {
                 if failureCount > 0 {
