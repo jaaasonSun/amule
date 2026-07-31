@@ -8,19 +8,87 @@ import SharedModels
 import SharedServices
 #endif
 
-private func L2(_ key: String) -> String {
-    NSLocalizedString(key, comment: "")
+func statsLabelByReplacingValuePlaceholders(_ label: String, value: Double) -> String {
+    var result = ""
+    var cursor = label.startIndex
+    while let percent = label[cursor...].firstIndex(of: "%") {
+        result.append(contentsOf: label[cursor..<percent])
+        let afterPercent = label.index(after: percent)
+        guard afterPercent < label.endIndex else {
+            result.append("%")
+            cursor = afterPercent
+            break
+        }
+        if label[afterPercent] == "%" {
+            result.append("%")
+            cursor = label.index(after: afterPercent)
+            continue
+        }
+        guard let specifier = statsFormatSpecifierRange(in: label, startingAt: afterPercent) else {
+            result.append("%")
+            cursor = afterPercent
+            continue
+        }
+        result.append(statsFormattedValue(value, specifier: label[specifier.upperBound]))
+        cursor = label.index(after: specifier.upperBound)
+    }
+    result.append(contentsOf: label[cursor...])
+    return result
 }
 
-private func LF2(_ key: String, _ args: CVarArg...) -> String {
-    String(format: NSLocalizedString(key, comment: ""), locale: .current, arguments: args)
+func statsLabelContainsValuePlaceholder(_ label: String) -> Bool {
+    var cursor = label.startIndex
+    while let percent = label[cursor...].firstIndex(of: "%") {
+        let afterPercent = label.index(after: percent)
+        guard afterPercent < label.endIndex else { return false }
+        if label[afterPercent] == "%" {
+            cursor = label.index(after: afterPercent)
+            continue
+        }
+        if statsFormatSpecifierRange(in: label, startingAt: afterPercent) != nil {
+            return true
+        }
+        cursor = afterPercent
+    }
+    return false
+}
+
+func statsGraphRateInKilobytesPerSecond(_ bytesPerSecond: Int) -> Double {
+    Double(bytesPerSecond) / 1024.0
+}
+
+func statsGraphLegendLabel(_ series: String, unit: String) -> String {
+    "\(series) (\(unit))"
+}
+
+private func statsFormatSpecifierRange(in label: String, startingAt start: String.Index) -> ClosedRange<String.Index>? {
+    let specifiers = Set("diuoxXfFeEgGaAcCsSp@")
+    let allowedBeforeSpecifier = Set("-+#0123456789.hlLqztj")
+    var cursor = start
+    while cursor < label.endIndex {
+        if specifiers.contains(label[cursor]) {
+            return start...cursor
+        }
+        if !allowedBeforeSpecifier.contains(label[cursor]) {
+            return nil
+        }
+        cursor = label.index(after: cursor)
+    }
+    return nil
+}
+
+private func statsFormattedValue(_ value: Double, specifier: Character) -> String {
+    switch specifier {
+    case "d", "i", "u", "o", "x", "X":
+        return Int(value).formatted()
+    default:
+        return value.formatted()
+    }
 }
 
 struct StatsWindowView: View {
     @EnvironmentObject private var model: AppModel
     let embeddedInMainWindow: Bool
-    @State private var widthInput = "480"
-    @State private var scaleInput = "1"
 
     init(embeddedInMainWindow: Bool = false) {
         self.embeddedInMainWindow = embeddedInMainWindow
@@ -33,58 +101,52 @@ struct StatsWindowView: View {
                 minHeight: embeddedInMainWindow ? nil : 520
             )
             .task {
-                model.refreshStatsTree()
-                model.refreshStatsGraphs()
+                refreshStatistics()
             }
     }
 
     private var content: some View {
         VStack(spacing: 0) {
-            statusHeader
-
-            Divider()
-
             ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    statsTreeSection
+                VStack(alignment: .leading, spacing: 16) {
+                    StatsOverviewGrid(status: model.status, graphs: model.statsGraphs)
 
                     statsGraphsSection
+
+                    statsTreeSection
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(14)
+                .padding(16)
+            }
+            .background(Color(nsColor: .windowBackgroundColor))
+        }
+        .background(Color(nsColor: .windowBackgroundColor))
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button {
+                    refreshStatistics()
+                } label: {
+                    Label(L("Refresh"), systemImage: "arrow.clockwise")
+                }
+                .help(L("Refresh Statistics"))
+                .disabled(model.isBusy || (!model.isBridgeOpSupported("stats-tree") && !model.isBridgeOpSupported("stats-graphs")))
             }
         }
     }
 
-    private var statusHeader: some View {
-        let summary = NetworkStatusSummary(status: model.status)
-        return HStack(spacing: 14) {
-            Text(L2("Statistics"))
-                .font(.headline)
-
-            NetworkStatusChip(title: L2("eD2k"), value: summary.ed2k)
-            NetworkStatusChip(title: L2("Kad"), value: summary.kad)
-
-            Spacer()
+    private func refreshStatistics() {
+        if model.isBridgeOpSupported("stats-tree") {
+            model.refreshStatsTree()
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        if model.isBridgeOpSupported("stats-graphs") {
+            model.refreshStatsGraphs()
+        }
     }
 
     private var statsTreeSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Text(L2("Stats Tree"))
-                    .font(.headline)
-                Spacer()
-                Button {
-                    model.refreshStatsTree()
-                } label: {
-                    Label(L2("Refresh Tree"), systemImage: "arrow.clockwise")
-                }
-                .buttonStyle(.bordered)
-                .disabled(model.isBusy || !model.isBridgeOpSupported("stats-tree"))
-            }
+            Text(L("Stats Tree"))
+                .font(.headline)
 
             if let tree = model.statsTree {
                 VStack(alignment: .leading, spacing: 2) {
@@ -92,7 +154,7 @@ struct StatsWindowView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                Text(L2("No statistics tree loaded."))
+                Text(L("No statistics tree loaded."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -101,37 +163,16 @@ struct StatsWindowView: View {
 
     private var statsGraphsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                if let graphs = model.statsGraphs {
-                    Text(LF2("Stats Graphs (%lld samples)", Int64(graphs.samples.count)))
-                        .font(.headline)
-                } else {
-                    Text(L2("Stats Graphs"))
-                        .font(.headline)
-                }
-
-                Spacer()
-
-                TextField(L2("Width"), text: $widthInput)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 90)
-                TextField(L2("Scale"), text: $scaleInput)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 90)
-
-                Button {
-                    let width = Int(widthInput) ?? 480
-                    let scale = Int(scaleInput) ?? 1
-                    model.refreshStatsGraphs(width: max(1, width), scale: max(1, scale))
-                } label: {
-                    Label(L2("Refresh Graphs"), systemImage: "waveform.path.ecg")
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(model.isBusy || !model.isBridgeOpSupported("stats-graphs"))
+            if let graphs = model.statsGraphs {
+                Text(LF("Stats Graphs (%lld samples)", Int64(graphs.samples.count)))
+                    .font(.headline)
+            } else {
+                Text(L("Stats Graphs"))
+                    .font(.headline)
             }
 
             if let graphs = model.statsGraphs, !graphs.samples.isEmpty {
-                Text(LF2("Last sample marker: %@", graphs.last.formatted()))
+                Text(LF("Last sample marker: %@", graphs.last.formatted()))
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -141,7 +182,7 @@ struct StatsWindowView: View {
                 connectionsChart(for: graphs)
                     .frame(height: 200)
             } else {
-                Text(L2("No graph samples loaded."))
+                Text(L("No graph samples loaded."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -149,29 +190,42 @@ struct StatsWindowView: View {
     }
 
     private func throughputChart(for graphs: BridgeStatsGraphsPayload) -> some View {
+        let unit = L("KB/s")
         let data = graphs.samples.enumerated().flatMap { index, sample in
             [
-                GraphPoint(index: index, value: sample.dl, series: L2("Download")),
-                GraphPoint(index: index, value: sample.ul, series: L2("Upload"))
+                ThroughputGraphPoint(
+                    index: index,
+                    value: statsGraphRateInKilobytesPerSecond(sample.dl),
+                    series: statsGraphLegendLabel(L("Download"), unit: unit)
+                ),
+                ThroughputGraphPoint(
+                    index: index,
+                    value: statsGraphRateInKilobytesPerSecond(sample.ul),
+                    series: statsGraphLegendLabel(L("Upload"), unit: unit)
+                )
             ]
         }
         return Chart(data) { point in
             LineMark(
-                x: .value(L2("Sample"), point.index + 1),
-                y: .value(L2("KiB/s"), point.value)
+                x: .value(L("Sample"), point.index + 1),
+                y: .value(unit, point.value)
             )
-            .foregroundStyle(by: .value(L2("Series"), point.series))
+            .foregroundStyle(by: .value(L("Series"), point.series))
             .interpolationMethod(.monotone)
         }
         .chartLegend(position: .top, alignment: .leading)
-        .chartXAxisLabel(L2("Sample"))
-        .chartYAxisLabel(L2("KiB/s"))
+        .chartPlotStyle { plotArea in
+            plotArea
+                .background(Color(nsColor: .textBackgroundColor))
+        }
+        .chartXAxisLabel(L("Sample"))
+        .chartYAxisLabel(unit)
         .chartYAxis {
             AxisMarks(values: .automatic(desiredCount: 5)) { value in
                 AxisGridLine()
                 AxisValueLabel {
-                    if let intValue = value.as(Int.self) {
-                        Text(intValue.formatted())
+                    if let rate = value.as(Double.self) {
+                        Text(rate.formatted(.number.precision(.fractionLength(0...1))))
                     }
                 }
             }
@@ -191,21 +245,25 @@ struct StatsWindowView: View {
     private func connectionsChart(for graphs: BridgeStatsGraphsPayload) -> some View {
         let data = graphs.samples.enumerated().flatMap { index, sample in
             [
-                GraphPoint(index: index, value: sample.connections, series: L2("Connections")),
-                GraphPoint(index: index, value: sample.kad, series: L2("Kad"))
+                GraphPoint(index: index, value: sample.connections, series: L("Connections")),
+                GraphPoint(index: index, value: sample.kad, series: L("Kad"))
             ]
         }
         return Chart(data) { point in
             LineMark(
-                x: .value(L2("Sample"), point.index + 1),
-                y: .value(L2("Count"), point.value)
+                x: .value(L("Sample"), point.index + 1),
+                y: .value(L("Count"), point.value)
             )
-            .foregroundStyle(by: .value(L2("Series"), point.series))
+            .foregroundStyle(by: .value(L("Series"), point.series))
             .interpolationMethod(.monotone)
         }
         .chartLegend(position: .top, alignment: .leading)
-        .chartXAxisLabel(L2("Sample"))
-        .chartYAxisLabel(L2("Count"))
+        .chartPlotStyle { plotArea in
+            plotArea
+                .background(Color(nsColor: .textBackgroundColor))
+        }
+        .chartXAxisLabel(L("Sample"))
+        .chartYAxisLabel(L("Count"))
         .chartYAxis {
             AxisMarks(values: .automatic(desiredCount: 5)) { value in
                 AxisGridLine()
@@ -229,6 +287,13 @@ struct StatsWindowView: View {
     }
 }
 
+private struct ThroughputGraphPoint: Identifiable {
+    let id = UUID()
+    let index: Int
+    let value: Double
+    let series: String
+}
+
 private struct GraphPoint: Identifiable {
     let id = UUID()
     let index: Int
@@ -236,44 +301,50 @@ private struct GraphPoint: Identifiable {
     let series: String
 }
 
-private struct NetworkStatusChip: View {
-    let title: String
-    let value: String
+private struct StatsOverviewGrid: View {
+    let status: StatusSnapshot
+    let graphs: BridgeStatsGraphsPayload?
 
     var body: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(dotColor)
-                .frame(width: 7, height: 7)
-            Text(title)
-                .font(.caption.weight(.semibold))
-            Text(displayValue)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 10)], alignment: .leading, spacing: 10) {
+            StatsOverviewTile(title: L("Download"), value: status.downloadSpeed, systemImage: "arrow.down", color: .blue)
+            StatsOverviewTile(title: L("Upload"), value: status.uploadSpeed, systemImage: "arrow.up", color: .green)
+            StatsOverviewTile(title: L("Queue"), value: status.queue, systemImage: "person.3.sequence", color: .purple)
+            StatsOverviewTile(title: L("Samples"), value: sampleCountText, systemImage: "chart.xyaxis.line", color: .orange)
+        }
+    }
+
+    private var sampleCountText: String {
+        guard let graphs else { return "-" }
+        return graphs.samples.count.formatted()
+    }
+}
+
+private struct StatsOverviewTile: View {
+    let title: String
+    let value: String
+    let systemImage: String
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: systemImage)
+                    .foregroundStyle(color)
+                    .frame(width: 16)
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            Text(value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "-" : value)
+                .font(.headline)
+                .monospacedDigit()
                 .lineLimit(1)
                 .truncationMode(.middle)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(.quaternary, in: Capsule())
-    }
-
-    private var displayValue: String {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "-" : trimmed
-    }
-
-    private var dotColor: Color {
-        switch connectionState(from: value) {
-        case .connected:
-            return .green
-        case .transitional:
-            return .orange
-        case .disconnected:
-            return .red
-        case .unknown:
-            return .secondary
-        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
     }
 }
 
@@ -334,21 +405,12 @@ private struct StatsTreeNodeRow: View {
 
     private var displayLabel: String {
         let label = node.label
-        if label.contains("%s") {
-            return String(format: label, node.value.formatted())
-        }
-        if label.contains("%d") || label.contains("%i") || label.contains("%u") {
-            return String(format: label, Int(node.value))
-        }
-        if label.contains("%f") || label.contains("%g") || label.contains("%e") {
-            return String(format: label, node.value)
-        }
-        return label
+        return statsLabelByReplacingValuePlaceholders(label, value: node.value)
     }
 
     private var valueBadgeText: String {
         let label = node.label
-        if label.contains("%s") || label.contains("%d") || label.contains("%i") || label.contains("%u") || label.contains("%f") || label.contains("%g") || label.contains("%e") {
+        if statsLabelContainsValuePlaceholder(label) {
             return ""
         }
         return node.value.formatted()
