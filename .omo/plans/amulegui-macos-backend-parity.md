@@ -62,7 +62,7 @@ Your next move: approve execution, or ask for the plan to bias toward hiding unf
 ## Todos
 > Implementation + Test = ONE todo. Never separate.
 <!-- APPEND TASK BATCHES BELOW THIS LINE WITH edit/apply_patch - never rewrite the headers above. -->
-- [ ] 1. Lock SwiftEC opcode/capability truth against upstream ECCodes
+- [x] 1. Lock SwiftEC opcode/capability truth against upstream ECCodes
   What to do / Must NOT do: Add a focused test that asserts every advertised mutation opcode that SwiftEC builds matches upstream constants used by daemon dispatch. Fix `ECOperations.OpCode.clientSwapToAnotherFile` from `0x2A` to `0x54`, and change `swapClientToAnotherFile` to either accept `clientID + targetHash` and emit `EC_TAG_CLIENT` + `EC_TAG_PARTFILE`, or remove `client-swap-to-another-file` from `ECSupportedOps.allOperations` until there is a real adapter/UI contract. Do not leave a builder advertised if it cannot form the daemon request.
   Parallelization: Wave 1 | Blocked by: none | Blocks: 2, 7
   References (executor has NO interview context - be exhaustive): `src/libs/ec/cpp/ECCodes.h:80-121`; `src/ExternalConn.cpp:1483-1493`; `src/amule-remote-gui.cpp:2121-2132`; `native-macos/AMuleNativeRemote/SwiftEC/Sources/AMuleECClient/ECOperations.swift:66-67`; `native-macos/AMuleNativeRemote/SwiftEC/Sources/AMuleECClient/ECOperations.swift:452-457`; `native-macos/AMuleNativeRemote/SwiftEC/Sources/AMuleECProtocol/ECSupportedOps.swift:95-168`; `native-macos/AMuleNativeRemote/SwiftEC/Tests/AMuleECClientTests/ECOperationsTests.swift:43-50`.
@@ -70,7 +70,7 @@ Your next move: approve execution, or ask for the plan to bias toward hiding unf
   QA scenarios (name the exact tool + invocation): `swift test --filter ECOperationsTests/testMutatingOperationBuildersUseBridgeOpcodesAndTags`; add a negative capability-gate case showing unadvertised/unsupported path if the op is hidden. Evidence `.omo/evidence/task-1-amulegui-macos-backend-parity.md`.
   Commit: Y | `fix(swiftec): align advertised client-swap operation with daemon opcode`
 
-- [ ] 2. Add operation-surface parity tests for adapter and capabilities
+- [x] 2. Add operation-surface parity tests for adapter and capabilities
   What to do / Must NOT do: Add a test that every operation in `ECSupportedOps.allOperations` has either a BridgeProtocol method or an explicitly documented lower-level builder-only rationale. Confirm `friend-shared` remains in `unsupportedDisabledOperations` and absent from advertised capabilities because daemon shared-list handling is disabled. Do not re-advertise `friend-shared`.
   Parallelization: Wave 1 | Blocked by: 1 | Blocks: 7
   References (executor has NO interview context - be exhaustive): `src/ExternalConn.cpp:946-1014`; `native-macos/AMuleNativeRemote/SwiftEC/Sources/AMuleECProtocol/ECSupportedOps.swift:97-168`; `native-macos/AMuleNativeRemote/SwiftEC/Sources/AMuleECBridgeAdapter/SwiftECBridgeAdapter.swift:601-664`; `native-macos/AMuleNativeRemote/SwiftEC/Tests/AMuleECProtocolTests/ECSupportedOpsTests.swift:149`; `native-macos/AMuleNativeRemote/SwiftEC/Tests/AMuleECClientTests/ECOperationsTests.swift:398-412`.
@@ -78,7 +78,7 @@ Your next move: approve execution, or ask for the plan to bias toward hiding unf
   QA scenarios (name the exact tool + invocation): run `swift test --filter ECSupportedOpsTests/testSupportedOperationsStayInSyncWithBridgeProtocol` after adding it; verify `friend-shared` rejected by `ECCapabilityGate(capabilities: ECOperations.capabilities())`. Evidence `.omo/evidence/task-2-amulegui-macos-backend-parity.md`.
   Commit: Y | `test(swiftec): guard advertised operation surface`
 
-- [ ] 3. Preserve mixed `GET_UPDATE` incremental semantics with fixture tests
+- [x] 3. Preserve mixed `GET_UPDATE` incremental semantics with fixture tests
   What to do / Must NOT do: Build SwiftEC fixtures for daemon mixed update packets containing partfile, knownfile, client, server, and friend tags under `EC_OP_SHARED_FILES`, including sparse delta/removal cases. Assert `ECDownloadStateStore`, `ECSourceStateStore`, `parseFriends`, and `parseDownloads` keep existing data, tombstone removals, and request full resync only when daemon sends unknown sparse partfiles. Do not replace this with direct full-list parsing.
   Parallelization: Wave 1 | Blocked by: none | Blocks: 6, 7
   References (executor has NO interview context - be exhaustive): `src/ExternalConn.cpp:662-725`; `src/amule-remote-gui.h:116-388`; `src/amule-remote-gui.cpp:1103-1167`; `native-macos/AMuleNativeRemote/SwiftEC/Sources/AMuleECClient/ECResponseParser.swift:393-436`; `native-macos/AMuleNativeRemote/SwiftEC/Sources/AMuleECClient/ECResponseParser.swift:649-668`; `native-macos/AMuleNativeRemote/SwiftEC/Sources/AMuleECClient/ECDownloadStateStore.swift:40-148`; `native-macos/AMuleNativeRemote/SwiftEC/Sources/AMuleECClient/ECSourceStateStore.swift:13-131`.
@@ -86,7 +86,7 @@ Your next move: approve execution, or ask for the plan to bias toward hiding unf
   QA scenarios (name the exact tool + invocation): `swift test --filter ECOperationsTests/testMixedGetUpdatePacketMergesDownloadsSourcesAndFriends`; `swift test --filter ECOperationsTests/testSparseUnknownPartFileTriggersFullResync`. Evidence `.omo/evidence/task-3-amulegui-macos-backend-parity.md`.
   Commit: Y | `test(swiftec): lock mixed update merge semantics`
 
-- [ ] 4. Lock original search lifecycle and mutation response opcodes
+- [x] 4. Lock original search lifecycle and mutation response opcodes
   What to do / Must NOT do: Add/extend tests for search start returning `EC_OP_STRINGS`, stop returning `EC_OP_MISC_DATA`, progress/results as separate requests, search-result download returning `EC_OP_STRINGS`, and duplicate result replacement by ECID. Do not assume all mutations return `NOOP`.
   Parallelization: Wave 1 | Blocked by: none | Blocks: 6, 7
   References (executor has NO interview context - be exhaustive): `src/amule-remote-gui.cpp:1936-2075`; `src/amule-remote-gui.cpp:1769-1777`; `src/ExternalConn.cpp:1017-1129`; `src/ExternalConn.cpp:1589-1612`; `native-macos/AMuleNativeRemote/SwiftEC/Sources/AMuleECBridgeAdapter/SwiftECBridgeAdapter.swift:108-155`; `native-macos/AMuleNativeRemote/SwiftEC/Sources/AMuleECClient/ECResponseParser.swift:693-730`; `native-macos/AMuleNativeRemote/Sources/AMuleNativeRemote/AppModel+Search.swift:1-120`.
@@ -94,7 +94,7 @@ Your next move: approve execution, or ask for the plan to bias toward hiding unf
   QA scenarios (name the exact tool + invocation): `swift test --filter AMuleECBridgeAdapterTests/testSearchLifecycleAcceptsOriginalSuccessOpcodes`; `swift test --filter AMuleNativeRemoteTests/SearchTests`. Evidence `.omo/evidence/task-4-amulegui-macos-backend-parity.md`.
   Commit: Y | `test(native): verify original search lifecycle semantics`
 
-- [ ] 5. Decide and test macOS refresh scheduling divergence from amulegui
+- [x] 5. Decide and test macOS refresh scheduling divergence from amulegui
   What to do / Must NOT do: Add tests around `startAutoRefresh` cadence using an injectable clock/scheduler if available, or introduce a narrow test seam in `AppModel+Connection.swift`. Verify status refresh every tick, downloads gated by `shouldAutoRefreshDownloads`, servers every five ticks, and no uncontrolled overlapping bridge calls. Document the divergence from amulegui's visibility-aware poll loop as an intentional native behavior, or implement visibility-aware gating only if existing app state already exposes it cleanly. Do not add broad UI state plumbing just for parity.
   Parallelization: Wave 2 | Blocked by: none | Blocks: 6, 7
   References (executor has NO interview context - be exhaustive): `src/amule-remote-gui.cpp:148-203`; `src/amule-remote-gui.cpp:359-399`; `native-macos/AMuleNativeRemote/Sources/AMuleNativeRemote/AppModel+Connection.swift:76-94`; `native-macos/AMuleNativeRemote/Tests/AMuleNativeRemoteTests/FakeBridgeAdapter.swift:1-220`.
@@ -102,7 +102,7 @@ Your next move: approve execution, or ask for the plan to bias toward hiding unf
   QA scenarios (name the exact tool + invocation): `swift test --filter AMuleNativeRemoteTests/AutoRefreshTests`; record whether final behavior is fixed-cadence documented or visibility-gated implemented. Evidence `.omo/evidence/task-5-amulegui-macos-backend-parity.md`.
   Commit: Y | `test(mac): cover native refresh scheduler parity`
 
-- [ ] 6. Refresh parity documentation after executable contract is true
+- [x] 6. Refresh parity documentation after executable contract is true
   What to do / Must NOT do: Update `native-macos/AMuleNativeRemote/SwiftEC/Docs/Operations.md`, `native-macos/AMuleNativeRemote/SwiftEC/Docs/SwiftECV1Contract.md`, `native-macos/AMuleNativeRemote/docs/original-amule-ec-protocol-notes.md`, and replace or amend `docs/superpowers/evidence/2026-07-07-feature-parity-report.md`. Remove stale claims such as the old friends opcode bug. Correct opcode tables for `GET_CONNSTATE`, `GET_LAST_LOG_ENTRY`, `DOWNLOAD_SEARCH_RESULT`, and `CLIENT_SWAP_TO_ANOTHER_FILE`. Do not mark implementation "complete" for any operation hidden or intentionally unsupported.
   Parallelization: Wave 3 | Blocked by: 1, 3, 4, 5 | Blocks: 7
   References (executor has NO interview context - be exhaustive): `native-macos/AMuleNativeRemote/SwiftEC/Docs/Operations.md:766-839`; `native-macos/AMuleNativeRemote/SwiftEC/Docs/SwiftECV1Contract.md:7-20`; `native-macos/AMuleNativeRemote/docs/original-amule-ec-protocol-notes.md:133-172`; `docs/superpowers/evidence/2026-07-07-feature-parity-report.md:9-112`; `.omo/evidence/amulegui-macos-backend-parity.md`.
@@ -110,7 +110,7 @@ Your next move: approve execution, or ask for the plan to bias toward hiding unf
   QA scenarios (name the exact tool + invocation): run the `rg` command above plus `git diff --check`. Evidence `.omo/evidence/task-6-amulegui-macos-backend-parity.md`.
   Commit: Y | `docs(native): refresh amulegui backend parity evidence`
 
-- [ ] 7. Full Swift/macOS verification and clean worktree audit
+- [x] 7. Full Swift/macOS verification and clean worktree audit
   What to do / Must NOT do: Run the required Swift package and macOS app verification from AGENTS. Capture failures with exact commands and fix only failures caused by this plan. Do not delete generated artifacts without approval; ignore unrelated dirty files not produced by the task.
   Parallelization: Wave 3 | Blocked by: 1-6 | Blocks: final verification
   References (executor has NO interview context - be exhaustive): `AGENTS.md` build commands; `native-macos/AMuleNativeRemote/docs/coding-agent-field-guide.md`; `.omo/evidence/amulegui-macos-backend-parity.md`.
@@ -120,10 +120,10 @@ Your next move: approve execution, or ask for the plan to bias toward hiding unf
 
 ## Final verification wave
 > Runs in parallel after ALL todos. ALL must APPROVE. Surface results and wait for the user's explicit okay before declaring complete.
-- [ ] F1. Plan compliance audit
-- [ ] F2. Code quality review
-- [ ] F3. Real manual QA
-- [ ] F4. Scope fidelity
+- [x] F1. Plan compliance audit
+- [x] F2. Code quality review
+- [x] F3. Real manual QA
+- [x] F4. Scope fidelity
 
 ## Commit strategy
 - Prefer three atomic commits if executing manually:
