@@ -4,21 +4,15 @@ import SharedViews
 import SharedModels
 import SharedServices
 
-private func L2(_ key: String) -> String {
-    NSLocalizedString(key, comment: "")
-}
-
-private func LF2(_ key: String, _ args: CVarArg...) -> String {
-    String(format: NSLocalizedString(key, comment: ""), locale: .current, arguments: args)
-}
-
 struct SearchWindowView: View {
     @EnvironmentObject private var model: AppModel
 
     let embeddedInMainWindow: Bool
+    private let searchInspectorColumnWidth: CGFloat = 320
 
-    init(embeddedInMainWindow: Bool = false) {
+    init(embeddedInMainWindow: Bool = false, showsAdvancedSearchOptions: Bool = false) {
         self.embeddedInMainWindow = embeddedInMainWindow
+        _showsAdvancedSearchOptions = State(initialValue: showsAdvancedSearchOptions)
     }
 
     @State private var searchSortDescriptors = [
@@ -46,23 +40,6 @@ struct SearchWindowView: View {
         model.searchScope
     }
 
-    private var searchScopeMenuLabel: String {
-        switch activeSearchScopeValue.lowercased() {
-        case "kad":
-            return L2("Kad")
-        case "local":
-            return L2("Local")
-        default:
-            return L2("Global")
-        }
-    }
-
-    private var searchToolbarPlaceholder: String { L2("Search") }
-
-    private var searchQueryBinding: Binding<String> {
-        return $model.searchQuery
-    }
-
     private var isSearchInProgressForUI: Bool {
         model.isSearchInProgress
     }
@@ -80,56 +57,69 @@ struct SearchWindowView: View {
             baseSearchContent
         } else {
             baseSearchContent
-                .frame(minWidth: 920, minHeight: 320)
+                .frame(minWidth: 920, minHeight: 560)
         }
     }
 
     private var baseSearchContent: some View {
         VStack(spacing: 0) {
-            advancedSearchOptions
+            HStack(spacing: 0) {
+                SearchResultsOutlineView(
+                    nodes: searchTree,
+                    selection: $selectedSearchResultIDs,
+                    sortDescriptors: $searchSortDescriptors,
+                    autosaveName: searchOutlineAutosaveName
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .layoutPriority(1)
 
-            SearchResultsOutlineView(
-                nodes: searchTree,
-                selection: $selectedSearchResultIDs,
-                sortDescriptors: $searchSortDescriptors,
-                autosaveName: searchOutlineAutosaveName
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .layoutPriority(1)
+                if showsAdvancedSearchOptions {
+                    Divider()
+                    SearchInspectorPanel(
+                        options: $model.searchOptions,
+                        activeScopeValue: activeSearchScopeValue,
+                        setSearchScope: setSearchScope,
+                        visibleResultCount: displayedSearchResults.count,
+                        totalResultCount: model.searchResults.count,
+                        selectedResultCount: selectedSearchResultIDs.count,
+                        isSearchSupported: isSearchSupported
+                    )
+                    .frame(width: searchInspectorColumnWidth)
+                }
+            }
         }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
                     model.downloadResults(selectedSearchResults)
                 } label: {
-                    Label(L2("Download"), systemImage: "arrow.down.circle")
+                    Label(L("Download"), systemImage: "arrow.down.circle")
                 }
-                .help(L2("Download Selected"))
+                .help(L("Download Selected"))
                 .disabled(!canDownloadSelectedSearchResults || !model.isBridgeOpSupported("download"))
 
                 Button {
                     model.stopSearch()
                 } label: {
-                    Label(L2("Stop"), systemImage: "stop.fill")
+                    Label(L("Stop"), systemImage: "stop.fill")
                 }
-                .help(L2("Stop Search"))
+                .help(L("Stop Search"))
                 .disabled(!isSearchInProgressForUI || !isSearchSupported)
 
-                SearchScopePicker(
-                    activeScopeValue: activeSearchScopeValue,
-                    label: searchScopeMenuLabel,
-                    setSearchScope: setSearchScope
-                )
-                .help(L2("Search Scope"))
+                Button {
+                    showsAdvancedSearchOptions.toggle()
+                } label: {
+                    Label(L("Advanced"), systemImage: "slider.horizontal.3")
+                }
+                .help(L("Advanced Search"))
                 .disabled(!isSearchSupported)
             }
         }
-        .modifier(SearchCapabilityGate(
-            isSearchSupported: isSearchSupported,
-            query: searchQueryBinding,
-            placeholder: searchToolbarPlaceholder,
-            onSubmit: { model.performSearch() }
-        ))
+        .searchable(text: $model.searchQuery, placement: .toolbar, prompt: L("File name or keywords"))
+        .onSubmit(of: .search) {
+            guard isSearchSupported else { return }
+            model.performSearch()
+        }
         .task {
             refreshDisplayedSearchResults()
         }
@@ -139,72 +129,6 @@ struct SearchWindowView: View {
         .onChange(of: model.searchOptions) {
             refreshDisplayedSearchResults()
         }
-    }
-
-    private var advancedSearchOptions: some View {
-        DisclosureGroup(isExpanded: $showsAdvancedSearchOptions) {
-            Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
-                GridRow {
-                    Text(L2("Type"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    TextField(L2("Any"), text: $model.searchOptions.fileType)
-                        .textFieldStyle(.roundedBorder)
-
-                    Text(L2("Extension"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    TextField(L2("Any"), text: $model.searchOptions.fileExtension)
-                        .textFieldStyle(.roundedBorder)
-
-                    Text(L2("Availability"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    TextField("0", text: $model.searchOptions.availabilityText)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 72)
-                }
-
-                GridRow {
-                    Text(L2("Min Size"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    TextField("0", text: $model.searchOptions.minSizeText)
-                        .textFieldStyle(.roundedBorder)
-
-                    Text(L2("Max Size"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    TextField("0", text: $model.searchOptions.maxSizeText)
-                        .textFieldStyle(.roundedBorder)
-
-                    Text(L2("Filter"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    TextField(L2("Visible Results"), text: $model.searchOptions.filterText)
-                        .textFieldStyle(.roundedBorder)
-                }
-
-                GridRow {
-                    Color.clear
-                        .gridCellUnsizedAxes([.horizontal, .vertical])
-                    Toggle(L2("Invert"), isOn: $model.searchOptions.invertFilter)
-                    Color.clear
-                        .gridCellUnsizedAxes([.horizontal, .vertical])
-                    Toggle(L2("Hide Known"), isOn: $model.searchOptions.hideKnownResults)
-                    Color.clear
-                        .gridCellUnsizedAxes([.horizontal, .vertical])
-                    Spacer(minLength: 0)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, 8)
-        } label: {
-            Text(L2("Advanced Search"))
-                .font(.subheadline)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
     }
 
     private func refreshDisplayedSearchResults() {
@@ -318,22 +242,159 @@ struct SearchWindowView: View {
     }
 }
 
-private struct SearchCapabilityGate: ViewModifier {
+private struct SearchInspectorPanel: View {
+    @Binding var options: SearchOptions
+    let activeScopeValue: String
+    let setSearchScope: (String) -> Void
+    let visibleResultCount: Int
+    let totalResultCount: Int
+    let selectedResultCount: Int
     let isSearchSupported: Bool
-    let query: Binding<String>
-    let placeholder: String
-    let onSubmit: () -> Void
 
-    func body(content: Content) -> some View {
-        if isSearchSupported {
-            content
-                .searchable(text: query, placement: .toolbar, prompt: Text(placeholder))
-                .onSubmit(of: .search) {
-                    onSubmit()
-                }
-        } else {
-            content
+    var body: some View {
+        Form {
+            SearchCriteriaSection(
+                options: $options,
+                activeScopeValue: activeScopeValue,
+                setSearchScope: setSearchScope,
+                isSearchSupported: isSearchSupported
+            )
+
+            SearchResultsFilterSection(
+                options: $options,
+                visibleResultCount: visibleResultCount,
+                totalResultCount: totalResultCount,
+                selectedResultCount: selectedResultCount
+            )
         }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .padding(.vertical, 8)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+}
+
+private struct SearchCriteriaSection: View {
+    @Binding var options: SearchOptions
+    let activeScopeValue: String
+    let setSearchScope: (String) -> Void
+    let isSearchSupported: Bool
+
+    private var scopeBinding: Binding<String> {
+        Binding(
+            get: { activeScopeValue },
+            set: { setSearchScope($0) }
+        )
+    }
+
+    var body: some View {
+        Section {
+            Picker(L("Search Scope"), selection: scopeBinding) {
+                Text(L("Global")).tag("global")
+                Text(L("Kad")).tag("kad")
+                Text(L("Local")).tag("local")
+            }
+            .pickerStyle(.menu)
+            .disabled(!isSearchSupported)
+
+            LabeledContent(L("Type")) {
+                TextField(L("Any"), text: $options.fileType)
+                    .textFieldStyle(.roundedBorder)
+                    .labelsHidden()
+                    .frame(maxWidth: 140)
+            }
+
+            LabeledContent(L("Extension")) {
+                TextField(L("Any"), text: $options.fileExtension)
+                    .textFieldStyle(.roundedBorder)
+                    .labelsHidden()
+                    .frame(maxWidth: 140)
+            }
+
+            LabeledContent(L("Availability")) {
+                TextField("0", text: $options.availabilityText)
+                    .textFieldStyle(.roundedBorder)
+                    .labelsHidden()
+                    .frame(maxWidth: 140)
+            }
+
+            LabeledContent(L("Min Size")) {
+                TextField("0", text: $options.minSizeText)
+                    .textFieldStyle(.roundedBorder)
+                    .labelsHidden()
+                    .frame(maxWidth: 140)
+            }
+
+            LabeledContent(L("Max Size")) {
+                TextField("0", text: $options.maxSizeText)
+                    .textFieldStyle(.roundedBorder)
+                    .labelsHidden()
+                    .frame(maxWidth: 140)
+            }
+        } header: {
+            Text(L("Criteria"))
+        } footer: {
+            Text(L("Size values are bytes. Leave empty for no limit."))
+        }
+    }
+}
+
+private struct SearchResultsFilterSection: View {
+    @Binding var options: SearchOptions
+    let visibleResultCount: Int
+    let totalResultCount: Int
+    let selectedResultCount: Int
+
+    var body: some View {
+        Section {
+            SearchInspectorSummary(
+                visibleResultCount: visibleResultCount,
+                totalResultCount: totalResultCount,
+                selectedResultCount: selectedResultCount
+            )
+
+            LabeledContent(L("Visible Results")) {
+                TextField(L("Visible Results"), text: $options.filterText)
+                    .textFieldStyle(.roundedBorder)
+                    .labelsHidden()
+            }
+
+            Toggle(L("Invert"), isOn: $options.invertFilter)
+            Toggle(L("Hide Known"), isOn: $options.hideKnownResults)
+        } header: {
+            Text(L("Results"))
+        } footer: {
+            Text(L("Result filters apply only to the results already returned by the daemon."))
+        }
+    }
+}
+
+private struct SearchInspectorSummary: View {
+    let visibleResultCount: Int
+    let totalResultCount: Int
+    let selectedResultCount: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            LabeledContent(L("Visible")) {
+                Text("\(visibleResultCount)")
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+
+            LabeledContent(L("Total")) {
+                Text("\(totalResultCount)")
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+
+            LabeledContent(L("Selected")) {
+                Text("\(selectedResultCount)")
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .font(.callout)
     }
 }
 
