@@ -10,18 +10,111 @@ actor AdapterMockTransport: ECConnectionTransport {
     private(set) var sentPackets: [ECPacket] = []
     private(set) var disconnectCount = 0
     private var replies: [ECPacket]
+    private var receiveCount = 0
+    private var onSend: (@Sendable (ECPacket) async -> Void)?
+    private var onReceive: (@Sendable (Int) async -> Void)?
 
     init(replies: [ECPacket]) { self.replies = replies }
     func connect(timeout: TimeInterval) async throws {}
     func disconnect() async { disconnectCount += 1 }
-    func send(_ packet: ECPacket, timeout: TimeInterval, compressionEnabled: Bool) async throws { sentPackets.append(packet) }
+    func send(_ packet: ECPacket, timeout: TimeInterval, compressionEnabled: Bool) async throws {
+        sentPackets.append(packet)
+        if let onSend {
+            await onSend(packet)
+        }
+    }
     func receivePacket(timeout: TimeInterval, partialReadTimeout: TimeInterval) async throws -> ECPacket {
+        receiveCount += 1
+        if let onReceive {
+            await onReceive(receiveCount)
+        }
         guard !replies.isEmpty else { throw ECSessionError.connectionClosed }
         return replies.removeFirst()
     }
     func sentOpcodes() -> [UInt8] { sentPackets.map(\.opcode) }
     func sentPacket(at index: Int) -> ECPacket? { sentPackets.indices.contains(index) ? sentPackets[index] : nil }
     func disconnectCalls() -> Int { disconnectCount }
+    func setSendHook(_ hook: @escaping @Sendable (ECPacket) async -> Void) { onSend = hook }
+    func setReceiveHook(_ hook: @escaping @Sendable (Int) async -> Void) { onReceive = hook }
+}
+
+final class SessionSequenceFactory: @unchecked Sendable {
+    private let sessions: [ECSession]
+    private var index = 0
+
+    init(_ sessions: [ECSession]) {
+        self.sessions = sessions
+    }
+
+    func next() -> ECSession {
+        defer { index += 1 }
+        return sessions[index]
+    }
+}
+
+final class TransportSequenceFactory: @unchecked Sendable {
+    private let transports: [any ECConnectionTransport]
+    private var index = 0
+
+    init(_ transports: [any ECConnectionTransport]) {
+        self.transports = transports
+    }
+
+    func next() -> any ECConnectionTransport {
+        defer { index += 1 }
+        return transports[index]
+    }
+}
+
+private actor InterleavingProbe {
+    private let blockedReceiveNumbers: Set<Int>
+    private var downloadsFinished = false
+    private var statusSentBeforeDownloadsFinished = false
+    private var blockedReceiveContinuations: [CheckedContinuation<Void, Never>] = []
+    private var receiveCount = 0
+
+    init(blockedReceiveNumbers: Set<Int>) {
+        self.blockedReceiveNumbers = blockedReceiveNumbers
+    }
+
+    func recordSent(_ packet: ECPacket) {
+        if packet.opcode == 0x0C, !downloadsFinished {
+            statusSentBeforeDownloadsFinished = true
+        }
+    }
+
+    func recordReceive(_ receiveNumber: Int) async {
+        receiveCount = receiveNumber
+        guard blockedReceiveNumbers.contains(receiveNumber) else { return }
+
+        await withCheckedContinuation { continuation in
+            blockedReceiveContinuations.append(continuation)
+        }
+    }
+
+    func waitForReceive(_ expectedReceiveNumber: Int) async -> Bool {
+        for _ in 0..<1_000 {
+            if receiveCount >= expectedReceiveNumber {
+                return true
+            }
+            await Task.yield()
+        }
+        return receiveCount >= expectedReceiveNumber
+    }
+
+    func markDownloadsFinished() {
+        downloadsFinished = true
+    }
+
+    func didSendStatusBeforeDownloadsFinished() -> Bool {
+        statusSentBeforeDownloadsFinished
+    }
+
+    func releaseBlockedReceives() {
+        let continuations = blockedReceiveContinuations
+        blockedReceiveContinuations.removeAll()
+        continuations.forEach { $0.resume() }
+    }
 }
 
 @available(macOS 10.15, iOS 13.0, *)
@@ -91,6 +184,281 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
         let secondDisconnects = await secondMock.disconnectCalls()
         XCTAssertEqual(firstDisconnects, 1)
         XCTAssertEqual(secondDisconnects, 0)
+    }
+
+    func testAdapterResetsModelStateWhenSessionConfigChanges() async throws {
+        let firstMock = AdapterMockTransport(replies: [
+            Self.salt,
+            Self.authOK,
+            ECPacket(opcode: 0x1F, tags: [
+                try ECDownloadPacketFixtures.partFile(
+                    ecid: 42,
+                    hash: Self.hash,
+                    name: "first.iso",
+                    sourceNameEntries: [ECDownloadPacketFixtures.sourceNameEntry(id: 7, name: "first-alt.iso", count: 3)]
+                ),
+            ]),
+            ECPacket(opcode: 0x22, tags: [
+                try ECDownloadPacketFixtures.sparsePartFile(ecid: 42, hash: Self.hash, name: "first.iso"),
+            ]),
+        ])
+        let secondMock = AdapterMockTransport(replies: [
+            Self.salt,
+            Self.authOK,
+            ECPacket(opcode: 0x1F, tags: [
+                try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "fresh.iso"),
+            ]),
+            ECPacket(opcode: 0x22, tags: [
+                try ECDownloadPacketFixtures.sparsePartFile(ecid: 42, hash: Self.hash, name: "fresh.iso"),
+            ]),
+        ])
+        let sessionFactory = SessionSequenceFactory([
+            ECSession(
+                configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false),
+                transportFactory: { firstMock }
+            ),
+            ECSession(
+                configuration: .init(host: "localhost", port: 4712, password: "secret", automaticReconnect: false),
+                transportFactory: { secondMock }
+            ),
+        ])
+        let adapter = SwiftECBridgeAdapter(sessionFactory: { _ in sessionFactory.next() })
+
+        let firstDownloads = try await adapter.downloads(config: AMuleConnectionConfig(host: "127.0.0.1", password: "secret"))
+        XCTAssertEqual(firstDownloads.0.first?.alternativeNames, [
+            ECDownload.AlternativeName(name: "first-alt.iso", count: 3),
+        ])
+
+        let secondDownloads = try await adapter.downloads(config: AMuleConnectionConfig(host: "localhost", password: "secret"))
+
+        XCTAssertEqual(secondDownloads.0.first?.name, "fresh.iso")
+        XCTAssertEqual(secondDownloads.0.first?.alternativeNames ?? [], [])
+        let secondSentOpcodes = await secondMock.sentOpcodes()
+        XCTAssertEqual(secondSentOpcodes, [0x02, 0x50, 0x0D, 0x52])
+    }
+
+    func testAdapterDisconnectResetsModelStateBeforeNextDownloadsBaseline() async throws {
+        let firstMock = AdapterMockTransport(replies: [
+            Self.salt,
+            Self.authOK,
+            ECPacket(opcode: 0x1F, tags: [
+                try ECDownloadPacketFixtures.partFile(
+                    ecid: 42,
+                    hash: Self.hash,
+                    name: "active.iso",
+                    sourceNameEntries: [ECDownloadPacketFixtures.sourceNameEntry(id: 9, name: "stale-alt.iso", count: 4)]
+                ),
+            ]),
+            ECPacket(opcode: 0x22, tags: [
+                try ECDownloadPacketFixtures.sparsePartFile(ecid: 42, hash: Self.hash, name: "active.iso"),
+            ]),
+        ])
+        let secondMock = AdapterMockTransport(replies: [
+            Self.salt,
+            Self.authOK,
+            ECPacket(opcode: 0x1F, tags: [
+                try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "reconnected.iso"),
+            ]),
+            ECPacket(opcode: 0x22, tags: [
+                try ECDownloadPacketFixtures.sparsePartFile(ecid: 42, hash: Self.hash, name: "reconnected.iso"),
+            ]),
+        ])
+        let sessionFactory = SessionSequenceFactory([
+            ECSession(
+                configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false),
+                transportFactory: { firstMock }
+            ),
+            ECSession(
+                configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false),
+                transportFactory: { secondMock }
+            ),
+        ])
+        let adapter = SwiftECBridgeAdapter(sessionFactory: { _ in sessionFactory.next() })
+        let config = AMuleConnectionConfig(host: "127.0.0.1", password: "secret")
+
+        let firstDownloads = try await adapter.downloads(config: config)
+        XCTAssertEqual(firstDownloads.0.first?.alternativeNames, [
+            ECDownload.AlternativeName(name: "stale-alt.iso", count: 4),
+        ])
+
+        _ = try await adapter.disconnect(config: config)
+        let firstDisconnects = await firstMock.disconnectCalls()
+        XCTAssertEqual(firstDisconnects, 1)
+
+        let secondDownloads = try await adapter.downloads(config: config)
+
+        XCTAssertEqual(secondDownloads.0.first?.name, "reconnected.iso")
+        XCTAssertEqual(secondDownloads.0.first?.alternativeNames ?? [], [])
+        let secondSentOpcodes = await secondMock.sentOpcodes()
+        XCTAssertEqual(secondSentOpcodes, [0x02, 0x50, 0x0D, 0x52])
+    }
+
+    func testAdapterResetsModelStateAfterAutomaticReconnect() async throws {
+        let firstMock = AdapterMockTransport(replies: [
+            Self.salt,
+            Self.authOK,
+            ECPacket(opcode: 0x1F, tags: [
+                try ECDownloadPacketFixtures.partFile(
+                    ecid: 42,
+                    hash: Self.hash,
+                    name: "before-reconnect.iso",
+                    sourceNameEntries: [ECDownloadPacketFixtures.sourceNameEntry(id: 9, name: "stale-alt.iso", count: 4)]
+                ),
+            ]),
+        ])
+        let secondMock = AdapterMockTransport(replies: [
+            Self.salt,
+            Self.authOK,
+            ECPacket(opcode: 0x1F, tags: [
+                try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "after-reconnect.iso"),
+            ]),
+            ECPacket(opcode: 0x22, tags: [
+                try ECDownloadPacketFixtures.sparsePartFile(ecid: 42, hash: Self.hash, name: "after-reconnect.iso"),
+            ]),
+        ])
+        let transports = TransportSequenceFactory([firstMock, secondMock])
+        let session = ECSession(
+            configuration: .init(
+                host: "127.0.0.1",
+                port: 4712,
+                password: "secret",
+                automaticReconnect: true,
+                maximumReconnectDelay: 0
+            ),
+            transportFactory: { transports.next() }
+        )
+        let adapter = SwiftECBridgeAdapter(session: session)
+        let config = AMuleConnectionConfig(password: "secret")
+
+        do {
+            _ = try await adapter.downloads(config: config)
+            XCTFail("The interrupted update should surface its transport failure")
+        } catch ECSessionError.connectionClosed {
+        }
+
+        let downloads = try await adapter.downloads(config: config)
+
+        XCTAssertEqual(downloads.0.first?.name, "after-reconnect.iso")
+        XCTAssertEqual(downloads.0.first?.alternativeNames ?? [], [])
+        let sentOpcodes = await secondMock.sentOpcodes()
+        XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x0D, 0x52])
+    }
+
+    func testReconnectCannotInterleaveWithStatefulDownloadsMerge() async throws {
+        let probe = InterleavingProbe(blockedReceiveNumbers: [4])
+        let firstMock = AdapterMockTransport(replies: [
+            Self.salt,
+            Self.authOK,
+            ECPacket(opcode: 0x1F, tags: [
+                try ECDownloadPacketFixtures.partFile(
+                    ecid: 42,
+                    hash: Self.hash,
+                    name: "before-reconnect.iso",
+                    sourceNameEntries: [ECDownloadPacketFixtures.sourceNameEntry(id: 9, name: "stale-alt.iso", count: 4)]
+                ),
+            ]),
+            ECPacket(opcode: 0x22, tags: [
+                try ECDownloadPacketFixtures.sparsePartFile(ecid: 42, hash: Self.hash, name: "before-reconnect.iso"),
+            ]),
+        ])
+        await firstMock.setSendHook { packet in
+            await probe.recordSent(packet)
+        }
+        await firstMock.setReceiveHook { receiveNumber in
+            await probe.recordReceive(receiveNumber)
+        }
+        let secondMock = AdapterMockTransport(replies: [
+            Self.salt,
+            Self.authOK,
+            ECPacket(opcode: 0x1F, tags: [
+                try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "after-reconnect.iso"),
+            ]),
+            ECPacket(opcode: 0x22, tags: [
+                try ECDownloadPacketFixtures.sparsePartFile(ecid: 42, hash: Self.hash, name: "after-reconnect.iso"),
+            ]),
+        ])
+        let transports = TransportSequenceFactory([firstMock, secondMock])
+        let session = ECSession(
+            configuration: .init(
+                host: "127.0.0.1",
+                port: 4712,
+                password: "secret",
+                automaticReconnect: true,
+                maximumReconnectDelay: 0
+            ),
+            transportFactory: { transports.next() }
+        )
+        let adapter = SwiftECBridgeAdapter(session: session)
+        let config = AMuleConnectionConfig(password: "secret")
+
+        let downloadsTask = Task {
+            let result = try await adapter.downloads(config: config)
+            await probe.markDownloadsFinished()
+            return result
+        }
+        guard await probe.waitForReceive(4) else {
+            return XCTFail("The downloads update did not reach its controlled interleaving point")
+        }
+
+        let statusTask = Task { try await adapter.status(config: config) }
+        for _ in 0..<100 {
+            await Task.yield()
+        }
+        await probe.releaseBlockedReceives()
+        _ = try await downloadsTask.value
+
+        let statusSentTooEarly = await probe.didSendStatusBeforeDownloadsFinished()
+        XCTAssertFalse(statusSentTooEarly)
+        do {
+            _ = try await statusTask.value
+            XCTFail("The status request should surface its reconnect-triggering transport failure")
+        } catch ECSessionError.connectionClosed {
+        }
+
+        let freshDownloads = try await adapter.downloads(config: config)
+        XCTAssertEqual(freshDownloads.0.first?.name, "after-reconnect.iso")
+        XCTAssertEqual(freshDownloads.0.first?.alternativeNames ?? [], [])
+    }
+
+    func testClearCompletedAcknowledgesStoreOnlyAfterSuccessfulMutation() async throws {
+        let config = AMuleConnectionConfig(password: "secret")
+        let successfulMock = AdapterMockTransport(replies: try clearCompletedStoreReplies(
+            mutationReply: ECPacket(opcode: 0x01)
+        ))
+        let successfulAdapter = SwiftECBridgeAdapter(
+            session: ECSession(
+                configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false),
+                transportFactory: { successfulMock }
+            )
+        )
+
+        let initialDownloads = try await successfulAdapter.downloads(config: config)
+        XCTAssertEqual(initialDownloads.0.map(\.ecid), [42])
+        _ = try await successfulAdapter.clearCompleted(ecids: [42], config: config)
+        let downloadsAfterSuccessfulClear = try await successfulAdapter.downloads(config: config)
+        XCTAssertTrue(downloadsAfterSuccessfulClear.0.isEmpty)
+
+        let failingMock = AdapterMockTransport(replies: try clearCompletedStoreReplies(
+            mutationReply: ECPacket(opcode: 0x05, tags: [
+                ECTag(name: 0x0000, type: .string, value: .string("clear failed")),
+            ])
+        ))
+        let failingAdapter = SwiftECBridgeAdapter(
+            session: ECSession(
+                configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false),
+                transportFactory: { failingMock }
+            )
+        )
+
+        _ = try await failingAdapter.downloads(config: config)
+        do {
+            _ = try await failingAdapter.clearCompleted(ecids: [42], config: config)
+            XCTFail("The failed daemon mutation must surface its error")
+        } catch let error as ECResponseParserError {
+            XCTAssertEqual(error, .operationFailed("clear failed"))
+        }
+        let downloadsAfterFailedClear = try await failingAdapter.downloads(config: config)
+        XCTAssertEqual(downloadsAfterFailedClear.0.map(\.ecid), [42])
     }
 
     func testAdapterSurfacesRenameFailureMessageFromDaemon() async throws {
@@ -277,6 +645,39 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
         XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x0D, 0x52])
     }
 
+    func testAdapterPreservesDownloadIdentityForStatusOnlyIncrementalUpdateLikeAmulegui() async throws {
+        let mock = AdapterMockTransport(replies: [
+            Self.salt,
+            Self.authOK,
+            ECPacket(opcode: 0x1F, tags: [
+                try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "current.iso", size: 1_000, done: 100, statusCode: 0),
+            ]),
+            ECPacket(opcode: 0x22, tags: [
+                try ECDownloadPacketFixtures.sparsePartFile(ecid: 42, hash: Self.hash, name: "current.iso", size: 1_000),
+            ]),
+            ECPacket(opcode: 0x22, tags: [
+                ECTag.integer(name: 0x0300, value: 42, children: [
+                    ECTag.integer(name: 0x0308, value: 7),
+                ]),
+            ]),
+        ])
+        let session = ECSession(configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false), transportFactory: { mock })
+        let adapter = SwiftECBridgeAdapter(session: session)
+
+        _ = try await adapter.downloads(config: AMuleConnectionConfig(password: "secret"))
+        let (downloads, _) = try await adapter.downloads(config: AMuleConnectionConfig(password: "secret"))
+
+        let download = try XCTUnwrap(downloads.first)
+        XCTAssertEqual(download.name, "current.iso")
+        XCTAssertEqual(download.hash, Self.hash)
+        XCTAssertEqual(download.size, 1_000)
+        XCTAssertEqual(download.statusCode, 7)
+        XCTAssertEqual(download.status, "Paused")
+        XCTAssertFalse(downloads.contains { $0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
+        let sentOpcodes = await mock.sentOpcodes()
+        XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x0D, 0x52, 0x52])
+    }
+
     func testAdapterResyncsFullDownloadQueueWhenIncrementalUpdateContainsUnknownSparsePartFile() async throws {
         let mock = AdapterMockTransport(replies: [
             Self.salt,
@@ -422,6 +823,83 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
         XCTAssertEqual(source.downSpeedKBps, 12.5)
         let sentOpcodes = await mock.sentOpcodes()
         XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x0D, 0x52, 0x0D, 0x52])
+    }
+
+    func testAdapterPreservesSourcesAcrossUnchangedClientDeltas() async throws {
+        let mock = AdapterMockTransport(replies: [
+            Self.salt,
+            Self.authOK,
+            ECPacket(opcode: 0x1F, tags: [
+                try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
+            ]),
+            ECPacket(opcode: 0x22, tags: [
+                ECDownloadPacketFixtures.client(id: 0, children: [
+                    ECDownloadPacketFixtures.client(id: 99, children: [
+                        .integer(name: 0x0620, value: 42),
+                        ECTag(name: 0x0100, type: .string, value: .string("peer")),
+                        ECTag(name: 0x0615, type: .string, value: .string("2.3.3")),
+                        ECTag(name: 0x0627, type: .string, value: .string("remote-current.iso")),
+                        .integer(name: 0x060C, value: 2),
+                    ]),
+                ]),
+            ]),
+            ECPacket(opcode: 0x1F, tags: [
+                try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "current.iso"),
+            ]),
+            ECPacket(opcode: 0x22, tags: [
+                ECDownloadPacketFixtures.client(id: 0, children: [
+                    ECDownloadPacketFixtures.client(id: 99, children: []),
+                ]),
+            ]),
+        ])
+        let session = ECSession(configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false), transportFactory: { mock })
+        let adapter = SwiftECBridgeAdapter(session: session)
+
+        _ = try await adapter.sources(hash: Self.hash, config: AMuleConnectionConfig(password: "secret"))
+        let (sources, _) = try await adapter.sources(hash: Self.hash, config: AMuleConnectionConfig(password: "secret"))
+
+        XCTAssertEqual(sources.count, 1)
+        let source = try XCTUnwrap(sources.first)
+        XCTAssertEqual(source.clientID, 99)
+        XCTAssertEqual(source.requestFileID, 42)
+        XCTAssertEqual(source.clientName, "peer")
+        XCTAssertEqual(source.softwareVersion, "2.3.3")
+        XCTAssertEqual(source.remoteFilename, "remote-current.iso")
+    }
+
+    func testAdapterSourcesDoesNotMoveSparseExistingClientToNewSelectedDownload() async throws {
+        let mock = AdapterMockTransport(replies: [
+            Self.salt,
+            Self.authOK,
+            ECPacket(opcode: 0x1F, tags: [
+                try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "first.iso"),
+            ]),
+            ECPacket(opcode: 0x22, tags: [
+                ECDownloadPacketFixtures.client(id: 99, children: [
+                    .integer(name: 0x0620, value: 42),
+                    ECTag(name: 0x0100, type: .string, value: .string("first-peer")),
+                    .integer(name: 0x060C, value: 2),
+                ]),
+            ]),
+            ECPacket(opcode: 0x1F, tags: [
+                try ECDownloadPacketFixtures.partFile(ecid: 77, hash: Self.otherHash, name: "second.iso"),
+            ]),
+            ECPacket(opcode: 0x22, tags: [
+                ECDownloadPacketFixtures.client(id: 99, children: [
+                    .integer(name: 0x060C, value: 3),
+                    ECTag(name: 0x060E, type: .double, value: .double(9.0)),
+                ]),
+            ]),
+        ])
+        let session = ECSession(configuration: .init(host: "127.0.0.1", port: 4712, password: "secret", automaticReconnect: false), transportFactory: { mock })
+        let adapter = SwiftECBridgeAdapter(session: session)
+
+        let (firstSources, _) = try await adapter.sources(hash: Self.hash, config: AMuleConnectionConfig(password: "secret"))
+        let (secondSources, _) = try await adapter.sources(hash: Self.otherHash, config: AMuleConnectionConfig(password: "secret"))
+
+        XCTAssertEqual(firstSources.map(\.clientID), [99])
+        XCTAssertEqual(firstSources.first?.requestFileID, 42)
+        XCTAssertEqual(secondSources, [], "Sparse client deltas without EC_TAG_CLIENT_REQUEST_FILE must keep their previous owner instead of being reassigned to the newly selected download.")
     }
 
     func testAdapterSourcesUsesRequestContextForMixedExplicitAndMissingSourceIDs() async throws {
@@ -727,6 +1205,40 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
 
     private static let hash = "00112233445566778899aabbccddeeff"
     private static let otherHash = "ffeeddccbbaa99887766554433221100"
+
+    private func clearCompletedStoreReplies(mutationReply: ECPacket) throws -> [ECPacket] {
+        [
+            Self.salt,
+            Self.authOK,
+            ECPacket(opcode: 0x1F, tags: [
+                try ECDownloadPacketFixtures.partFile(
+                    ecid: 42,
+                    hash: Self.hash,
+                    name: "completed.iso",
+                    size: 100,
+                    done: 100,
+                    statusCode: 9
+                ),
+            ]),
+            ECPacket(opcode: 0x22, tags: [
+                try ECDownloadPacketFixtures.partFile(
+                    ecid: 42,
+                    hash: Self.hash,
+                    name: "completed.iso",
+                    size: 100,
+                    done: 100,
+                    statusCode: 9
+                ),
+            ]),
+            mutationReply,
+            ECPacket(opcode: 0x22, tags: [
+                ECTag.integer(name: 0x0300, value: 77, children: [
+                    ECTag.integer(name: 0x0303, value: 100),
+                ]),
+            ]),
+            ECPacket(opcode: 0x1F, tags: []),
+        ]
+    }
 
     private static func packedColor(r: Int, g: Int, b: Int) -> UInt32 {
         (UInt32(b & 0xff) << 16) | (UInt32(g & 0xff) << 8) | UInt32(r & 0xff)

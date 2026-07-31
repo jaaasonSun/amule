@@ -8,10 +8,16 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
     private let sessionCache: ECSessionCache
     private let capabilitiesPayload: ECCapabilities
     private let capabilityGate: ECCapabilityGate
-    private let modelState = ECBridgeModelState()
+    private let modelState: ECBridgeModelState
+    private let operationGate: ECBridgeOperationGate
 
     public init(session: ECSession? = nil, capabilities: ECCapabilities = ECOperations.capabilities()) {
-        self.sessionCache = ECSessionCache(session: session) { config in
+        let modelState = ECBridgeModelState()
+        self.modelState = modelState
+        self.operationGate = ECBridgeOperationGate()
+        self.sessionCache = ECSessionCache(session: session, onSessionBoundaryChange: {
+            await modelState.reset()
+        }) { config in
             ECSession(configuration: config.ecSessionConfiguration)
         }
         self.capabilitiesPayload = capabilities
@@ -19,7 +25,12 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
     }
 
     init(sessionFactory: @escaping @Sendable (AMuleConnectionConfig) -> ECSession, capabilities: ECCapabilities = ECOperations.capabilities()) {
-        self.sessionCache = ECSessionCache(makeSession: sessionFactory)
+        let modelState = ECBridgeModelState()
+        self.modelState = modelState
+        self.operationGate = ECBridgeOperationGate()
+        self.sessionCache = ECSessionCache(onSessionBoundaryChange: {
+            await modelState.reset()
+        }, makeSession: sessionFactory)
         self.capabilitiesPayload = capabilities
         self.capabilityGate = ECCapabilityGate(capabilities: capabilities)
     }
@@ -30,7 +41,12 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
     }
 
     public func disconnect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
-        await sessionCache.disconnect(config: config)
+        let modelState = modelState
+        let sessionCache = sessionCache
+        await operationGate.run {
+            await modelState.reset()
+            await sessionCache.disconnect(config: config)
+        }
         return try messageResponse("Disconnected")
     }
 
@@ -423,9 +439,17 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
     }
 
     public func clearCompleted(ecids: [Int], config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
-        let result = try await mutation(try ECOperations.clearCompleted(ecids: ecids, gate: capabilityGate), message: "Completed downloads cleared", config: config)
-        await modelState.acknowledgeClearCompleted(ecids: ecids)
-        return result
+        let packet = try ECOperations.clearCompleted(ecids: ecids, gate: capabilityGate)
+        let modelState = modelState
+        return try await withAuthenticatedSession(for: config) { session in
+            let result = try await mutationResponse(
+                session: session,
+                packet: packet,
+                message: "Completed downloads cleared"
+            )
+            await modelState.acknowledgeClearCompleted(ecids: ecids)
+            return result
+        }
     }
 
     public func priority(hash: String, value: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
@@ -464,13 +488,17 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
         }
     }
 
-    private func withAuthenticatedSession<T>(
+    private func withAuthenticatedSession<T: Sendable>(
         for config: AMuleConnectionConfig,
-        _ operation: (ECSession) async throws -> T
+        _ operation: @escaping @Sendable (ECSession) async throws -> T
     ) async throws -> T {
-        let session = await sessionCache.session(for: config)
-        try await session.ensureAuthenticated()
-        return try await operation(session)
+        let sessionCache = sessionCache
+        return try await operationGate.run {
+            let session = await sessionCache.session(for: config)
+            try await session.ensureAuthenticated()
+            await sessionCache.resetModelStateIfSessionReconnected(session)
+            return try await operation(session)
+        }
     }
 
     private func messageResponse(_ message: String) throws -> (message: String, raw: String) {
@@ -485,11 +513,29 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
         config: AMuleConnectionConfig
     ) async throws -> (message: String, raw: String) {
         try await withAuthenticatedSession(for: config) { session in
-            let response = try await session.send(packet)
-            let message = try ECResponseParser.parseMutationResponse(response, successMessage: message, expectedSuccessOpcodes: expectedSuccessOpcodes)
-            let raw = ECJSONEnvelope.jsonString(try ECJSONEnvelope.message(message))
-            return (message, raw)
+            try await mutationResponse(
+                session: session,
+                packet: packet,
+                message: message,
+                expectedSuccessOpcodes: expectedSuccessOpcodes
+            )
         }
+    }
+
+    private func mutationResponse(
+        session: ECSession,
+        packet: ECPacket,
+        message: String,
+        expectedSuccessOpcodes: Set<UInt8> = [ECOperations.OpCode.noop]
+    ) async throws -> (message: String, raw: String) {
+        let response = try await session.send(packet)
+        let message = try ECResponseParser.parseMutationResponse(
+            response,
+            successMessage: message,
+            expectedSuccessOpcodes: expectedSuccessOpcodes
+        )
+        let raw = ECJSONEnvelope.jsonString(try ECJSONEnvelope.message(message))
+        return (message, raw)
     }
 
     private func encode(_ envelope: some Encodable) throws -> Data {
@@ -499,10 +545,53 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
     }
 }
 
+private actor ECBridgeOperationGate {
+    private var isRunning = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func run<T: Sendable>(
+        _ operation: @escaping @Sendable () async throws -> T
+    ) async rethrows -> T {
+        await acquire()
+        do {
+            let result = try await operation()
+            release()
+            return result
+        } catch {
+            release()
+            throw error
+        }
+    }
+
+    private func acquire() async {
+        guard !isRunning else {
+            await withCheckedContinuation { continuation in
+                waiters.append(continuation)
+            }
+            return
+        }
+        isRunning = true
+    }
+
+    private func release() {
+        guard let next = waiters.first else {
+            isRunning = false
+            return
+        }
+        waiters.removeFirst()
+        next.resume()
+    }
+}
+
 @available(macOS 10.15, iOS 13.0, *)
 private actor ECBridgeModelState {
     private var downloadStore = ECDownloadStateStore()
     private var sourceStore = ECSourceStateStore()
+
+    func reset() {
+        downloadStore = ECDownloadStateStore()
+        sourceStore = ECSourceStateStore()
+    }
 
     var hasDownloadBaseline: Bool {
         downloadStore.hasBaseline
@@ -534,9 +623,7 @@ private actor ECBridgeModelState {
     func applySourceUpdate(_ packet: ECPacket, requestFileID: Int? = nil) -> [ECSource] {
         sourceStore.applyIncrementalUpdate(packet, contextRequestFileID: requestFileID)
         guard let requestFileID else { return [] }
-        let storedSources = sourceStore.sources(for: requestFileID)
-        guard storedSources.isEmpty else { return storedSources }
-        return (try? ECResponseParser.parseSources(packet, requestFileID: requestFileID)) ?? []
+        return sourceStore.sources(for: requestFileID)
     }
 
     func sources(for requestFileID: Int) -> [ECSource] {
@@ -554,15 +641,19 @@ private actor ECSessionCache {
 
     private var key: SessionKey?
     private var session: ECSession?
+    private var sessionReconnectGeneration: UInt = 0
     private let pinnedSession: Bool
+    private let onSessionBoundaryChange: @Sendable () async -> Void
     private let makeSession: @Sendable (AMuleConnectionConfig) -> ECSession
 
     init(
         session: ECSession? = nil,
+        onSessionBoundaryChange: @escaping @Sendable () async -> Void = {},
         makeSession: @escaping @Sendable (AMuleConnectionConfig) -> ECSession
     ) {
         self.session = session
         self.pinnedSession = session != nil
+        self.onSessionBoundaryChange = onSessionBoundaryChange
         self.makeSession = makeSession
     }
 
@@ -578,12 +669,23 @@ private actor ECSessionCache {
 
         if let session {
             await session.disconnect()
+            await onSessionBoundaryChange()
         }
 
         let newSession = makeSession(config)
         key = requestedKey
         session = newSession
+        sessionReconnectGeneration = await newSession.reconnectGeneration
         return newSession
+    }
+
+    func resetModelStateIfSessionReconnected(_ requestedSession: ECSession) async {
+        guard let session, session === requestedSession else { return }
+        let reconnectGeneration = await session.reconnectGeneration
+        guard reconnectGeneration != sessionReconnectGeneration else { return }
+
+        sessionReconnectGeneration = reconnectGeneration
+        await onSessionBoundaryChange()
     }
 
     func disconnect(config: AMuleConnectionConfig) async {
@@ -591,6 +693,7 @@ private actor ECSessionCache {
         guard pinnedSession || key == requestedKey || key == nil else { return }
         let oldSession = session
         key = nil
+        sessionReconnectGeneration = 0
         if !pinnedSession {
             session = nil
         }
