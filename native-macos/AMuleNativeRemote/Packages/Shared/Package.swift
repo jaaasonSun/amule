@@ -32,6 +32,9 @@ let package = Package(
         ),
         .target(
             name: "SharedServices",
+            dependencies: [
+                .product(name: "AMuleECBridgeAdapter", package: "SwiftEC")
+            ],
             path: "Sources/SharedServices"
         ),
         .testTarget(
