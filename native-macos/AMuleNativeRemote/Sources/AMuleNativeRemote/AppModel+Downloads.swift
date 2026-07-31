@@ -66,8 +66,8 @@ extension AppModel {
             await MainActor.run {
                 self.appendLog("$ clear-completed (\(ecids.count))\n\(raw)")
             }
-            try await self.refreshDownloadsNow(logOutput: false)
-            await self.refreshStatus(logOutput: false)
+            try await self.mutationRefreshDownloadsNow(logOutput: false)
+            await self.mutationRefreshStatus(logOutput: false)
         }
     }
 
@@ -101,8 +101,8 @@ extension AppModel {
             await MainActor.run {
                 self.appendLog("$ download-stop \(item.id)\n\(raw)")
             }
-            try await self.refreshDownloadsNow(logOutput: false)
-            await self.refreshStatus(logOutput: false)
+            try await self.mutationRefreshDownloadsNow(logOutput: false)
+            await self.mutationRefreshStatus(logOutput: false)
         }
     }
 
@@ -112,7 +112,7 @@ extension AppModel {
             await MainActor.run {
                 self.appendLog("$ download-a4af \(item.id)\n\(raw)")
             }
-            try await self.refreshDownloadsNow(logOutput: false)
+            try await self.mutationRefreshDownloadsNow(logOutput: false)
         }
     }
 
@@ -122,7 +122,7 @@ extension AppModel {
             await MainActor.run {
                 self.appendLog("$ download-set-category \(item.id) \(categoryID)\n\(raw)")
             }
-            try await self.refreshDownloadsNow(logOutput: false)
+            try await self.mutationRefreshDownloadsNow(logOutput: false)
         }
     }
 
@@ -219,23 +219,61 @@ extension AppModel {
     }
 
     func refreshDownloadsNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
+        let session = currentSessionCoordinator()
         do {
-            let (payload, raw) = try await bridge.downloads(config: config)
-            let parsed = DownloadItem.fromBridge(payload)
-            await MainActor.run {
-                self.downloads = parsed
-                self.lastDownloadsRawOutput = raw
-                if logOutput {
-                    self.appendLog("$ downloads\n\(raw)")
-                }
+            guard let (payload, raw) = try await session.coordinator.manualRefreshDownloads(),
+                  isCurrentSession(session) else {
+                return
             }
+            applyDownloadsRefresh(payload, raw: raw, logOutput: logOutput)
         } catch {
-            await MainActor.run {
-                if !suppressErrors {
-                    self.lastError = error.localizedDescription
-                }
-            }
+            guard isCurrentSession(session) else { return }
+            handleDownloadsRefreshError(error, suppressErrors: suppressErrors)
             throw error
+        }
+    }
+
+    func mutationRefreshDownloadsNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
+        let session = currentSessionCoordinator()
+        do {
+            guard let (payload, raw) = try await session.coordinator.mutationRefreshDownloads(),
+                  isCurrentSession(session) else {
+                return
+            }
+            applyDownloadsRefresh(payload, raw: raw, logOutput: logOutput)
+        } catch {
+            guard isCurrentSession(session) else { return }
+            handleDownloadsRefreshError(error, suppressErrors: suppressErrors)
+            throw error
+        }
+    }
+
+    func pollDownloadsNow(logOutput: Bool, suppressErrors: Bool) async throws {
+        let session = currentSessionCoordinator()
+        do {
+            guard let (payload, raw) = try await session.coordinator.pollDownloads(),
+                  isCurrentSession(session) else {
+                return
+            }
+            applyDownloadsRefresh(payload, raw: raw, logOutput: logOutput)
+        } catch {
+            guard isCurrentSession(session) else { return }
+            handleDownloadsRefreshError(error, suppressErrors: suppressErrors)
+            throw error
+        }
+    }
+
+    private func applyDownloadsRefresh(_ payload: [BridgeDownloadPayload], raw: String, logOutput: Bool) {
+        downloads = DownloadItem.fromBridge(payload)
+        lastDownloadsRawOutput = raw
+        if logOutput {
+            appendLog("$ downloads\n\(raw)")
+        }
+    }
+
+    private func handleDownloadsRefreshError(_ error: Error, suppressErrors: Bool) {
+        if !suppressErrors {
+            lastError = error.localizedDescription
         }
     }
 
@@ -266,8 +304,8 @@ extension AppModel {
             self.appendLog("$ \(commandLabel)\n\(raw)")
         }
 
-        try await self.refreshDownloadsNow()
-        await self.refreshStatus(logOutput: false)
+        try await self.mutationRefreshDownloadsNow()
+        await self.mutationRefreshStatus(logOutput: false)
     }
 
     private func runDownloadActions(_ action: DownloadAction, _ items: [DownloadItem]) async throws {
@@ -278,8 +316,8 @@ extension AppModel {
                 self.appendLog("$ \(commandLabel)\n\(raw)")
             }
         }
-        try await self.refreshDownloadsNow()
-        await self.refreshStatus(logOutput: false)
+        try await self.mutationRefreshDownloadsNow()
+        await self.mutationRefreshStatus(logOutput: false)
     }
 
     private func invokeDownloadAction(_ action: DownloadAction, _ item: DownloadItem) async throws -> (String, String) {
