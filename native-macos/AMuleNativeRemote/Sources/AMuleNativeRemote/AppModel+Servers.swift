@@ -29,7 +29,7 @@ extension AppModel {
                 self.serverAddressInput = ""
                 self.serverNameInput = ""
             }
-            try await self.refreshServersNow(logOutput: false)
+            try await self.mutationRefreshServersNow(logOutput: false)
         }
     }
 
@@ -45,8 +45,8 @@ extension AppModel {
                     self.appendLog("$ server-connect\n\(raw)")
                 }
             }
-            await self.refreshStatus(logOutput: false)
-            try await self.refreshServersNow(logOutput: false)
+            await self.mutationRefreshStatus(logOutput: false)
+            try await self.mutationRefreshServersNow(logOutput: false)
         }
     }
 
@@ -56,8 +56,8 @@ extension AppModel {
             await MainActor.run {
                 self.appendLog("$ server-disconnect\n\(raw)")
             }
-            await self.refreshStatus(logOutput: false)
-            try await self.refreshServersNow(logOutput: false)
+            await self.mutationRefreshStatus(logOutput: false)
+            try await self.mutationRefreshServersNow(logOutput: false)
         }
     }
 
@@ -72,7 +72,7 @@ extension AppModel {
             await MainActor.run {
                 self.appendLog("$ server-remove \(server.address)\n\(raw)")
             }
-            try await self.refreshServersNow(logOutput: false)
+            try await self.mutationRefreshServersNow(logOutput: false)
         }
     }
 
@@ -84,7 +84,7 @@ extension AppModel {
                 self.appendLog("$ server-set-static \(ecid) \(isStatic ? 1 : 0)\n\(raw)")
             }
             if self.isBridgeOpSupported("servers") {
-                try? await self.refreshServersNow(logOutput: false, suppressErrors: true)
+                try? await self.mutationRefreshServersNow(logOutput: false, suppressErrors: true)
             }
         }
     }
@@ -97,7 +97,7 @@ extension AppModel {
                 self.appendLog("$ server-set-priority \(ecid) \(priority)\n\(raw)")
             }
             if self.isBridgeOpSupported("servers") {
-                try? await self.refreshServersNow(logOutput: false, suppressErrors: true)
+                try? await self.mutationRefreshServersNow(logOutput: false, suppressErrors: true)
             }
         }
     }
@@ -144,7 +144,7 @@ extension AppModel {
             await MainActor.run {
                 self.appendLog("$ server-update-from-url \(trimmed)\n\(raw)")
             }
-            try await self.refreshServersNow(logOutput: false)
+            try await self.mutationRefreshServersNow(logOutput: false)
         }
     }
 
@@ -217,8 +217,12 @@ extension AppModel {
     }
 
     func refreshServersNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
+        let session = currentSessionCoordinator()
         do {
-            let (payload, raw) = try await serverManagementService.fetchServers(config: config)
+            guard let (payload, raw) = try await session.coordinator.manualRefreshServers(),
+                  isCurrentSession(session) else {
+                return
+            }
             let parsed = ServerItem.fromBridge(payload)
             await MainActor.run {
                 self.servers = parsed
@@ -228,6 +232,33 @@ extension AppModel {
                 }
             }
         } catch {
+            guard isCurrentSession(session) else { return }
+            await MainActor.run {
+                if !suppressErrors {
+                    self.lastError = error.localizedDescription
+                }
+            }
+            throw error
+        }
+    }
+
+    func mutationRefreshServersNow(logOutput: Bool = true, suppressErrors: Bool = false) async throws {
+        let session = currentSessionCoordinator()
+        do {
+            guard let (payload, raw) = try await session.coordinator.mutationRefreshServers(),
+                  isCurrentSession(session) else {
+                return
+            }
+            let parsed = ServerItem.fromBridge(payload)
+            await MainActor.run {
+                self.servers = parsed
+                self.lastServersRawOutput = raw
+                if logOutput {
+                    self.appendLog("$ servers\n\(raw)")
+                }
+            }
+        } catch {
+            guard isCurrentSession(session) else { return }
             await MainActor.run {
                 if !suppressErrors {
                     self.lastError = error.localizedDescription
