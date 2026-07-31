@@ -33,6 +33,25 @@ struct SharedFilesWindowView: View {
                 minHeight: embeddedInMainWindow ? nil : 500
             )
             .task { model.refreshSharedFiles() }
+            .toolbar {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button {
+                        model.refreshSharedFiles()
+                    } label: {
+                        Label("Refresh", systemImage: "arrow.clockwise")
+                    }
+                    .help("Refresh Shared Files")
+                    .disabled(model.isBusy || !model.isBridgeOpSupported("shared-files"))
+
+                    Button {
+                        model.reloadSharedFiles()
+                    } label: {
+                        Label("Reload", systemImage: "arrow.triangle.2.circlepath")
+                    }
+                    .help("Reload Shared Files")
+                    .disabled(model.isBusy || !model.isBridgeOpSupported("shared-files-reload"))
+                }
+            }
             .sheet(isPresented: editSheetBinding) {
                 if let file = editingSharedFile {
                     sharedFileEditSheet(file)
@@ -42,38 +61,16 @@ struct SharedFilesWindowView: View {
 
     private var content: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                Button {
-                    model.refreshSharedFiles()
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                }
-                .buttonStyle(.bordered)
-                .disabled(model.isBusy || !model.isBridgeOpSupported("shared-files"))
-
-                Button("Reload") {
-                    model.reloadSharedFiles()
-                }
-                .buttonStyle(.bordered)
-                .disabled(model.isBusy || !model.isBridgeOpSupported("shared-files-reload"))
-
-                Spacer()
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-
-            Divider()
-
             if model.sharedFiles.isEmpty {
                 Text("No shared files available.")
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .padding(18)
             } else {
-                List(model.sharedFiles, id: \.hash) { file in
-                    sharedFileRow(file)
+                List(sharedFileRows(from: model.sharedFiles)) { row in
+                    sharedFileRow(row.file)
                         .contextMenu {
-                            sharedFileContextMenu(file)
+                            sharedFileContextMenu(row.file)
                         }
                 }
                 .listStyle(.inset)
@@ -178,3 +175,21 @@ private let sharedFilePriorityItems: [(title: String, priority: Int)] = [
     ("Very High", 9),
     ("Auto", 10),
 ]
+
+private struct SharedFileRow: Identifiable {
+    let id: String
+    let file: BridgeSharedFilePayload
+}
+
+private func sharedFileRows(from files: [BridgeSharedFilePayload]) -> [SharedFileRow] {
+    files.enumerated().map { offset, file in
+        SharedFileRow(
+            id: sharedFileRowIdentifier(file: file, offset: offset),
+            file: file
+        )
+    }
+}
+
+func sharedFileRowIdentifier(file: BridgeSharedFilePayload, offset: Int) -> String {
+    "\(offset)|\(file.hash)|\(file.path)|\(file.name)"
+}
