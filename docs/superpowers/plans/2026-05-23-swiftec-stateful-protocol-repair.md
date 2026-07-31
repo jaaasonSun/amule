@@ -25,7 +25,7 @@
 - Create: `native-macos/AMuleNativeRemote/SwiftEC/Sources/AMuleECClient/ECDownloadStateStore.swift`
 - Create: `native-macos/AMuleNativeRemote/SwiftEC/Tests/AMuleECClientTests/ECDownloadStateStoreTests.swift`
 
-- [ ] **Step 1: Create the failing tests**
+- [x] **Step 1: Create the failing tests**
 
 Add tests that express original remote GUI behavior: new alternative names include a name and count, later count-only deltas keep the old name, and count zero removes the entry.
 
@@ -120,7 +120,7 @@ private extension Data {
 }
 ```
 
-- [ ] **Step 2: Run the failing tests**
+- [x] **Step 2: Run the failing tests**
 
 Run:
 
@@ -137,7 +137,7 @@ Expected before implementation: build fails because `ECDownloadStateStore` does 
 
 - Modify: `native-macos/AMuleNativeRemote/SwiftEC/Sources/AMuleECClient/ECDownloadStateStore.swift`
 
-- [ ] **Step 1: Implement state storage**
+- [x] **Step 1: Implement state storage**
 
 Implement a public `ECDownloadStateStore` with:
 
@@ -173,7 +173,7 @@ public struct ECDownloadStateStore: Sendable {
 
 Add focused private helpers for `applyPartFileDelta`, source-name parsing, and sorting. Add an internal `ECDownload.replacingAlternativeNames(_:)` helper in the same file.
 
-- [ ] **Step 2: Run the state tests**
+- [x] **Step 2: Run the state tests**
 
 Run:
 
@@ -190,11 +190,11 @@ Expected: tests pass.
 - Modify: `native-macos/AMuleNativeRemote/SwiftEC/Sources/AMuleECBridgeAdapter/SwiftECBridgeAdapter.swift`
 - Test: `native-macos/AMuleNativeRemote/SwiftEC/Tests/AMuleECBridgeAdapterTests/AMuleECBridgeAdapterTests.swift`
 
-- [ ] **Step 1: Add adapter test for merged downloads**
+- [x] **Step 1: Add adapter test for merged downloads**
 
 Add a test where the mock transport replies to auth, then `GET_DLOAD_QUEUE`, then `GET_UPDATE` with source-name delta. Assert `downloads()` returns the alternative name and that sent opcodes are `[0x02, 0x50, 0x0D, 0x52]`.
 
-- [ ] **Step 2: Add state actor to adapter**
+- [x] **Step 2: Add state actor to adapter**
 
 Add:
 
@@ -216,11 +216,11 @@ private actor ECBridgeModelState {
 
 Store `private let modelState = ECBridgeModelState()` in `SwiftECBridgeAdapter`.
 
-- [ ] **Step 3: Merge snapshot plus update in downloads()**
+- [x] **Step 3: Merge snapshot plus update in downloads()**
 
 Update `downloads(config:)` so it sends `ECOperations.downloads()` for the full snapshot, parses it, replaces state, then sends `ECOperations.sourcesUpdate()` once to apply incremental fields. If the update request fails, return the stable snapshot rather than clearing the list.
 
-- [ ] **Step 4: Run adapter tests**
+- [x] **Step 4: Run adapter tests**
 
 Run:
 
@@ -238,15 +238,15 @@ Expected: all adapter tests pass.
 - Modify: `native-macos/AMuleNativeRemote/SwiftEC/Sources/AMuleECClient/ECSession.swift`
 - Test: `native-macos/AMuleNativeRemote/SwiftEC/Tests/AMuleECClientTests/ECSessionTests.swift`
 
-- [ ] **Step 1: Add test that unnegotiated sessions do not send zlib**
+- [x] **Step 1: Add test that unnegotiated sessions do not send zlib**
 
 Use a mock transport to send a packet over `ECSession` with `advertisesZlib: false`; assert the sent packet header flags do not include `0x01` even for a large packet.
 
-- [ ] **Step 2: Thread compression permission through transport send**
+- [x] **Step 2: Thread compression permission through transport send**
 
 Change `ECConnectionTransport.send` to accept `compressionEnabled: Bool`, and have `ECSession` pass `configuration.advertisesZlib && (configuration.packetFlags & ECCompression.flag) != 0`.
 
-- [ ] **Step 3: Run protocol/session tests**
+- [x] **Step 3: Run protocol/session tests**
 
 Run:
 
@@ -264,11 +264,11 @@ Expected: tests pass and existing compression roundtrip coverage still passes.
 - Modify: `native-macos/AMuleNativeRemote/SwiftEC/Sources/AMuleECProtocol/ECPacket.swift`
 - Test: `native-macos/AMuleNativeRemote/SwiftEC/Tests/AMuleECProtocolTests/ECPacketHeaderTests.swift`
 
-- [ ] **Step 1: Add invalid flag test**
+- [x] **Step 1: Add invalid flag test**
 
 Add assertions that `ECPacket.decode` rejects a header with `(flags & 0x60) != 0x20` and a header containing `0xff7f7f08` bits.
 
-- [ ] **Step 2: Implement validation**
+- [x] **Step 2: Implement validation**
 
 Add constants:
 
@@ -280,7 +280,7 @@ public static let unknownFlagMask: UInt32 = 0xff7f7f08
 
 Validate in `ECPacket.decode` immediately after reading the header.
 
-- [ ] **Step 3: Run packet tests**
+- [x] **Step 3: Run packet tests**
 
 Run:
 
@@ -313,7 +313,7 @@ Run:
 
 ```bash
 cd /Users/jason/Repos.localized/amule/native-macos/AMuleNativeRemote
-xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" test SWIFT_ENABLE_EXPLICIT_MODULES=NO
+xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0" test SWIFT_ENABLE_EXPLICIT_MODULES=NO
 ```
 
 Expected: all iOS app tests pass.

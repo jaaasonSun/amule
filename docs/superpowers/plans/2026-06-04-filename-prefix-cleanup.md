@@ -16,7 +16,7 @@
 - Create: `native-macos/AMuleNativeRemote/SwiftEC/Sources/AMuleECClient/FileNameSuggestionPolicy.swift`
 - Modify: `native-macos/AMuleNativeRemote/SwiftEC/Tests/AMuleECClientTests/FileNameEncodingRepairTests.swift`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Add tests for `FileNameSuggestionPolicy.suggestion(currentName:providedSuggestion:prefixes:)` covering:
 
@@ -29,7 +29,7 @@ XCTAssertEqual(FileNameSuggestionPolicy.suggestion(currentName: "ABCDED Extended
 XCTAssertNil(FileNameSuggestionPolicy.suggestion(currentName: "ABCDED - ", prefixes: ["ABCDED - "]))
 ```
 
-- [ ] **Step 2: Run failing tests**
+- [x] **Step 2: Run failing tests**
 
 Run:
 
@@ -39,7 +39,7 @@ cd native-macos/AMuleNativeRemote/SwiftEC && swift test --filter FileNameEncodin
 
 Expected: FAIL because `FileNameSuggestionPolicy` does not exist.
 
-- [ ] **Step 3: Implement policy**
+- [x] **Step 3: Implement policy**
 
 Create a public enum that:
 
@@ -49,7 +49,7 @@ Create a public enum that:
 - falls back to prefix cleanup of current name when no encoding repair exists;
 - returns nil for empty or unchanged results.
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run the same SwiftEC filtered test and expect PASS.
 
@@ -59,15 +59,15 @@ Run the same SwiftEC filtered test and expect PASS.
 - Modify: `native-macos/AMuleNativeRemote/Packages/Shared/Sources/SharedModels/Models.swift`
 - Modify: `native-macos/AMuleNativeRemote/Packages/Shared/Tests/SharedViewsTests/SharedUITests.swift`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Add assertions that `DownloadItem.meaningfulFilenameSuggestion(prefixes:)` and `DownloadAlternativeName.meaningfulFilenameSuggestion(prefixes:)` return prefix-cleaned suggestions and preserve existing encoding repair behavior.
 
-- [ ] **Step 2: Implement helpers**
+- [x] **Step 2: Implement helpers**
 
 Add public helpers that call `FileNameSuggestionPolicy`.
 
-- [ ] **Step 3: Run Shared tests**
+- [x] **Step 3: Run Shared tests**
 
 Run:
 
@@ -83,11 +83,11 @@ Expected: PASS.
 - Create: `native-macos/AMuleNativeRemote/Packages/Shared/Sources/SharedModels/FilenameCleanupPreferences.swift`
 - Add tests in the Shared package.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Test JSON encoding/decoding, bad JSON fallback to empty, empty prefix filtering, and exact duplicate removal.
 
-- [ ] **Step 2: Implement helper**
+- [x] **Step 2: Implement helper**
 
 Expose:
 
@@ -100,7 +100,7 @@ public enum FilenameCleanupPreferences {
 }
 ```
 
-- [ ] **Step 3: Run Shared tests**
+- [x] **Step 3: Run Shared tests**
 
 Run:
 
@@ -119,15 +119,15 @@ Expected: PASS.
 - Modify: `native-macos/AMuleNativeRemote/Sources/AMuleNativeRemote/AppModel+Downloads.swift`
 - Modify: `native-macos/AMuleNativeRemote/Sources/AMuleNativeRemote/PreferencesWindowView.swift`
 
-- [ ] **Step 1: Add `@AppStorage` prefix JSON where suggestions are rendered or requested**
+- [x] **Step 1: Add `@AppStorage` prefix JSON where suggestions are rendered or requested**
 
 Decode prefixes with `FilenameCleanupPreferences.decode`.
 
-- [ ] **Step 2: Replace calls to `meaningfulNameEncodingSuggestion` for rename suggestions**
+- [x] **Step 2: Replace calls to `meaningfulNameEncodingSuggestion` for rename suggestions**
 
 Use `meaningfulFilenameSuggestion(prefixes:)` for suggested rename actions. Keep diagnostic display behavior unchanged except for using the final suggestion value when available.
 
-- [ ] **Step 3: Add macOS Preferences controls**
+- [x] **Step 3: Add macOS Preferences controls**
 
 Add a "Filename Cleanup" section with a text field, Add button, list of configured prefixes, and delete buttons.
 
@@ -151,15 +151,15 @@ Expected: PASS.
 - Modify: `native-macos/AMuleNativeRemote/iOS/AMuleRemoteiOS/zh-Hans.lproj/Localizable.strings`
 - Modify: `native-macos/AMuleNativeRemote/iOS/AMuleRemoteiOS/zh_CN.lproj/Localizable.strings`
 
-- [ ] **Step 1: Decode configured prefixes in iOS views**
+- [x] **Step 1: Decode configured prefixes in iOS views**
 
 Use the same storage key and helper as macOS.
 
-- [ ] **Step 2: Update suggestion display and actions**
+- [x] **Step 2: Update suggestion display and actions**
 
 Use the new shared model helper for rows, detail view, and context menus.
 
-- [ ] **Step 3: Add Settings controls**
+- [x] **Step 3: Add Settings controls**
 
 Add a "Filename Cleanup" section with add/delete prefix controls.
 
@@ -168,7 +168,7 @@ Add a "Filename Cleanup" section with add/delete prefix controls.
 Run:
 
 ```bash
-cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" -derivedDataPath /tmp/amule-ios-sim-test test
+cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0" -derivedDataPath /tmp/amule-ios-sim-test test
 ```
 
 Expected: PASS if the simulator runtime is installed and available.
