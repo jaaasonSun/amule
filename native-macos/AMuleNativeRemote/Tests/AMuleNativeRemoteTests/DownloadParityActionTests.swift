@@ -27,6 +27,42 @@ final class DownloadParityActionTests: XCTestCase {
         XCTAssertLessThan(downloadsIndex, statusIndex)
     }
 
+    func testPauseDuringDownloadsPollQueuesSinglePostMutationRefresh() async throws {
+        let downloadsProbe = DownloadRefreshCallProbe(blockedCallNumbers: [1])
+        let bridge = FakeBridgeAdapter()
+        bridge.onDownloadsCall = { await downloadsProbe.recordCall() }
+        let model = AppModel(bridge: bridge)
+        let item = DownloadItem.fixture(hash: "00112233445566778899aabbccddeeff")
+
+        let pollRefresh = Task {
+            try await model.pollDownloadsNow(logOutput: false, suppressErrors: true)
+        }
+        guard await downloadsProbe.waitForCalls(1) else {
+            XCTFail("The running downloads poll did not reach the bridge")
+            return
+        }
+
+        model.pauseDownload(item)
+        for _ in 0..<1_000 {
+            if bridge.pauseCallCount == 1, !model.isBusy {
+                break
+            }
+            await Task.yield()
+        }
+
+        XCTAssertEqual(bridge.pauseCallCount, 1)
+        let callsWhilePollIsRunning = await downloadsProbe.callCount()
+        XCTAssertEqual(callsWhilePollIsRunning, 1)
+
+        await downloadsProbe.releaseBlockedCalls()
+        try await pollRefresh.value
+
+        let postMutationRefreshStarted = await downloadsProbe.waitForCalls(2)
+        let callsAfterPollCompletes = await downloadsProbe.callCount()
+        XCTAssertTrue(postMutationRefreshStarted)
+        XCTAssertEqual(callsAfterPollCompletes, 2)
+    }
+
     func testAssignDownloadCategoryUsesSelectedCategoryID() async throws {
         let bridge = FakeBridgeAdapter()
         bridge.capabilityOps = Set(["download-set-category", "downloads", "status"])
@@ -151,5 +187,44 @@ private extension BridgeCategoryPayload {
             color: 0,
             priority: 0
         )
+    }
+}
+
+private actor DownloadRefreshCallProbe {
+    private let blockedCallNumbers: Set<Int>
+    private var calls = 0
+    private var blockedCallContinuations: [CheckedContinuation<Void, Never>] = []
+
+    init(blockedCallNumbers: Set<Int>) {
+        self.blockedCallNumbers = blockedCallNumbers
+    }
+
+    func recordCall() async {
+        calls += 1
+        guard blockedCallNumbers.contains(calls) else { return }
+
+        await withCheckedContinuation { continuation in
+            blockedCallContinuations.append(continuation)
+        }
+    }
+
+    func callCount() -> Int {
+        calls
+    }
+
+    func waitForCalls(_ expectedCalls: Int) async -> Bool {
+        for _ in 0..<1_000 {
+            if calls >= expectedCalls {
+                return true
+            }
+            await Task.yield()
+        }
+        return calls >= expectedCalls
+    }
+
+    func releaseBlockedCalls() {
+        let continuations = blockedCallContinuations
+        blockedCallContinuations.removeAll()
+        continuations.forEach { $0.resume() }
     }
 }
