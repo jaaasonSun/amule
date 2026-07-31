@@ -129,7 +129,7 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             Tab(L("Downloads"), systemImage: AppTab.downloads.systemImage, value: .downloads) {
                 NavigationStack {
-                    DownloadsView(model: model, onShowConnection: showConnectionDialog)
+                    DownloadsView(model: model, presentation: downloadsPresentation, onShowConnection: showConnectionDialog)
                         .navigationTitle(Text("Downloads"))
                 }
             }

@@ -50,12 +50,21 @@ final class IOSLayoutPolicyTests: XCTestCase {
     func testContentViewUsesSystemAdaptiveTabsForIPadSidebar() throws {
         let source = try appSource(named: "ContentView.swift")
 
+        XCTAssertTrue(source.contains("TabView(selection: $selectedTab)"))
         XCTAssertTrue(source.contains(".tabViewStyle(.sidebarAdaptable)"))
         XCTAssertTrue(source.contains("@AppStorage(\"amule.ios.tabCustomization\")"))
         XCTAssertTrue(source.contains(".tabViewCustomization($tabCustomization)"))
         XCTAssertTrue(source.contains("role: .search"))
         XCTAssertFalse(source.contains("NavigationSplitView"))
         XCTAssertFalse(source.contains("List(AppTab.allCases)"))
+    }
+
+    func testContentViewPassesComputedDownloadsPresentationIntoDownloadsView() throws {
+        let source = try appSource(named: "ContentView.swift")
+
+        XCTAssertTrue(source.contains("private var downloadsPresentation: DownloadsViewPresentation"))
+        XCTAssertTrue(source.contains("IOSLayoutPolicy.downloadsPresentation(device: deviceClass, horizontalSize: sizeClass)"))
+        XCTAssertTrue(source.contains("DownloadsView(model: model, presentation: downloadsPresentation, onShowConnection: showConnectionDialog)"))
     }
 
     func testAppTabsExposeStableCustomizationIdentifiers() {
