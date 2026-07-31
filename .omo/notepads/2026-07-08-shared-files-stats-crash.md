@@ -1,0 +1,60 @@
+# ULW Notepad: Shared Files Repeated Rows and Statistics Crash
+
+- Session: `shared-stats-crash-20260708`
+- User request: investigate and fix two native macOS client issues:
+  1. all files in shared file list appear as repeated `34.partfile`;
+  2. statistics pages crash on opening.
+- Tier: HEAVY. Justification: two runtime bugs crossing SwiftEC parsing/modeling, macOS/SharedUI presentation, and desktop app behavior; crash handling requires real-surface evidence and final review.
+- Skills used:
+  - `omo:ulw-loop`: explicit `ulw` request and evidence-bound execution.
+  - `omo:debugging`: runtime wrong-output and crash investigation.
+  - `build-macos-apps:build-run-debug`: macOS app build/run/crash workflow.
+  - `build-macos-apps:test-triage`: focused SwiftPM/Xcode regression narrowing.
+  - `omo:visual-qa`: UI/shared files/statistics surface verification after fix.
+- ULW state:
+  - Brief: `.omo/ulw-loop/shared-stats-crash-20260708/brief.md`
+  - Goals: `.omo/ulw-loop/shared-stats-crash-20260708/goals.json`
+  - Ledger: `.omo/ulw-loop/shared-stats-crash-20260708/ledger.jsonl`
+- Success criteria draft:
+  - C001 shared files: a fixture or app-model scenario with multiple distinct shared file names no longer collapses to repeated `34.partfile`; real surface shows distinct rows.
+  - C002 statistics: opening statistics pages with empty/malformed/daemon-like stats data does not crash and shows a stable empty/error/graph state.
+  - C003 regression: downloads/search/shared files/statistics adjacent parsers remain green in focused and package tests.
+- Root causes:
+  - Shared files: SwiftEC parsed shared/known-file display names from `EC_TAG_KNOWNFILE_FILENAME` (`34.partfile`) and treated the root `EC_TAG_KNOWNFILE` ECID as the file hash instead of reading child `EC_TAG_PARTFILE_NAME` and `EC_TAG_PARTFILE_HASH`; macOS list identity also used `hash` alone, which is unsafe for empty/duplicate hashes.
+  - Statistics: `StatsTreeNodeRow` passed daemon-provided labels such as `%s` into `String(format:)`, which was reproduced locally as a process-terminating crash (`swift -e 'import Foundation; print(String(format: "%s", "abc"))'` exited 137).
+- Fix summary:
+  - `ECResponseParser.parseSharedFiles` now prefers `EC_TAG_PARTFILE_NAME`, reads child `EC_TAG_PARTFILE_HASH`, keeps `EC_TAG_KNOWNFILE_FILENAME` as path/fallback, and aligns known-file metric constants with upstream `ECCodes.h`.
+  - `SharedFilesWindowView` wraps rows with a composite identity using offset/hash/path/name.
+  - `StatsWindowView` replaces daemon printf-like placeholders with safe formatted values without using daemon text as a raw Foundation format string.
+- GREEN evidence:
+  - `.omo/evidence/shared-stats-crash-20260708/red-tests.md`
+  - `.omo/evidence/shared-stats-crash-20260708/green-focused-tests.md`
+  - `.omo/evidence/shared-stats-crash-20260708/shared-files-surface.png`
+  - `.omo/evidence/shared-stats-crash-20260708/statistics-surface.png`
+  - `.omo/evidence/shared-stats-crash-20260708-code-review.md`
+- Full gates passed:
+  - `cd native-macos/AMuleNativeRemote/SwiftEC && swift test`
+  - `cd native-macos/AMuleNativeRemote/SwiftEC && ./Scripts/check-forbidden-deps.sh`
+  - `cd native-macos/AMuleNativeRemote && swift test`
+  - `cd native-macos/AMuleNativeRemote && swift build -Xswiftc -warnings-as-errors`
+  - `cd native-macos/AMuleNativeRemote && ./scripts/build-app.sh`
+  - `git diff --check`
+- Raw logs:
+  - `.omo/evidence/shared-stats-crash-20260708/green-swiftec-focused.log`
+  - `.omo/evidence/shared-stats-crash-20260708/green-macos-focused.log`
+  - `.omo/evidence/shared-stats-crash-20260708/full-swiftec-test.log`
+  - `.omo/evidence/shared-stats-crash-20260708/swiftec-forbidden-deps.log`
+  - `.omo/evidence/shared-stats-crash-20260708/full-macos-test.log`
+  - `.omo/evidence/shared-stats-crash-20260708/macos-warnings-as-errors-build.log`
+  - `.omo/evidence/shared-stats-crash-20260708/macos-build-app.log`
+  - `.omo/evidence/shared-stats-crash-20260708/git-diff-check.log`
+- Reviewer gate:
+  - Initial gate rejected missing review/raw logs and two source-scanning tests.
+  - Source-scanning tests were removed and replaced with behavior tests.
+  - Code reviewer re-review approved with no remaining blockers.
+- Manual QA scenarios:
+  - Shared files desktop surface: launch `native-macos/AMuleNativeRemote/dist/aMule Remote.app`, drive to Shared Files with a deterministic local/mock data path or closest faithful app surface; PASS if visible rows are not repeated `34.partfile`.
+  - Statistics desktop surface: launch app and open Statistics; PASS if process remains alive and a screenshot/action log confirms page is visible.
+  - Auxiliary parser/model surface: SwiftPM focused tests under `native-macos/AMuleNativeRemote` and/or `SwiftEC`; PASS only with RED before fix and GREEN after fix.
+- Subagents:
+  - `Planner` (`019f4017-fa93-7110-94f5-9ded7c5f9eec`) spawned for HEAVY plan review.
