@@ -29,26 +29,21 @@ struct UploadsWindowView: View {
                 minHeight: embeddedInMainWindow ? nil : 500
             )
             .task { model.refreshUploads() }
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        model.refreshUploads()
+                    } label: {
+                        Label("Refresh", systemImage: "arrow.clockwise")
+                    }
+                    .help("Refresh Uploads")
+                    .disabled(model.isBusy || !model.isBridgeOpSupported("uploads"))
+                }
+            }
     }
 
     private var content: some View {
         VStack(spacing: 0) {
-            HStack {
-                Button {
-                    model.refreshUploads()
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                }
-                .buttonStyle(.bordered)
-                .disabled(model.isBusy || !model.isBridgeOpSupported("uploads"))
-
-                Spacer()
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-
-            Divider()
-
             if model.uploads.isEmpty {
                 Text("No active uploads.")
                     .foregroundStyle(.secondary)
@@ -61,7 +56,7 @@ struct UploadsWindowView: View {
                             Text(upload.clientName.isEmpty ? "Client \(upload.clientID)" : upload.clientName)
                                 .font(.headline)
                             Spacer()
-                            Text("↑ \(upload.speedUp)")
+                            Text("↑ \(AMuleFormatter.speed(bytesPerSecond: upload.speedUp))")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
