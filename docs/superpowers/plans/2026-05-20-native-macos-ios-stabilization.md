@@ -74,7 +74,7 @@ jobs:
       - name: SharedUI tests
         run: native-macos/AMuleNativeRemote/scripts/swiftpm.sh test --package-path native-macos/AMuleNativeRemote/SharedUI
       - name: iOS app tests
-        run: cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" test SWIFT_ENABLE_EXPLICIT_MODULES=NO
+  run: cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0" test SWIFT_ENABLE_EXPLICIT_MODULES=NO
       - name: Native macOS tests
         run: native-macos/AMuleNativeRemote/scripts/swiftpm.sh test --package-path native-macos/AMuleNativeRemote
       - name: Native macOS strict build
@@ -100,7 +100,7 @@ Run:
 
 ```bash
 cd native-macos/AMuleNativeRemote && swift test --filter AMuleNativeRemoteTests
-cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" -derivedDataPath /tmp/amule-ios-sim-test test
+cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0" -derivedDataPath /tmp/amule-ios-sim-test test
 ```
 
 ## Task 4: Split Oversized Model And Window Files
@@ -112,16 +112,16 @@ cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodepro
 - Modify: `native-macos/AMuleNativeRemote/iOS/AMuleRemoteiOS/IOSAppModel.swift`
 
 - [x] Extract link import/HUD behavior into a focused model/service shared by macOS and iOS.
-- [ ] Extract server-management actions from `AppModel`/`IOSAppModel` into focused helpers with injectable bridge dependency.
+- [x] Extract server-management actions from `AppModel`/`IOSAppModel` into focused helpers with injectable bridge dependency.
 - [x] Extract transfer-limit preference input parsing/validation into a small shared model used by macOS and iOS.
-- [ ] Split `SecondaryWindows.swift` by surface: search, downloads detail, servers, diagnostics, preferences, deferred windows.
-- [ ] Add tests before extraction for current behavior, then run them after each file split.
+- [x] Split `SecondaryWindows.swift` by surface: search, downloads detail, servers, diagnostics, preferences, deferred windows.
+- [x] Add tests before extraction for current behavior, then run them after each file split.
 
 Run:
 
 ```bash
 cd native-macos/AMuleNativeRemote && swift test
-cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" -derivedDataPath /tmp/amule-ios-sim-test test
+cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0" -derivedDataPath /tmp/amule-ios-sim-test test
 ```
 
 ## Task 5: Harden iOS URL Intake And Add HUD Feedback
@@ -143,7 +143,7 @@ cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodepro
 Run:
 
 ```bash
-cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" -derivedDataPath /tmp/amule-ios-sim-test test
+cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0" -derivedDataPath /tmp/amule-ios-sim-test test
 ```
 
 ## Task 6: Formalize iPad/iPhone Layout Rules
@@ -161,7 +161,7 @@ cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodepro
 Run:
 
 ```bash
-cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" -derivedDataPath /tmp/amule-ios-sim-test test
+cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0" -derivedDataPath /tmp/amule-ios-sim-test test
 cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS,id=00008150-001C48DE3C20401C" -derivedDataPath /tmp/amule-iphone-build build
 ```
 
@@ -179,7 +179,7 @@ cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodepro
 Run:
 
 ```bash
-cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" -derivedDataPath /tmp/amule-ios-sim-test test
+cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0" -derivedDataPath /tmp/amule-ios-sim-test test
 ```
 
 ## Task 8: SwiftEC Protocol Parity And Regression Coverage
@@ -189,9 +189,9 @@ cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodepro
 - Modify: `native-macos/AMuleNativeRemote/SwiftEC/Sources/AMuleECClient/ECResponseParser.swift`
 - Modify tests under `native-macos/AMuleNativeRemote/SwiftEC/Tests/`
 
-- [ ] Add fixture-backed tests for every app-exposed operation: add-link, rename, pause, resume, cancel, servers, server CRUD, sources, prefs get/set.
-- [ ] Add regression tests for EC tag IDs that have previously caused daemon disconnects, especially rename.
-- [ ] Keep `SwiftEC/Scripts/check-forbidden-deps.sh` passing.
+- [x] Add fixture-backed tests for every app-exposed operation: add-link, rename, pause, resume, cancel, servers, server CRUD, sources, prefs get/set.
+- [x] Add regression tests for EC tag IDs that have previously caused daemon disconnects, especially rename.
+- [x] Keep `SwiftEC/Scripts/check-forbidden-deps.sh` passing.
 
 Run:
 
@@ -207,7 +207,7 @@ Run:
 ```bash
 cd native-macos/AMuleNativeRemote/SwiftEC && swift test
 cd native-macos/AMuleNativeRemote/SharedUI && swift test
-cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" -derivedDataPath /tmp/amule-ios-sim-test test
+cd native-macos/AMuleNativeRemote && xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0" -derivedDataPath /tmp/amule-ios-sim-test test
 cd native-macos/AMuleNativeRemote && swift test
 cd native-macos/AMuleNativeRemote && swift build -Xswiftc -warnings-as-errors
 cd native-macos/AMuleNativeRemote && ./scripts/build-app.sh

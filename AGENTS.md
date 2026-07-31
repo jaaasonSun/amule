@@ -52,7 +52,7 @@ swift test
 For the iOS app test target, run from `native-macos/AMuleNativeRemote`:
 
 ```bash
-xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" test SWIFT_ENABLE_EXPLICIT_MODULES=NO
+xcodebuild -project AMuleRemoteiOS.xcodeproj -scheme AMuleRemoteiOS -configuration Debug -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0" test SWIFT_ENABLE_EXPLICIT_MODULES=NO
 ```
 
 For the iOS app target, build from `native-macos/AMuleNativeRemote`:
