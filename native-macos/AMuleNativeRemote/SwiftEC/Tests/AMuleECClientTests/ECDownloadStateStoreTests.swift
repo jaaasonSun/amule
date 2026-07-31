@@ -398,6 +398,28 @@ final class ECDownloadStateStoreTests: XCTestCase {
         XCTAssertEqual(download.availableParts, 12)
     }
 
+    func testIncrementalStatusOnlyUpdatePreservesExistingIdentityLikeAmulegui() throws {
+        var store = ECDownloadStateStore()
+        let fullPacket = ECDownloadPacketFixtures.snapshotPacket(downloads: [
+            try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "active.iso", size: 1_000, done: 100, statusCode: 0),
+        ])
+        store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(fullPacket), sourcePacket: fullPacket)
+
+        let statusOnlyPacket = ECDownloadPacketFixtures.incrementalPacket(downloads: [
+            ECTag.integer(name: 0x0300, value: UInt64(42), children: [
+                ECTag.integer(name: 0x0308, value: 7),
+            ]),
+        ])
+        store.replaceDownloadSnapshot(try ECResponseParser.parseDownloads(statusOnlyPacket), sourcePacket: statusOnlyPacket)
+
+        let download = try XCTUnwrap(store.downloads.first)
+        XCTAssertEqual(download.name, "active.iso")
+        XCTAssertEqual(download.hash, Self.hash)
+        XCTAssertEqual(download.size, 1_000)
+        XCTAssertEqual(download.statusCode, 7)
+        XCTAssertEqual(download.status, "Paused")
+    }
+
     func testPartFileCompleteStatusReconcilesCompletingPartFileToComplete() throws {
         var store = ECDownloadStateStore()
         let completingPacket = ECDownloadPacketFixtures.snapshotPacket(downloads: [

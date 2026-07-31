@@ -56,7 +56,7 @@ public struct ECDownloadStateStore: Sendable {
         if let sourcePacket {
             for tag in sourcePacket.tags where tag.name == TagName.partFile {
                 let ecid = tag.intValue
-                if tag.child(named: TagName.partFileStatus) != nil {
+                if tag.hasCompleteFileIdentity {
                     hasCompleteDownloadState.insert(ecid)
                 }
             }
