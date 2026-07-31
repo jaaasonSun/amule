@@ -18,6 +18,7 @@ struct IOSSearchService {
         model.downloadFeedback = LF("%lld link(s) queued for import", Int64(importPlan.count))
         let config = model.config
         let bridge = model.bridgeClient
+        let session = model.currentSessionCoordinator()
         Task {
             var successCount = 0
             var failureCount = 0
@@ -28,15 +29,20 @@ struct IOSSearchService {
                 } catch {
                     failureCount += 1
                     await MainActor.run {
+                        guard model.isCurrentSession(session) else { return }
                         model.lastError = model.localNetworkErrorPresenter.userFacingMessage(for: error)
                     }
                 }
             }
 
             do {
-                let (payloads, _) = try await bridge.downloads(config: config)
+                guard model.isCurrentSession(session) else { return }
+                let refresh = try await session.coordinator.mutationRefreshDownloads()
                 await MainActor.run {
-                    model.downloads = DownloadItem.fromBridge(payloads)
+                    guard model.isCurrentSession(session) else { return }
+                    if let (payloads, _) = refresh {
+                        model.downloads = DownloadItem.fromBridge(payloads)
+                    }
                     model.downloadFeedback = IOSAppModel.linkImportFeedback(
                         LinkImportOutcome(successCount: successCount, failureCount: failureCount)
                     )
@@ -44,6 +50,7 @@ struct IOSSearchService {
                 }
             } catch {
                 await MainActor.run {
+                    guard model.isCurrentSession(session) else { return }
                     model.downloadFeedback = IOSAppModel.linkImportFeedback(
                         LinkImportOutcome(successCount: successCount, failureCount: failureCount)
                     )
@@ -78,6 +85,7 @@ struct IOSSearchService {
 
         let config = model.config
         let bridge = model.bridgeClient
+        let session = model.currentSessionCoordinator()
         Task {
             do {
                 let (progress, results, _) = try await bridge.search(
@@ -88,12 +96,14 @@ struct IOSSearchService {
                     config: config
                 )
                 await MainActor.run {
+                    guard model.isCurrentSession(session) else { return }
                     model.searchProgress = max(0, min(100, progress))
                     model.searchResults = SearchResult.fromBridge(results)
                     model.isSearchInProgress = false
                 }
             } catch {
                 await MainActor.run {
+                    guard model.isCurrentSession(session) else { return }
                     model.lastError = model.localNetworkErrorPresenter.userFacingMessage(for: error)
                     model.isSearchInProgress = false
                 }
@@ -109,18 +119,25 @@ struct IOSSearchService {
         model.isBusy = true
         let config = model.config
         let bridge = model.bridgeClient
+        let session = model.currentSessionCoordinator()
         Task {
             do {
                 let _ = try await bridge.download(hash: result.hash, config: config)
                 await MainActor.run {
+                    guard model.isCurrentSession(session) else { return }
                     model.downloadFeedback = LF("Added to downloads: %@", result.name)
                     model.isBusy = false
                 }
-                await MainActor.run {
-                    model.refreshDownloads()
+                guard model.isCurrentSession(session) else { return }
+                if let (payloads, _) = try await session.coordinator.mutationRefreshDownloads() {
+                    await MainActor.run {
+                        guard model.isCurrentSession(session) else { return }
+                        model.downloads = DownloadItem.fromBridge(payloads)
+                    }
                 }
             } catch {
                 await MainActor.run {
+                    guard model.isCurrentSession(session) else { return }
                     model.lastError = model.localNetworkErrorPresenter.userFacingMessage(for: error)
                     model.isBusy = false
                 }

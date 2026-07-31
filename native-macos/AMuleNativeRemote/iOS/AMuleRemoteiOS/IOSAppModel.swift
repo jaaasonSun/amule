@@ -32,13 +32,33 @@ private struct IOSConnectionStartupError: LocalizedError {
     }
 }
 
+private struct IOSRemoteSessionIdentity: Equatable {
+    let host: String
+    let port: Int
+    let password: String
+}
+
+struct IOSRemoteSessionLease: Sendable {
+    let coordinator: RemoteSessionCoordinator
+    let generation: UInt
+}
+
 @MainActor
 final class IOSAppModel: ObservableObject {
-    @AppStorage("amule.host") var host: String = "127.0.0.1"
-    @AppStorage("amule.port") var port: Int = 4712
+    @AppStorage("amule.host") var host: String = "127.0.0.1" {
+        didSet {
+            resetSessionCoordinator()
+        }
+    }
+    @AppStorage("amule.port") var port: Int = 4712 {
+        didSet {
+            resetSessionCoordinator()
+        }
+    }
     @Published var password: String {
         didSet {
             persistPassword()
+            resetSessionCoordinator()
         }
     }
 
@@ -75,6 +95,9 @@ final class IOSAppModel: ObservableObject {
     private let passwordStorageKey = "amule.password"
     private let userServersStorageKey = "amule.user-servers"
     private var autoRefreshTask: Task<Void, Never>?
+    private var sessionCoordinator: RemoteSessionCoordinator?
+    private var sessionCoordinatorIdentity: IOSRemoteSessionIdentity?
+    private var sessionGeneration: UInt = 0
     private let connectionService = IOSConnectionService()
     private let downloadService = IOSDownloadService()
     private let searchService = IOSSearchService()
@@ -131,12 +154,11 @@ final class IOSAppModel: ObservableObject {
     }
 
     func refreshStatus() {
-        let config = self.config
-        let bridge = self.bridge
+        let session = currentSessionCoordinator()
         Task {
             do {
-                let (bridgeStatus, _) = try await bridge.status(config: config)
-                await MainActor.run {
+                if let (bridgeStatus, _) = try await session.coordinator.manualRefreshStatus(),
+                   self.isCurrentSession(session) {
                     self.status = StatusSnapshot.fromBridge(bridgeStatus)
                     self.isSessionConnected = bridgeStatus.connected
                     if !bridgeStatus.connected {
@@ -144,9 +166,8 @@ final class IOSAppModel: ObservableObject {
                     }
                 }
             } catch {
-                await MainActor.run {
-                    self.lastError = self.localNetworkErrors.userFacingMessage(for: error)
-                }
+                guard self.isCurrentSession(session) else { return }
+                self.lastError = self.localNetworkErrors.userFacingMessage(for: error)
             }
         }
     }
@@ -274,6 +295,7 @@ final class IOSAppModel: ObservableObject {
         }
 
         isRefreshingSources = true
+        let session = currentSessionCoordinator()
         let config = self.config
         let bridge = self.bridge
         Task {
@@ -281,11 +303,13 @@ final class IOSAppModel: ObservableObject {
                 let (sourcePayloads, _) = try await bridge.sources(hash: item.id, config: config)
                 let sourceItems = DownloadSourceItem.fromBridge(sourcePayloads)
                 await MainActor.run {
+                    guard self.isCurrentSession(session) else { return }
                     self.downloadSourcesByHash[item.id] = sourceItems
                     self.isRefreshingSources = false
                 }
             } catch {
                 await MainActor.run {
+                    guard self.isCurrentSession(session) else { return }
                     self.lastError = self.localNetworkErrors.userFacingMessage(for: error)
                     self.isRefreshingSources = false
                 }
@@ -295,17 +319,20 @@ final class IOSAppModel: ObservableObject {
 
     func fetchTransferLimits() {
         guard isBridgeOpSupported("prefs-connection-get") else { return }
+        let session = currentSessionCoordinator()
         let config = self.config
         let bridge = self.bridge
         Task {
             do {
                 let (payload, _) = try await bridge.prefsConnectionGet(config: config)
                 await MainActor.run {
+                    guard self.isCurrentSession(session) else { return }
                     self.downloadLimitKBps = payload.maxDownload
                     self.uploadLimitKBps = payload.maxUpload
                 }
             } catch {
                 await MainActor.run {
+                    guard self.isCurrentSession(session) else { return }
                     self.lastError = self.localNetworkErrors.userFacingMessage(for: error)
                 }
             }
@@ -317,6 +344,7 @@ final class IOSAppModel: ObservableObject {
             lastError = L("Setting transfer limits is not supported by this server.")
             return
         }
+        let session = currentSessionCoordinator()
         isBusy = true
         let config = self.config
         let bridge = self.bridge
@@ -324,15 +352,17 @@ final class IOSAppModel: ObservableObject {
             do {
                 let _ = try await bridge.prefsConnectionSet(maxDownload: downloadKBps, maxUpload: uploadKBps, config: config)
                 await MainActor.run {
+                    guard self.isCurrentSession(session) else { return }
                     self.uploadLimitKBps = uploadKBps
                     self.downloadLimitKBps = downloadKBps
                     self.isBusy = false
-                }
-                if self.isBridgeOpSupported("prefs-connection-get") {
-                    self.fetchTransferLimits()
+                    if self.isBridgeOpSupported("prefs-connection-get") {
+                        self.fetchTransferLimits()
+                    }
                 }
             } catch {
                 await MainActor.run {
+                    guard self.isCurrentSession(session) else { return }
                     self.lastError = self.localNetworkErrors.userFacingMessage(for: error)
                     self.isBusy = false
                 }
@@ -412,14 +442,16 @@ final class IOSAppModel: ObservableObject {
 
     func startAutoRefresh(intervalNanoseconds: UInt64 = 5_000_000_000) {
         autoRefreshTask?.cancel()
+        let session = currentSessionCoordinator()
         autoRefreshTask = Task {
             while !Task.isCancelled {
-                guard self.isSessionConnected else { break }
+                guard self.isSessionConnected, self.isCurrentSession(session) else { break }
 
                 do {
-                    try await self.refreshSessionSnapshot()
+                    try await self.refreshSessionSnapshot(session: session)
                 } catch {
                     await MainActor.run {
+                        guard self.isCurrentSession(session) else { return }
                         self.lastError = self.localNetworkErrors.userFacingMessage(for: error)
                         self.isSessionConnected = false
                         self.autoRefreshTask?.cancel()
@@ -438,24 +470,58 @@ final class IOSAppModel: ObservableObject {
         autoRefreshTask = nil
     }
 
-    private func refreshSessionSnapshot() async throws {
-        let config = self.config
-        let bridge = self.bridge
-        let (bridgeStatus, _) = try await bridge.status(config: config)
-        let (payloads, _) = try await bridge.downloads(config: config)
-        let serverPayloads: [BridgeServerPayload]
+    func resetSessionCoordinator() {
+        sessionCoordinator = nil
+        sessionCoordinatorIdentity = nil
+        sessionGeneration &+= 1
+        isBusy = false
+        isSearchInProgress = false
+        isRefreshingSources = false
+    }
+
+    private func refreshSessionSnapshot(session: IOSRemoteSessionLease) async throws {
+        let statusSnapshot = try await session.coordinator.pollStatus()
+        let downloadsSnapshot = try await session.coordinator.pollDownloads()
+        let serversSnapshot: ([BridgeServerPayload], String)?
         if isBridgeOpSupported("servers") {
-            let (servers, _) = try await bridge.servers(config: config)
-            serverPayloads = servers
+            serversSnapshot = try await session.coordinator.pollServers()
         } else {
-            serverPayloads = []
+            serversSnapshot = nil
         }
-        await MainActor.run {
+
+        guard isCurrentSession(session) else { return }
+
+        if let (bridgeStatus, _) = statusSnapshot {
             self.status = StatusSnapshot.fromBridge(bridgeStatus)
-            self.downloads = DownloadItem.fromBridge(payloads)
-            self.servers = ServerItem.fromBridge(serverPayloads)
             self.isSessionConnected = bridgeStatus.connected
         }
+        if let (payloads, _) = downloadsSnapshot {
+            self.downloads = DownloadItem.fromBridge(payloads)
+        }
+        if let (serverPayloads, _) = serversSnapshot {
+            self.servers = ServerItem.fromBridge(serverPayloads)
+        }
+    }
+
+    func coordinatorForCurrentSession() -> RemoteSessionCoordinator {
+        currentSessionCoordinator().coordinator
+    }
+
+    func currentSessionCoordinator() -> IOSRemoteSessionLease {
+        let identity = IOSRemoteSessionIdentity(host: host, port: port, password: password)
+        if let sessionCoordinator, sessionCoordinatorIdentity == identity {
+            return IOSRemoteSessionLease(coordinator: sessionCoordinator, generation: sessionGeneration)
+        }
+
+        let coordinator = RemoteSessionCoordinator(bridge: bridge, config: config)
+        sessionCoordinator = coordinator
+        sessionCoordinatorIdentity = identity
+        sessionGeneration &+= 1
+        return IOSRemoteSessionLease(coordinator: coordinator, generation: sessionGeneration)
+    }
+
+    func isCurrentSession(_ lease: IOSRemoteSessionLease) -> Bool {
+        lease.generation == sessionGeneration && sessionCoordinator === lease.coordinator
     }
 
     func reconnectAfterForegroundTransition() {

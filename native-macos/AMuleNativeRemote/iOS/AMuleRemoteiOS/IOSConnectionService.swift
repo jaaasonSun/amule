@@ -32,6 +32,8 @@ struct IOSConnectionService {
         }
 
         model.host = trimmedHost
+        model.resetSessionCoordinator()
+        let session = model.currentSessionCoordinator()
         model.isBusy = true
         model.lastError = ""
         let config = model.config
@@ -54,6 +56,7 @@ struct IOSConnectionService {
                     try await model.remoteServersIfSupported(by: capabilities.ops, config: config)
                 }
                 await MainActor.run {
+                    guard model.isCurrentSession(session) else { return }
                     model.isSessionConnected = true
                     model.bridgeOps = Set(capabilities.ops)
                     model.bridgeVersion = capabilities.bridgeVersion
@@ -70,6 +73,7 @@ struct IOSConnectionService {
                 }
             } catch {
                 await MainActor.run {
+                    guard model.isCurrentSession(session) else { return }
                     model.lastError = model.localNetworkErrorPresenter.userFacingMessage(for: error)
                     model.isSessionConnected = false
                     model.isBusy = false
@@ -80,6 +84,7 @@ struct IOSConnectionService {
     }
 
     func disconnect(model: IOSAppModel) {
+        let session = model.currentSessionCoordinator()
         model.isBusy = true
         let config = model.config
         let bridge = model.bridgeClient
@@ -87,6 +92,7 @@ struct IOSConnectionService {
             do {
                 let _ = try await bridge.disconnect(config: config)
                 await MainActor.run {
+                    guard model.isCurrentSession(session) else { return }
                     model.isSessionConnected = false
                     model.bridgeOps = []
                     model.bridgeVersion = ""
@@ -97,9 +103,11 @@ struct IOSConnectionService {
                     model.servers = []
                     model.isBusy = false
                     model.stopAutoRefresh()
+                    model.resetSessionCoordinator()
                 }
             } catch {
                 await MainActor.run {
+                    guard model.isCurrentSession(session) else { return }
                     model.lastError = model.localNetworkErrorPresenter.userFacingMessage(for: error)
                     model.isBusy = false
                 }

@@ -12,18 +12,16 @@ struct IOSServerService {
             model.servers = []
             return
         }
-        let config = model.config
-        let bridge = model.bridgeClient
+        let session = model.currentSessionCoordinator()
         Task {
             do {
-                let (payloads, _) = try await bridge.servers(config: config)
-                await MainActor.run {
+                if let (payloads, _) = try await session.coordinator.manualRefreshServers(),
+                   model.isCurrentSession(session) {
                     model.servers = ServerItem.fromBridge(payloads)
                 }
             } catch {
-                await MainActor.run {
-                    model.lastError = model.localNetworkErrorPresenter.userFacingMessage(for: error)
-                }
+                guard model.isCurrentSession(session) else { return }
+                model.lastError = model.localNetworkErrorPresenter.userFacingMessage(for: error)
             }
         }
     }
@@ -35,14 +33,14 @@ struct IOSServerService {
         }
         let config = model.config
         let bridge = model.bridgeClient
+        let session = model.currentSessionCoordinator()
         Task {
             do {
                 let _ = try await bridge.serverConnect(ip: server?.ip, port: server?.port, config: config)
-                await MainActor.run {
-                    model.refreshStatus()
-                }
+                try await mutationRefreshStatus(model: model, session: session)
             } catch {
                 await MainActor.run {
+                    guard model.isCurrentSession(session) else { return }
                     model.lastError = model.localNetworkErrorPresenter.userFacingMessage(for: error)
                 }
             }
@@ -56,14 +54,14 @@ struct IOSServerService {
         }
         let config = model.config
         let bridge = model.bridgeClient
+        let session = model.currentSessionCoordinator()
         Task {
             do {
                 let _ = try await bridge.serverConnect(ip: server.ip, port: server.port, config: config)
-                await MainActor.run {
-                    model.refreshStatus()
-                }
+                try await mutationRefreshStatus(model: model, session: session)
             } catch {
                 await MainActor.run {
+                    guard model.isCurrentSession(session) else { return }
                     model.lastError = model.localNetworkErrorPresenter.userFacingMessage(for: error)
                 }
             }
@@ -77,14 +75,14 @@ struct IOSServerService {
         }
         let config = model.config
         let bridge = model.bridgeClient
+        let session = model.currentSessionCoordinator()
         Task {
             do {
                 let _ = try await bridge.serverDisconnect(config: config)
-                await MainActor.run {
-                    model.refreshStatus()
-                }
+                try await mutationRefreshStatus(model: model, session: session)
             } catch {
                 await MainActor.run {
+                    guard model.isCurrentSession(session) else { return }
                     model.lastError = model.localNetworkErrorPresenter.userFacingMessage(for: error)
                 }
             }
@@ -110,14 +108,14 @@ struct IOSServerService {
         }
         let config = model.config
         let bridge = model.bridgeClient
+        let session = model.currentSessionCoordinator()
         Task {
             do {
                 let _ = try await bridge.serverAdd(address: address, name: name, config: config)
-                await MainActor.run {
-                    model.refreshServers()
-                }
+                try await mutationRefreshServers(model: model, session: session)
             } catch {
                 await MainActor.run {
+                    guard model.isCurrentSession(session) else { return }
                     model.lastError = model.localNetworkErrorPresenter.userFacingMessage(for: error)
                 }
             }
@@ -142,14 +140,14 @@ struct IOSServerService {
         }
         let config = model.config
         let bridge = model.bridgeClient
+        let session = model.currentSessionCoordinator()
         Task {
             do {
                 let _ = try await bridge.serverRemove(ip: server.ip, port: server.port, config: config)
-                await MainActor.run {
-                    model.refreshServers()
-                }
+                try await mutationRefreshServers(model: model, session: session)
             } catch {
                 await MainActor.run {
+                    guard model.isCurrentSession(session) else { return }
                     model.lastError = model.localNetworkErrorPresenter.userFacingMessage(for: error)
                 }
             }
@@ -165,18 +163,40 @@ struct IOSServerService {
         }
         let config = model.config
         let bridge = model.bridgeClient
+        let session = model.currentSessionCoordinator()
         Task {
             do {
                 let _ = try await bridge.serverUpdateFromURL(url: trimmed, config: config)
-                await MainActor.run {
-                    model.refreshServers()
-                }
+                try await mutationRefreshServers(model: model, session: session)
             } catch {
                 await MainActor.run {
+                    guard model.isCurrentSession(session) else { return }
                     model.lastError = model.localNetworkErrorPresenter.userFacingMessage(for: error)
                 }
             }
         }
+    }
+
+    private func mutationRefreshStatus(model: IOSAppModel, session: IOSRemoteSessionLease) async throws {
+        guard model.isCurrentSession(session) else { return }
+        guard let (bridgeStatus, _) = try await session.coordinator.mutationRefreshStatus(),
+              model.isCurrentSession(session) else {
+            return
+        }
+        model.status = StatusSnapshot.fromBridge(bridgeStatus)
+        model.isSessionConnected = bridgeStatus.connected
+        if !bridgeStatus.connected {
+            model.stopAutoRefresh()
+        }
+    }
+
+    private func mutationRefreshServers(model: IOSAppModel, session: IOSRemoteSessionLease) async throws {
+        guard model.isCurrentSession(session) else { return }
+        guard let (payloads, _) = try await session.coordinator.mutationRefreshServers(),
+              model.isCurrentSession(session) else {
+            return
+        }
+        model.servers = ServerItem.fromBridge(payloads)
     }
 }
 #endif
