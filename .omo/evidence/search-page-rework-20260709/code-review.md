@@ -27,4 +27,3 @@ APPROVE.
 
 - `SearchScopePicker.swift` remains unused by macOS after this change. It is not harmful and may still be referenced by future shared or legacy code, so this task left it in place.
 - The rendered table background artifact is outside the Search inspector work and is already present in the current screenshot harness behavior.
-

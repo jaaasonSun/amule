@@ -49,4 +49,3 @@
 - unsupported daemon search capability: controls must disable using existing `isSearchSupported`.
 - dirty worktree: do not revert unrelated existing changes.
 - misleading screenshot-only pass: pair screenshots with source and behavior tests.
-

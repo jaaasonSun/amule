@@ -32,4 +32,3 @@
 - C001 Search: source-level RED proves the old confusing toolbar search/modifier and disclosure-grid advanced UI exist; after change, Search has a named query row, toolbar actions, and inspector advanced controls. Rendered screenshot proves the surface.
 - C002 Sidebar/Settings: source-level RED proves Preferences uses split view and optional Categories/Friends are always visible; after change, Preferences is TabView-based and hide toggles remove sidebar pages/redirect selection safely. Rendered screenshot proves settings and sidebar behavior.
 - C003 Toolbar/Stats: source-level RED proves Shared Files/Uploads content buttons and Stats inline controls; after change, actions are in toolbars and Stats uses native overview/graph layout. Rendered screenshots prove surfaces.
-

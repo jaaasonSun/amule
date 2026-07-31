@@ -40,4 +40,3 @@
 
 - The black table background in screenshots is the existing NSOutlineView render-harness artifact previously seen on Search screenshots; the changed inspector surface renders correctly.
 - Swift Charts still emits its pre-existing non-fatal AxisValueLabel warning in unrelated statistics render tests.
-
