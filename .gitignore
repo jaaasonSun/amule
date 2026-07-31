@@ -95,3 +95,15 @@ native-macos/AMuleNativeRemote/dist/ios-altstore/
 # Sisyphus / Agent logs
 .logs/
 .sisyphus/
+
+# Local agent work products
+.build/
+.omo/ulw-loop/
+.omo/evidence/**/*.png
+.omo/evidence/**/*.log
+.omo/evidence/**/*.json
+.omo/evidence/**/*.txt
+.omo/evidence/**/gate-review.md
+.omo/evidence/*-gate-review.md
+.omo/evidence/review-*.md
+.omo/evidence/**/slop-coverage.md
