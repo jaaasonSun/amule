@@ -4,28 +4,106 @@ import SharedViews
 import SharedModels
 import SharedServices
 
+enum PreferenceTab: CaseIterable, Identifiable, Hashable {
+    case connection
+    case files
+    case servers
+    case security
+    case remote
+    case interface
+    case maintenance
+
+    static let representativeRenderTabs: [PreferenceTab] = [
+        .connection,
+        .files,
+        .interface,
+        .maintenance
+    ]
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .connection:
+            return L("Connection")
+        case .files:
+            return L("Files")
+        case .servers:
+            return L("Servers")
+        case .security:
+            return L("Security")
+        case .remote:
+            return L("Remote")
+        case .interface:
+            return L("Interface")
+        case .maintenance:
+            return L("Maintenance")
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .connection:
+            return "network"
+        case .files:
+            return "folder"
+        case .servers:
+            return "server.rack"
+        case .security:
+            return "lock.shield"
+        case .remote:
+            return "globe"
+        case .interface:
+            return "sidebar.left"
+        case .maintenance:
+            return "wrench.and.screwdriver"
+        }
+    }
+
+    var evidenceName: String {
+        switch self {
+        case .connection:
+            return "connection"
+        case .files:
+            return "files"
+        case .servers:
+            return "servers"
+        case .security:
+            return "security"
+        case .remote:
+            return "remote"
+        case .interface:
+            return "interface"
+        case .maintenance:
+            return "maintenance"
+        }
+    }
+}
+
 struct PreferencesWindowView: View {
     @EnvironmentObject private var model: AppModel
     @AppStorage(FilenameCleanupPreferences.storageKey) private var filenameCleanupPrefixesRaw = "[]"
+    @AppStorage("amule.ui.showCategoriesPage") private var showCategoriesPage = true
+    @AppStorage("amule.ui.showFriendsPage") private var showFriendsPage = true
+    @AppStorage("amule.ui.showUploadsPage") private var showUploadsPage = true
+    @State private var selectedTab: PreferenceTab
     @State private var filenameCleanupPrefixDraft = ""
-    @State private var selectedSection: PreferencesSection = .connection
+
+    init(initialTab: PreferenceTab = .connection) {
+        _selectedTab = State(initialValue: initialTab)
+    }
 
     private var filenameCleanupPrefixes: [String] {
         FilenameCleanupPreferences.decode(filenameCleanupPrefixesRaw)
     }
 
     var body: some View {
-        NavigationSplitView {
-            List(selection: $selectedSection) {
-                ForEach(PreferencesSection.allCases) { section in
-                    Label(section.localizedTitle, systemImage: section.symbolName)
-                        .tag(section)
-                }
-            }
-            .listStyle(.sidebar)
-            .navigationSplitViewColumnWidth(min: 160, ideal: 200, max: 240)
-        } detail: {
-            detailView
+        selectedSection
+        .frame(width: 700, height: 560)
+        .scenePadding()
+        .background {
+            Color(nsColor: .windowBackgroundColor)
+            PreferenceWindowConfigurator(selectedTab: $selectedTab)
         }
         .task {
             if model.isBridgeOpSupported("prefs-connection-get") {
@@ -35,8 +113,8 @@ struct PreferencesWindowView: View {
     }
 
     @ViewBuilder
-    private var detailView: some View {
-        switch selectedSection {
+    private var selectedSection: some View {
+        switch selectedTab {
         case .connection:
             connectionSection
         case .files:
@@ -47,6 +125,8 @@ struct PreferencesWindowView: View {
             securitySection
         case .remote:
             remoteSection
+        case .interface:
+            interfaceSection
         case .maintenance:
             maintenanceSection
         }
@@ -69,15 +149,22 @@ struct PreferencesWindowView: View {
                     value: model.connectionMaxUploadKBps,
                     placeholder: "0"
                 )
+            } header: {
+                Text(L("Transfer Limits"))
+            } footer: {
+                Text(L("Values are in KiB/s. Use 0 for unlimited speed."))
+            }
+
+            Section {
                 preferenceTextField("TCP port", text: $model.connectionTCPPortInput, placeholder: "4662")
                 preferenceTextField("UDP port", text: $model.connectionUDPPortInput, placeholder: "4672")
                 Toggle(L("UDP enabled"), isOn: $model.connectionUDPEnabled)
                 Toggle(L("ED2K network"), isOn: $model.connectionED2KEnabled)
                 Toggle(L("Kademlia network"), isOn: $model.connectionKADEnabled)
             } header: {
-                Text(L("Bandwidth and Networks"))
+                Text(L("Networks"))
             } footer: {
-                Text(L("Values are in KiB/s. Use 0 for unlimited speed."))
+                Text(L("These values are read from and written to the daemon connection preferences."))
             }
 
             Section {
@@ -90,7 +177,6 @@ struct PreferencesWindowView: View {
             }
         }
         .formStyle(.grouped)
-        .navigationTitle(L("Connection"))
     }
 
     // MARK: - Files
@@ -126,22 +212,33 @@ struct PreferencesWindowView: View {
                 Toggle(L("Pause new files"), isOn: $model.newFilesPaused)
                 Toggle(L("Auto download priority"), isOn: $model.autoDownloadPriority)
                 Toggle(L("Preview priority"), isOn: $model.previewPriority)
-                Toggle(L("Auto upload priority"), isOn: $model.autoUploadPriority)
                 Toggle(L("Save sources"), isOn: $model.saveSources)
                 Toggle(L("Extract metadata"), isOn: $model.extractMetadata)
+            } header: {
+                Text(L("New Downloads"))
+            }
+
+            Section {
+                Toggle(L("Auto upload priority"), isOn: $model.autoUploadPriority)
                 Toggle(L("Allocate full file size"), isOn: $model.allocateFullFileSize)
                 Toggle(L("Check free space"), isOn: $model.checkFreeSpace)
                 preferenceTextField("Min free space MB", text: $model.minFreeDiskSpaceInput, placeholder: "0")
                 Toggle(L("Create sparse files"), isOn: $model.createSparseFiles)
+            } header: {
+                Text(L("Storage"))
+            } footer: {
+                Text(L("Sparse files and free-space checks apply when the daemon creates temporary part files."))
+            }
+
+            Section {
                 applyButton("Apply File Preferences") {
                     model.setFilePrefs()
                 }
             } header: {
-                Text(L("File behavior"))
+                Text(L("Apply"))
             }
         }
         .formStyle(.grouped)
-        .navigationTitle(L("Files"))
     }
 
     // MARK: - Servers
@@ -155,20 +252,29 @@ struct PreferencesWindowView: View {
                 Toggle(L("Remove dead servers"), isOn: $model.removeDeadServers)
                 Toggle(L("Add servers from servers"), isOn: $model.addServersFromServer)
                 Toggle(L("Add servers from clients"), isOn: $model.addServersFromClient)
+            } header: {
+                Text(L("Server List Updates"))
+            }
+
+            Section {
                 Toggle(L("Use priority system"), isOn: $model.useServerPrioritySystem)
                 Toggle(L("Smart low ID check"), isOn: $model.smartIDCheck)
                 Toggle(L("Safe server connect"), isOn: $model.safeServerConnect)
                 Toggle(L("Auto-connect static only"), isOn: $model.autoConnectStaticOnly)
                 Toggle(L("Manual high priority"), isOn: $model.manualHighPriority)
+            } header: {
+                Text(L("Connection Policy"))
+            }
+
+            Section {
                 applyButton("Apply Servers") {
                     model.setServersPrefs()
                 }
             } header: {
-                Text(L("Server list options"))
+                Text(L("Apply"))
             }
         }
         .formStyle(.grouped)
-        .navigationTitle(L("Servers"))
     }
 
     // MARK: - Security
@@ -182,19 +288,28 @@ struct PreferencesWindowView: View {
                 Toggle(L("Filter servers"), isOn: $model.filterServers)
                 Toggle(L("Auto-update IP filter"), isOn: $model.ipFilterAutoUpdate)
                 Toggle(L("Filter LAN IPs"), isOn: $model.filterLanIPs)
+            } header: {
+                Text(L("IP Filtering"))
+            }
+
+            Section {
                 Toggle(L("Secure identification"), isOn: $model.secureIdentEnabled)
                 Toggle(L("Obfuscation supported"), isOn: $model.obfuscationSupported)
                 Toggle(L("Obfuscation requested"), isOn: $model.obfuscationRequested)
                 Toggle(L("Obfuscation required"), isOn: $model.obfuscationRequired)
+            } header: {
+                Text(L("Protocol Protection"))
+            }
+
+            Section {
                 applyButton("Apply Security") {
                     model.setSecurityPrefs()
                 }
             } header: {
-                Text(L("Filters and obfuscation"))
+                Text(L("Apply"))
             }
         }
         .formStyle(.grouped)
-        .navigationTitle(L("Security"))
     }
 
     // MARK: - Remote
@@ -218,9 +333,9 @@ struct PreferencesWindowView: View {
             }
 
             Section {
-                Text(L("Remote preference support is not configurable."))
+                Text(L("Statistics display preferences are not exposed by amuled remote preferences."))
                     .foregroundStyle(.secondary)
-                Text(L("Graph update interval and display limits are not present in the upstream remote preferences packet."))
+                Text(L("Graph update interval and display limits remain app-side presentation choices."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } header: {
@@ -228,7 +343,21 @@ struct PreferencesWindowView: View {
             }
         }
         .formStyle(.grouped)
-        .navigationTitle(L("Remote"))
+    }
+
+    private var interfaceSection: some View {
+        Form {
+            Section {
+                Toggle(L("Show Uploads page"), isOn: $showUploadsPage)
+                Toggle(L("Show Categories page"), isOn: $showCategoriesPage)
+                Toggle(L("Show Friends page"), isOn: $showFriendsPage)
+            } header: {
+                Text(L("Sidebar Pages"))
+            } footer: {
+                Text(L("Hide pages that are not useful for this daemon. The selection is local to this app."))
+            }
+        }
+        .formStyle(.grouped)
     }
 
     // MARK: - Maintenance
@@ -236,16 +365,18 @@ struct PreferencesWindowView: View {
     private var maintenanceSection: some View {
         Form {
             Section {
-                LabeledContent(L("Prefix to remove")) {
-                    HStack {
-                        TextField(L("Prefix to remove"), text: $filenameCleanupPrefixDraft)
-                            .textFieldStyle(.roundedBorder)
-                        Button(L("Add")) {
-                            addFilenameCleanupPrefix()
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(filenameCleanupPrefixDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                HStack(spacing: 12) {
+                    Text(L("Prefix to remove"))
+                    Spacer(minLength: 24)
+                    TextField(L("Prefix to remove"), text: $filenameCleanupPrefixDraft)
+                        .textFieldStyle(.roundedBorder)
+                        .labelsHidden()
+                        .frame(width: 240)
+                    Button(L("Add")) {
+                        addFilenameCleanupPrefix()
                     }
+                    .buttonStyle(.bordered)
+                    .disabled(filenameCleanupPrefixDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
 
                 if filenameCleanupPrefixes.isEmpty {
@@ -272,10 +403,13 @@ struct PreferencesWindowView: View {
             }
 
             Section {
-                LabeledContent(L("IP filter URL")) {
+                HStack(spacing: 12) {
+                    Text(L("IP filter URL"))
+                    Spacer(minLength: 24)
                     TextField("https://example.com/ipfilter.dat", text: $model.ipFilterURLInput)
                         .textFieldStyle(.roundedBorder)
-                        .frame(maxWidth: 360)
+                        .labelsHidden()
+                        .frame(width: 280)
                         .disabled(model.isBusy || !model.isBridgeOpSupported("ipfilter-update"))
                 }
 
@@ -297,16 +431,18 @@ struct PreferencesWindowView: View {
             }
         }
         .formStyle(.grouped)
-        .navigationTitle(L("Maintenance"))
     }
 
     // MARK: - Helpers
 
     private func limitField(title: String, text: Binding<String>, value: Int, placeholder: String) -> some View {
-        LabeledContent(L(title)) {
+        HStack(spacing: 12) {
+            Text(L(title))
+            Spacer(minLength: 24)
             HStack {
                 TextField(placeholder, text: text)
                     .textFieldStyle(.roundedBorder)
+                    .labelsHidden()
                     .frame(width: 100)
                 Text(L("KiB/s"))
                     .foregroundStyle(.secondary)
@@ -318,10 +454,13 @@ struct PreferencesWindowView: View {
     }
 
     private func preferenceTextField(_ title: String, text: Binding<String>, placeholder: String) -> some View {
-        LabeledContent(L(title)) {
+        HStack(spacing: 12) {
+            Text(L(title))
+            Spacer(minLength: 24)
             TextField(placeholder, text: text)
                 .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: 360)
+                .labelsHidden()
+                .frame(width: 280)
         }
     }
 
@@ -348,38 +487,108 @@ struct PreferencesWindowView: View {
     }
 }
 
-// MARK: - Sidebar Sections
+private struct PreferenceWindowConfigurator: NSViewRepresentable {
+    @Binding var selectedTab: PreferenceTab
 
-private enum PreferencesSection: String, CaseIterable, Identifiable, Hashable {
-    case connection
-    case files
-    case servers
-    case security
-    case remote
-    case maintenance
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        DispatchQueue.main.async {
+            configure(window: view.window, coordinator: context.coordinator)
+        }
+        return view
+    }
 
-    var id: String { rawValue }
-
-    var localizedTitle: String {
-        switch self {
-        case .connection: return L("Connection")
-        case .files: return L("Files")
-        case .servers: return L("Servers")
-        case .security: return L("Security")
-        case .remote: return L("Remote")
-        case .maintenance: return L("Maintenance")
+    func updateNSView(_ view: NSView, context: Context) {
+        context.coordinator.selectedTab = $selectedTab
+        DispatchQueue.main.async {
+            configure(window: view.window, coordinator: context.coordinator)
         }
     }
 
-    var symbolName: String {
-        switch self {
-        case .connection: return "network"
-        case .files: return "folder"
-        case .servers: return "server.rack"
-        case .security: return "lock.shield"
-        case .remote: return "globe"
-        case .maintenance: return "wrench.and.screwdriver"
+    func makeCoordinator() -> Coordinator {
+        Coordinator(selectedTab: $selectedTab)
+    }
+
+    private func configure(window: NSWindow?, coordinator: Coordinator) {
+        guard let window else { return }
+        let toolbar: NSToolbar
+        if let existingToolbar = window.toolbar,
+           existingToolbar.identifier == Coordinator.toolbarIdentifier {
+            toolbar = existingToolbar
+        } else {
+            toolbar = NSToolbar(identifier: Coordinator.toolbarIdentifier)
+            toolbar.delegate = coordinator
+            toolbar.allowsUserCustomization = false
+            toolbar.autosavesConfiguration = false
+            toolbar.sizeMode = .regular
+            window.toolbar = toolbar
         }
+
+        toolbar.delegate = coordinator
+        toolbar.selectedItemIdentifier = selectedTab.toolbarItemIdentifier
+        toolbar.displayMode = .iconAndLabel
+        toolbar.sizeMode = .regular
+        toolbar.allowsUserCustomization = false
+        window.toolbarStyle = .preference
+        window.toolbar?.displayMode = .iconAndLabel
+        window.toolbar?.sizeMode = .regular
+        window.toolbar?.allowsUserCustomization = false
+    }
+
+    final class Coordinator: NSObject, NSToolbarDelegate {
+        static let toolbarIdentifier = NSToolbar.Identifier("AMulePreferencesToolbar")
+        var selectedTab: Binding<PreferenceTab>
+
+        init(selectedTab: Binding<PreferenceTab>) {
+            self.selectedTab = selectedTab
+        }
+
+        func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+            PreferenceTab.allCases.map(\.toolbarItemIdentifier)
+        }
+
+        func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+            PreferenceTab.allCases.map(\.toolbarItemIdentifier)
+        }
+
+        func toolbarSelectableItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+            PreferenceTab.allCases.map(\.toolbarItemIdentifier)
+        }
+
+        func toolbar(
+            _ toolbar: NSToolbar,
+            itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier,
+            willBeInsertedIntoToolbar flag: Bool
+        ) -> NSToolbarItem? {
+            guard let tab = PreferenceTab(toolbarItemIdentifier: itemIdentifier) else { return nil }
+            let item = NSToolbarItem(itemIdentifier: itemIdentifier)
+            item.label = tab.title
+            item.paletteLabel = tab.title
+            item.toolTip = tab.title
+            item.image = NSImage(systemSymbolName: tab.systemImage, accessibilityDescription: tab.title)
+            item.target = self
+            item.action = #selector(selectPreferenceTab(_:))
+            return item
+        }
+
+        @MainActor
+        @objc private func selectPreferenceTab(_ sender: NSToolbarItem) {
+            guard let tab = PreferenceTab(toolbarItemIdentifier: sender.itemIdentifier) else { return }
+            selectedTab.wrappedValue = tab
+        }
+    }
+}
+
+private extension PreferenceTab {
+    var toolbarItemIdentifier: NSToolbarItem.Identifier {
+        NSToolbarItem.Identifier("AMulePreferencesToolbar.\(evidenceName)")
+    }
+
+    init?(toolbarItemIdentifier: NSToolbarItem.Identifier) {
+        guard let tab = Self.allCases.first(where: { $0.toolbarItemIdentifier == toolbarItemIdentifier }) else {
+            return nil
+        }
+        self = tab
     }
 }
 
