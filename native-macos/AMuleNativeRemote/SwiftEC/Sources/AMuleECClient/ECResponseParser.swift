@@ -94,11 +94,11 @@ public enum ECResponseParser {
         public static let knownFileAcceptsAll: UInt16 = 0x0406
         public static let knownFileAICHMasterHash: UInt16 = 0x0407
         public static let knownFileFilename: UInt16 = 0x0408
-        public static let knownFileOnQueue: UInt16 = 0x0409
-        public static let knownFileCompleteSources: UInt16 = 0x040A
+        public static let knownFileCompleteSourcesLow: UInt16 = 0x0409
+        public static let knownFileCompleteSourcesHigh: UInt16 = 0x040A
         public static let knownFilePriority: UInt16 = 0x040B
-        public static let knownFileCompleteSourcesLow: UInt16 = 0x040C
-        public static let knownFileCompleteSourcesHigh: UInt16 = 0x040D
+        public static let knownFileOnQueue: UInt16 = 0x040C
+        public static let knownFileCompleteSources: UInt16 = 0x040D
         public static let knownFileComment: UInt16 = 0x040E
         public static let knownFileRating: UInt16 = 0x040F
         public static let server: UInt16 = 0x0500
@@ -416,10 +416,7 @@ public enum ECResponseParser {
             return nested.isEmpty ? [tag] : nested
         }
 
-        let useRequestContextForMissingFileID = clientTags.allSatisfy { tag in
-            guard let tagRequestFileID = tag.child(named: TagName.clientRequestFile)?.intValue, tagRequestFileID > 0 else { return true }
-            return tagRequestFileID == requestFileID
-        }
+        let useRequestContextForMissingFileID = canUseRequestContext(requestFileID, for: clientTags)
 
         return clientTags.compactMap { tag in
             parseSourceTag(
@@ -522,6 +519,19 @@ public enum ECResponseParser {
         return useRequestContextWhenMissingFileID && requestFileID > 0 ? requestFileID : nil
     }
 
+    private static func canUseRequestContext(_ requestFileID: Int, for tags: [ECTag]) -> Bool {
+        guard requestFileID > 0 else { return false }
+        var sawMatchingExplicitRequestFile = false
+        for tag in tags {
+            guard let explicitRequestFileID = tag.child(named: TagName.clientRequestFile)?.intValue, explicitRequestFileID > 0 else {
+                continue
+            }
+            guard explicitRequestFileID == requestFileID else { return false }
+            sawMatchingExplicitRequestFile = true
+        }
+        return sawMatchingExplicitRequestFile
+    }
+
     public static func parseServers(_ packet: ECPacket) throws -> [ECServer] {
         try requireOpcode(packet, ECOperations.OpCode.serverList)
         return packet.tags.enumerated().compactMap { index, tag in
@@ -575,8 +585,10 @@ public enum ECResponseParser {
         return packet.tags.compactMap { tag in
             guard tag.name == TagName.knownFile else { return nil }
             let path = tag.child(named: TagName.knownFileFilename)?.stringValue ?? ""
-            let name = URL(fileURLWithPath: path).lastPathComponent.isEmpty ? path : URL(fileURLWithPath: path).lastPathComponent
-            let hash = tag.hashStringValue
+            let displayName = tag.child(named: TagName.partFileName)?.stringValue ?? ""
+            let pathName = URL(fileURLWithPath: path).lastPathComponent
+            let name = !displayName.isEmpty ? displayName : (pathName.isEmpty ? path : pathName)
+            let hash = tag.child(named: TagName.partFileHash)?.hashStringValue ?? tag.hashStringValue
             let size = tag.child(named: TagName.partFileSizeFull)?.uintValue ?? 0
             return ECSharedFile(
                 hash: hash,

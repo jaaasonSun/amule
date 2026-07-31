@@ -1060,10 +1060,10 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertEqual(sharedFiles[0].xferred, 100)
         XCTAssertEqual(sharedFiles[0].xferredAll, 200)
         XCTAssertEqual(sharedFiles[0].aichMasterHash, "101112131415161718191a1b1c1d1e1f")
-        XCTAssertEqual(sharedFiles[0].onQueue, 3)
-        XCTAssertEqual(sharedFiles[0].completeSources, 8)
-        XCTAssertEqual(sharedFiles[0].completeSourcesLow, 6)
-        XCTAssertEqual(sharedFiles[0].completeSourcesHigh, 10)
+        XCTAssertEqual(sharedFiles[0].onQueue, 6)
+        XCTAssertEqual(sharedFiles[0].completeSources, 10)
+        XCTAssertEqual(sharedFiles[0].completeSourcesLow, 3)
+        XCTAssertEqual(sharedFiles[0].completeSourcesHigh, 8)
         XCTAssertEqual(sharedFiles[0].comment, "Great file")
         XCTAssertEqual(sharedFiles[0].rating, 5)
 
@@ -1080,12 +1080,65 @@ final class ECOperationsTests: XCTestCase {
         XCTAssertEqual(payload["xferred"] as? Int, 100)
         XCTAssertEqual(payload["xferred_all"] as? Int, 200)
         XCTAssertEqual(payload["aich_master_hash"] as? String, "101112131415161718191a1b1c1d1e1f")
-        XCTAssertEqual(payload["on_queue"] as? Int, 3)
-        XCTAssertEqual(payload["complete_sources"] as? Int, 8)
-        XCTAssertEqual(payload["complete_sources_low"] as? Int, 6)
-        XCTAssertEqual(payload["complete_sources_high"] as? Int, 10)
+        XCTAssertEqual(payload["on_queue"] as? Int, 6)
+        XCTAssertEqual(payload["complete_sources"] as? Int, 10)
+        XCTAssertEqual(payload["complete_sources_low"] as? Int, 3)
+        XCTAssertEqual(payload["complete_sources_high"] as? Int, 8)
         XCTAssertEqual(payload["comment"] as? String, "Great file")
         XCTAssertEqual(payload["rating"] as? Int, 5)
+    }
+
+    func testSharedFilesParserUsesKnownFileChildHashAndPartFileDisplayName() throws {
+        let ubuntuHash = Data((0..<16).map(UInt8.init))
+        let movieHash = Data((16..<32).map(UInt8.init))
+        let packet = ECPacket(opcode: 0x22, tags: [
+            ECTag.integer(name: 0x0400, value: 101, children: [
+                ECTag(name: 0x031E, type: .hash16, value: .hash16(ubuntuHash)),
+                ECTag(name: 0x0301, type: .string, value: .string("Ubuntu.iso")),
+                ECTag(name: 0x0408, type: .string, value: .string("34.partfile")),
+                .integer(name: 0x0303, value: 1234),
+            ]),
+            ECTag.integer(name: 0x0400, value: 102, children: [
+                ECTag(name: 0x031E, type: .hash16, value: .hash16(movieHash)),
+                ECTag(name: 0x0301, type: .string, value: .string("Movie.mkv")),
+                ECTag(name: 0x0408, type: .string, value: .string("35.partfile")),
+                .integer(name: 0x0303, value: 5678),
+            ]),
+        ])
+
+        let sharedFiles = try ECResponseParser.parseSharedFiles(packet)
+
+        XCTAssertEqual(sharedFiles.map(\.name), ["Ubuntu.iso", "Movie.mkv"])
+        XCTAssertEqual(sharedFiles.map(\.path), ["34.partfile", "35.partfile"])
+        XCTAssertEqual(sharedFiles.map(\.hash), [
+            "000102030405060708090a0b0c0d0e0f",
+            "101112131415161718191a1b1c1d1e1f",
+        ])
+        XCTAssertEqual(sharedFiles[0].ed2kLink, "ed2k://|file|Ubuntu.iso|1234|000102030405060708090A0B0C0D0E0F|/")
+        XCTAssertEqual(sharedFiles[1].ed2kLink, "ed2k://|file|Movie.mkv|5678|101112131415161718191A1B1C1D1E1F|/")
+    }
+
+    func testSharedFilesParserMapsKnownFileMetricTagsWithCppConstants() throws {
+        let hash = Data((0..<16).map(UInt8.init))
+        let packet = ECPacket(opcode: 0x22, tags: [
+            ECTag.integer(name: 0x0400, value: 101, children: [
+                ECTag(name: 0x031E, type: .hash16, value: .hash16(hash)),
+                ECTag(name: 0x0301, type: .string, value: .string("Ubuntu.iso")),
+                ECTag(name: 0x0408, type: .string, value: .string("/shared/Ubuntu.iso")),
+                .integer(name: 0x0303, value: 1234),
+                .integer(name: 0x0409, value: 6),
+                .integer(name: 0x040A, value: 10),
+                .integer(name: 0x040C, value: 3),
+                .integer(name: 0x040D, value: 8),
+            ]),
+        ])
+
+        let sharedFile = try XCTUnwrap(ECResponseParser.parseSharedFiles(packet).first)
+
+        XCTAssertEqual(sharedFile.completeSourcesLow, 6)
+        XCTAssertEqual(sharedFile.completeSourcesHigh, 10)
+        XCTAssertEqual(sharedFile.onQueue, 3)
+        XCTAssertEqual(sharedFile.completeSources, 8)
     }
 
     func testFriendsParserHandlesNestedUpdateContainerAndEnvelope() throws {

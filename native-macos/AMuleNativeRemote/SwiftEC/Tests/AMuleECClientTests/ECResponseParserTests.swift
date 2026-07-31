@@ -5,7 +5,7 @@ import Fixtures
 @testable import AMuleECClient
 
 final class ECResponseParserTests: XCTestCase {
-    func testSourcesParserUsesRequestContextWhenRequestFileIDIsMissing() throws {
+    func testSourcesParserDoesNotInventRequestFileWhenEveryClientIsMissingRequestFile() throws {
         let packet = ECPacket(opcode: 0x22, tags: [
             Self.client(id: 99, children: [
                 ECTag(name: 0x0100, type: .string, value: .string("peer")),
@@ -15,8 +15,7 @@ final class ECResponseParserTests: XCTestCase {
 
         let sources = try ECResponseParser.parseSources(packet, requestFileID: 42)
 
-        XCTAssertEqual(sources.map(\.clientID), [99])
-        XCTAssertEqual(sources.first?.requestFileID, 42)
+        XCTAssertEqual(sources, [])
     }
 
     func testSourcesParserCombinesExplicitMatchingAndMissingRequestFileIDs() throws {
