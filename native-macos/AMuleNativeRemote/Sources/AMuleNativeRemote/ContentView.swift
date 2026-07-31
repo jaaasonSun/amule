@@ -9,8 +9,11 @@ struct ContentView: View {
     @Environment(\.openWindow) private var openWindow
     @AppStorage("amule.ui.alwaysShowSuggestedFilename") private var alwaysShowSuggestedFilename = false
     @AppStorage(FilenameCleanupPreferences.storageKey) private var filenameCleanupPrefixesRaw = "[]"
+    @AppStorage("amule.ui.showCategoriesPage") private var showCategoriesPage = true
+    @AppStorage("amule.ui.showFriendsPage") private var showFriendsPage = true
+    @AppStorage("amule.ui.showUploadsPage") private var showUploadsPage = true
 
-    private enum DownloadSidebarFilter: String, CaseIterable, Identifiable {
+    enum DownloadSidebarFilter: String, CaseIterable, Identifiable {
         case all = "All"
         case downloading = "Downloading"
         case pending = "Pending"
@@ -31,7 +34,7 @@ struct ContentView: View {
         }
     }
 
-    private enum SidebarSelection: Hashable {
+    enum SidebarSelection: Hashable {
         case downloads(DownloadSidebarFilter)
         case search
         case servers
@@ -164,20 +167,26 @@ struct ContentView: View {
                             .badge(model.sharedFiles.count)
                             .tag(SidebarSelection.sharedFiles)
 
-                        Label(L("Uploads"), systemImage: "arrow.up")
-                            .lineLimit(1)
-                            .badge(model.uploads.count)
-                            .tag(SidebarSelection.uploads)
+                        if showUploadsPage {
+                            Label(L("Uploads"), systemImage: "arrow.up")
+                                .lineLimit(1)
+                                .badge(model.uploads.count)
+                                .tag(SidebarSelection.uploads)
+                        }
 
-                        Label(L("Categories"), systemImage: "tag")
-                            .lineLimit(1)
-                            .badge(model.categories.count)
-                            .tag(SidebarSelection.categories)
+                        if showCategoriesPage {
+                            Label(L("Categories"), systemImage: "tag")
+                                .lineLimit(1)
+                                .badge(model.categories.count)
+                                .tag(SidebarSelection.categories)
+                        }
 
-                        Label(L("Friends"), systemImage: "person.2")
-                            .lineLimit(1)
-                            .badge(model.friends.count)
-                            .tag(SidebarSelection.friends)
+                        if showFriendsPage {
+                            Label(L("Friends"), systemImage: "person.2")
+                                .lineLimit(1)
+                                .badge(model.friends.count)
+                                .tag(SidebarSelection.friends)
+                        }
 
                         Label(L("Statistics"), systemImage: "chart.xyaxis.line")
                             .lineLimit(1)
@@ -292,6 +301,9 @@ struct ContentView: View {
             .onChange(of: downloadSortOrder) { refreshDisplayedDownloads() }
             .onChange(of: downloadNameFilterQuery) { refreshDisplayedDownloads() }
             .onChange(of: selectedSidebarSelection) { refreshDisplayedDownloads() }
+            .onChange(of: showCategoriesPage) { normalizeSidebarSelectionForVisibleSections() }
+            .onChange(of: showFriendsPage) { normalizeSidebarSelectionForVisibleSections() }
+            .onChange(of: showUploadsPage) { normalizeSidebarSelectionForVisibleSections() }
             .onChange(of: selectedDownloadIDs) {
                 model.selectedDownloadID = selectedDownload?.id
                 if let selectedDownload {
@@ -342,6 +354,13 @@ struct ContentView: View {
                 Button(L("Remove"), role: .destructive) { removePendingDownloads() }
             } message: {
                 Text(LF("This will remove %lld selected download(s). This action cannot be undone.", Int64(pendingRemoveDownloadIDs.count)))
+            }
+            .overlay {
+                if model.showHUD {
+                    AddLinksHUD(message: model.hudMessage)
+                        .transition(.scale(scale: 0.96).combined(with: .opacity))
+                        .allowsHitTesting(false)
+                }
             }
     }
 
@@ -446,6 +465,34 @@ struct ContentView: View {
 
     private func presentSelectedDownloadDetails() {
         openDownloadDetailsWindow(for: selectedDownload, refreshSources: true)
+    }
+
+    private func normalizeSidebarSelectionForVisibleSections() {
+        let normalized = Self.normalizedSidebarSelectionForVisibility(
+            selectedSidebarSelection,
+            showCategoriesPage: showCategoriesPage,
+            showFriendsPage: showFriendsPage,
+            showUploadsPage: showUploadsPage
+        )
+        if normalized != selectedSidebarSelection {
+            selectedSidebarSelection = normalized
+        }
+    }
+
+    static func normalizedSidebarSelectionForVisibility(
+        _ selection: SidebarSelection,
+        showCategoriesPage: Bool,
+        showFriendsPage: Bool,
+        showUploadsPage: Bool
+    ) -> SidebarSelection {
+        switch selection {
+        case .categories where !showCategoriesPage,
+             .friends where !showFriendsPage,
+             .uploads where !showUploadsPage:
+            return .downloads(.all)
+        default:
+            return selection
+        }
     }
 
     private func openDownloadDetailsWindow(for item: DownloadItem?, refreshSources: Bool) {

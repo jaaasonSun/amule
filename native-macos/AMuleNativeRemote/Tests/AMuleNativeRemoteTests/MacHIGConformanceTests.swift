@@ -35,7 +35,26 @@ final class MacHIGConformanceTests: XCTestCase {
             .compactMap { try? String(contentsOf: $0, encoding: .utf8) }
     }
 
+    private func source(_ relativePath: String) throws -> String {
+        let packageRoot = URL(fileURLWithPath: #file)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        return try String(
+            contentsOf: packageRoot.appendingPathComponent(relativePath),
+            encoding: .utf8
+        )
+    }
+
     // MARK: - Tests
+
+    func testAddLinksHUDUsesHistoricalSharedOverlay() throws {
+        let content = try source("Sources/AMuleNativeRemote/ContentView.swift")
+
+        XCTAssertTrue(
+            content.contains(".overlay {\n                if model.showHUD {\n                    AddLinksHUD(message: model.hudMessage)"),
+            "The add-link feedback must use the historical shared HUD overlay."
+        )
+    }
 
     /// macOS sheets should not use iOS-only presentation detents.
     func testNoPresentationDetentsOnMacOS() {
@@ -154,8 +173,7 @@ final class MacHIGConformanceTests: XCTestCase {
             "Found references to AddLinksWindowView (orphaned). Remove all references. Violations: \(violations)")
     }
 
-    /// Custom footer/HUD overlays should not exist in macOS content.
-    func testNoCustomFooterOrHUDInContentView() {
+    func testNoCustomFooterInContentView() {
         let contents = sourceContents()
         var violations: [(symbol: String, line: Int)] = []
 
@@ -165,14 +183,11 @@ final class MacHIGConformanceTests: XCTestCase {
                 if line.contains("MainFooterBar(") {
                     violations.append((symbol: "MainFooterBar", line: index + 1))
                 }
-                if line.contains("AddLinksHUD(") {
-                    violations.append((symbol: "AddLinksHUD", line: index + 1))
-                }
             }
         }
 
         XCTAssertTrue(violations.isEmpty,
-            "Found custom footer/HUD in macOS sources. Use native toolbar/status. Violations: \(violations)")
+            "Found retired custom footer in macOS sources. Use native toolbar/status. Violations: \(violations)")
     }
 
     /// forceNoToolbar should not exist.
