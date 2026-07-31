@@ -78,7 +78,7 @@ This plan targets parity with the original **remote** client:
 - Create: `docs/superpowers/evidence/2026-07-05-amulegui-feature-parity-matrix.md`
 - Create: `native-macos/AMuleNativeRemote/SwiftEC/Tests/AMuleECClientTests/AMuleGuiParityOperationCoverageTests.swift`
 
-- [ ] **Step 1: Create the parity matrix document**
+- [x] **Step 1: Create the parity matrix document**
 
 Write `docs/superpowers/evidence/2026-07-05-amulegui-feature-parity-matrix.md` with this structure:
 
@@ -100,7 +100,7 @@ Baseline: upstream `amulegui` / `CLIENT_GUI`.
 | Preferences | `src/amule-remote-gui.h` | remote preference load/apply | prefs-* | Preferences window | partial |
 ```
 
-- [ ] **Step 2: Add a failing SwiftEC coverage test**
+- [x] **Step 2: Add a failing SwiftEC coverage test**
 
 Create `native-macos/AMuleNativeRemote/SwiftEC/Tests/AMuleECClientTests/AMuleGuiParityOperationCoverageTests.swift`:
 
@@ -131,7 +131,7 @@ final class AMuleGuiParityOperationCoverageTests: XCTestCase {
 }
 ```
 
-- [ ] **Step 3: Run the coverage test and confirm it fails**
+- [x] **Step 3: Run the coverage test and confirm it fails**
 
 Run:
 
@@ -161,7 +161,7 @@ git commit -m "test: capture amulegui parity operation baseline"
 - Test: `native-macos/AMuleNativeRemote/SwiftEC/Tests/AMuleECClientTests/AMuleGuiParityOperationCoverageTests.swift`
 - Test fixture: `native-macos/AMuleNativeRemote/SwiftEC/Tests/AMuleECProtocolTests/ECSupportedOpsTests.swift` (existing canonical `allOperations` fixture; update only because the advertised operation list changes)
 
-- [ ] **Step 1: Add failing packet-builder tests**
+- [x] **Step 1: Add failing packet-builder tests**
 
 Append tests to `ECOperationsTests.swift`:
 
@@ -193,7 +193,7 @@ func testAmuleGuiParitySharedServerAndLogBuildersUseUpstreamOpcodes() throws {
 }
 ```
 
-- [ ] **Step 2: Run the tests and confirm they fail to compile**
+- [x] **Step 2: Run the tests and confirm they fail to compile**
 
 Run:
 
@@ -206,7 +206,7 @@ Expected: compile errors for missing `stop`, `swapA4AF`, `downloadSetCategory`, 
 
 Observed during implementation: the Task 2 packet-builder tests failed to compile before the builders existed, with missing `ECOperations` members for the new builders and missing server tag constants. This RED evidence was captured during the implementation turn, not split into a separate commit.
 
-- [ ] **Step 3: Add operation names**
+- [x] **Step 3: Add operation names**
 
 Modify `ECOperationName` in `ECModels.swift`:
 
@@ -224,7 +224,7 @@ case clearServerInfo = "clear-server-info"
 case resetLog = "reset-log"
 ```
 
-- [ ] **Step 4: Advertise P1 operations**
+- [x] **Step 4: Advertise P1 operations**
 
 Modify `ECSupportedOps.swift` by adding constants and appending them to `allOperations` after related existing operations:
 
@@ -244,7 +244,7 @@ public static let resetLog = "reset-log"
 
 Remove `"category-update"` and `"download-set-category"` from `unsupportedDisabledOperations` after their builders are implemented in this task.
 
-- [ ] **Step 5: Add opcode and tag constants**
+- [x] **Step 5: Add opcode and tag constants**
 
 Modify `ECOperations.OpCode` and `ECOperations.TagName`:
 
@@ -266,7 +266,7 @@ public static let serverPriority: UInt16 = 0x0508
 public static let serverStatic: UInt16 = 0x050A
 ```
 
-- [ ] **Step 6: Add transfer builders**
+- [x] **Step 6: Add transfer builders**
 
 Add this enum and methods to `ECOperations`:
 
@@ -308,7 +308,7 @@ public static func downloadSetCategory(hash: String, categoryID: Int, gate: ECCa
 }
 ```
 
-- [ ] **Step 7: Add category, shared-file, server, and log builders**
+- [x] **Step 7: Add category, shared-file, server, and log builders**
 
 Add methods to `ECOperations`:
 
@@ -370,7 +370,7 @@ public static func resetLog(gate: ECCapabilityGate? = nil) throws -> ECPacket {
 }
 ```
 
-- [ ] **Step 8: Run SwiftEC tests**
+- [x] **Step 8: Run SwiftEC tests**
 
 Run:
 
@@ -400,7 +400,7 @@ git commit -m "feat: add amulegui parity EC builders"
 - Modify: `native-macos/AMuleNativeRemote/SwiftEC/Tests/AMuleECBridgeAdapterTests/AMuleECBridgeAdapterTests.swift`
 - Modify: `native-macos/AMuleNativeRemote/Tests/AMuleNativeRemoteTests/FakeBridgeAdapter.swift`
 
-- [ ] **Step 1: Add failing bridge adapter tests**
+- [x] **Step 1: Add failing bridge adapter tests**
 
 In `AMuleECBridgeAdapterTests.swift`, extend the mutation scenario table with:
 
@@ -419,7 +419,7 @@ In `AMuleECBridgeAdapterTests.swift`, extend the mutation scenario table with:
 ("reset-log", [Self.salt, Self.authOK, ECPacket(opcode: 0x01)], { try await $0.resetLog(config: config) }, 0x3B)
 ```
 
-- [ ] **Step 2: Run and confirm compile failure**
+- [x] **Step 2: Run and confirm compile failure**
 
 Run:
 
@@ -430,7 +430,7 @@ swift test --filter AMuleECBridgeAdapterTests
 
 Expected: compile errors for missing bridge methods.
 
-- [ ] **Step 3: Extend `BridgeProtocol`**
+- [x] **Step 3: Extend `BridgeProtocol`**
 
 Add methods to the public `BridgeProtocol` in `SwiftECBridgeAdapter.swift`:
 
@@ -448,7 +448,7 @@ func clearServerInfo(config: AMuleConnectionConfig) async throws -> (message: St
 func resetLog(config: AMuleConnectionConfig) async throws -> (message: String, raw: String)
 ```
 
-- [ ] **Step 4: Implement adapter methods**
+- [x] **Step 4: Implement adapter methods**
 
 Add methods to `SwiftECBridgeAdapter` using `mutation(...)` and `withAuthenticatedSession(...)`:
 
@@ -494,7 +494,7 @@ public func resetLog(config: AMuleConnectionConfig) async throws -> (message: St
 }
 ```
 
-- [ ] **Step 5: Implement `serverInfo` parser path**
+- [x] **Step 5: Implement `serverInfo` parser path**
 
 Add a parser method in `ECResponseParser` if one does not exist:
 
@@ -508,11 +508,11 @@ public static func parseServerInfo(_ packet: ECPacket) throws -> ECCoreLog {
 
 Add `public static let serverInfo: UInt8 = 0x3A` to `ECOperations.OpCode`; upstream `EC_OP_SERVERINFO` is the response opcode for `EC_OP_GET_SERVERINFO`.
 
-- [ ] **Step 6: Update fake bridge**
+- [x] **Step 6: Update fake bridge**
 
 Add default implementations to `FakeBridgeAdapter.swift`, all returning `("ok", messageRaw)` except `serverInfo`, which returns `(BridgeCoreLogPayload(kind: "server-info", lines: ["server log"]), messageRaw)`.
 
-- [ ] **Step 7: Run tests**
+- [x] **Step 7: Run tests**
 
 Run:
 
@@ -543,7 +543,7 @@ git commit -m "feat: expose amulegui parity bridge actions"
 - Modify: `native-macos/AMuleNativeRemote/Sources/AMuleNativeRemote/CategoriesWindowView.swift`
 - Create: `native-macos/AMuleNativeRemote/Tests/AMuleNativeRemoteTests/DownloadParityActionTests.swift`
 
-- [ ] **Step 1: Add failing AppModel action tests**
+- [x] **Step 1: Add failing AppModel action tests**
 
 Create `DownloadParityActionTests.swift`:
 
@@ -587,7 +587,7 @@ var invokedOperations: [String] = []
 var lastDownloadCategoryID: Int?
 ```
 
-- [ ] **Step 2: Add AppModel methods**
+- [x] **Step 2: Add AppModel methods**
 
 Add to `AppModel+Downloads.swift`:
 
@@ -624,7 +624,7 @@ func setDownloadCategory(_ item: DownloadItem, categoryID: Int) {
 }
 ```
 
-- [ ] **Step 3: Add UI actions**
+- [x] **Step 3: Add UI actions**
 
 In `DownloadsPanel.swift`, extend the selected-download context menu:
 
@@ -652,7 +652,7 @@ Menu("A4AF") {
 .disabled(model.isBusy || item.sourceA4AF == 0)
 ```
 
-- [ ] **Step 4: Run focused tests**
+- [x] **Step 4: Run focused tests**
 
 Run:
 
@@ -684,7 +684,7 @@ git commit -m "feat: align download actions with amulegui"
 - Modify: `native-macos/AMuleNativeRemote/Sources/AMuleNativeRemote/SearchWindowView.swift`
 - Create: `native-macos/AMuleNativeRemote/Tests/AMuleNativeRemoteTests/SearchParityTests.swift`
 
-- [ ] **Step 1: Add failing EC search option builder test**
+- [x] **Step 1: Add failing EC search option builder test**
 
 Add to `ECOperationsTests.swift`:
 
@@ -712,7 +712,7 @@ func testSearchBuilderIncludesAmuleGuiExtendedCriteria() throws {
 }
 ```
 
-- [ ] **Step 2: Add EC search request model**
+- [x] **Step 2: Add EC search request model**
 
 Add to `ECModels.swift`:
 
@@ -738,7 +738,7 @@ public struct ECSearchRequest: Equatable, Sendable {
 }
 ```
 
-- [ ] **Step 3: Extend search builder**
+- [x] **Step 3: Extend search builder**
 
 Add to `ECOperations.TagName`:
 
@@ -778,7 +778,7 @@ public static func search(request: ECSearchRequest, gate: ECCapabilityGate? = ni
 
 Update the existing `search(scope:query:)` method to call the overload with default options.
 
-- [ ] **Step 4: Add macOS search options model**
+- [x] **Step 4: Add macOS search options model**
 
 Create `SearchOptions.swift`:
 
@@ -822,7 +822,7 @@ enum SearchOptionsError: Error, Equatable {
 }
 ```
 
-- [ ] **Step 5: Use options in AppModel search**
+- [x] **Step 5: Use options in AppModel search**
 
 Add `@Published var searchOptions = SearchOptions()` to `AppModel`.
 
@@ -835,7 +835,7 @@ let (progress, payload, raw) = try await self.bridge.search(request: request, po
 
 Extend `BridgeProtocol` with `search(request:polls:pollIntervalMs:config:)`; keep the existing `search(scope:query:polls:pollIntervalMs:config:)` as a compatibility wrapper.
 
-- [ ] **Step 6: Add UI controls and local filters**
+- [x] **Step 6: Add UI controls and local filters**
 
 In `SearchWindowView.swift`, add a compact advanced section above the outline:
 
@@ -869,7 +869,7 @@ DisclosureGroup("Advanced Search") {
 
 Filter `displayedSearchResults` using `filterText`, `invertFilter`, and `hideKnownResults`, matching upstream search filter semantics at a practical level.
 
-- [ ] **Step 7: Run tests**
+- [x] **Step 7: Run tests**
 
 Run:
 
@@ -899,7 +899,7 @@ git commit -m "feat: add amulegui search options"
 - Modify: `native-macos/AMuleNativeRemote/Sources/AMuleNativeRemote/SharedFilesWindowView.swift`
 - Create: `native-macos/AMuleNativeRemote/Tests/AMuleNativeRemoteTests/SharedFilesParityTests.swift`
 
-- [ ] **Step 1: Add AppModel shared-file tests**
+- [x] **Step 1: Add AppModel shared-file tests**
 
 Create `SharedFilesParityTests.swift`:
 
@@ -933,7 +933,7 @@ final class SharedFilesParityTests: XCTestCase {
 }
 ```
 
-- [ ] **Step 2: Add AppModel shared-file methods**
+- [x] **Step 2: Add AppModel shared-file methods**
 
 Create `AppModel+SharedFiles.swift`:
 
@@ -961,7 +961,7 @@ extension AppModel {
 }
 ```
 
-- [ ] **Step 3: Add Shared Files context menu**
+- [x] **Step 3: Add Shared Files context menu**
 
 In `SharedFilesWindowView.swift`, add row context actions:
 
@@ -988,7 +988,7 @@ Button("Copy eD2k Link") {
 
 Use an edit sheet with a text field and rating picker from 0 through 5. On Apply, call `model.setSharedFileCommentRating(hash:comment:rating:)`.
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run:
 
@@ -1020,7 +1020,7 @@ git commit -m "feat: align shared files with amulegui"
 - Modify: `native-macos/AMuleNativeRemote/Sources/AMuleNativeRemote/AMuleNativeRemoteApp.swift`
 - Create: `native-macos/AMuleNativeRemote/Tests/AMuleNativeRemoteTests/ServersParityTests.swift`
 
-- [ ] **Step 1: Add tests for server static/priority/log methods**
+- [x] **Step 1: Add tests for server static/priority/log methods**
 
 Create `ServersParityTests.swift`:
 
@@ -1056,7 +1056,7 @@ final class ServersParityTests: XCTestCase {
 }
 ```
 
-- [ ] **Step 2: Add AppModel state and actions**
+- [x] **Step 2: Add AppModel state and actions**
 
 Add to `AppModel.swift`:
 
@@ -1110,7 +1110,7 @@ func clearServerInfo() {
 }
 ```
 
-- [ ] **Step 3: Add server UI actions**
+- [x] **Step 3: Add server UI actions**
 
 In `ServersWindowView.swift`, extend `serverContextMenu(_:)`:
 
@@ -1128,7 +1128,7 @@ Menu("Priority") {
 .disabled(!model.isBridgeOpSupported("server-set-priority"))
 ```
 
-- [ ] **Step 4: Add server log window**
+- [x] **Step 4: Add server log window**
 
 Create `ServerLogsWindowView.swift`:
 
@@ -1165,7 +1165,7 @@ struct ServerLogsWindowView: View {
 
 Add a `WindowGroup("Server Logs", id: "server-logs-window")` in `AMuleNativeRemoteApp.swift`.
 
-- [ ] **Step 5: Run tests**
+- [x] **Step 5: Run tests**
 
 Run:
 
@@ -1194,7 +1194,7 @@ git commit -m "feat: align server controls with amulegui"
 - Modify: `native-macos/AMuleNativeRemote/Sources/AMuleNativeRemote/ConnectionSheet.swift`
 - Create: `native-macos/AMuleNativeRemote/Tests/AMuleNativeRemoteTests/StatsKadParityTests.swift`
 
-- [ ] **Step 1: Add static presentation tests**
+- [x] **Step 1: Add static presentation tests**
 
 Create `StatsKadParityTests.swift`:
 
@@ -1213,7 +1213,7 @@ final class StatsKadParityTests: XCTestCase {
 
 Create `NetworkStatusSummary` as a small value type in a focused file or inside an existing status helper when implementing the test.
 
-- [ ] **Step 2: Improve Stats window layout**
+- [x] **Step 2: Improve Stats window layout**
 
 Update `StatsWindowView.swift` to show:
 
@@ -1222,11 +1222,11 @@ Update `StatsWindowView.swift` to show:
 - a refresh control for tree and graph independently;
 - a compact status header for eD2k and Kad using `model.status`.
 
-- [ ] **Step 3: Improve Kad controls**
+- [x] **Step 3: Improve Kad controls**
 
 Keep existing Kad start/stop/bootstrap/nodes.dat actions in `ConnectionSheet.swift` and make them reachable from the eD2k/Servers window toolbar through a `Kad` menu.
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run:
 
@@ -1260,11 +1260,11 @@ git commit -m "feat: improve statistics and kad parity"
 - Add tests under: `native-macos/AMuleNativeRemote/SwiftEC/Tests/AMuleECClientTests/`
 - Add tests under: `native-macos/AMuleNativeRemote/Tests/AMuleNativeRemoteTests/`
 
-- [ ] **Step 1: Verify upstream EC support before coding**
+- [x] **Step 1: Verify upstream EC support before coding**
 
 Read `src/amule-remote-gui.cpp` methods for `CFriendListRem::AddFriend`, `RemoveFriend`, `RequestSharedFileList`, and `SetFriendSlot`, plus `ChatWnd.cpp` and `FriendListCtrl.cpp`. Record the exact supported remote commands in the parity matrix before adding SwiftEC operations.
 
-- [ ] **Step 2: Add friend-add builder tests**
+- [x] **Step 2: Add friend-add builder tests**
 
 Add tests only for commands verified in upstream remote code. The minimum set is:
 
@@ -1275,11 +1275,11 @@ func testFriendAddByHashUsesFriendOpcode() throws {
 }
 ```
 
-- [ ] **Step 3: Implement verified friend operations**
+- [x] **Step 3: Implement verified friend operations**
 
 Implement friend add by hash and friend add by client ECID if supported by the upstream request shape. Keep existing `friend-remove` and `friend-slot` behavior.
 
-- [ ] **Step 4: Add messages window only for supported message flow**
+- [x] **Step 4: Add messages window only for supported message flow**
 
 If upstream remote chat send/receive is backed by EC messages in this branch, add `MessagesWindowView` with:
 
@@ -1291,7 +1291,7 @@ If upstream remote chat send/receive is backed by EC messages in this branch, ad
 
 If the branch lacks a remote message send opcode, create `MessagesWindowView` as a read-only placeholder-free unavailable state that explains through disabled controls only; do not advertise unsupported capabilities.
 
-- [ ] **Step 5: Run tests**
+- [x] **Step 5: Run tests**
 
 Run:
 
@@ -1325,7 +1325,7 @@ git commit -m "feat: add friends and messages parity surface"
 - Add tests under: `native-macos/AMuleNativeRemote/SwiftEC/Tests/AMuleECClientTests/`
 - Add tests under: `native-macos/AMuleNativeRemote/Tests/AMuleNativeRemoteTests/`
 
-- [ ] **Step 1: Expand preferences by groups**
+- [x] **Step 1: Expand preferences by groups**
 
 Implement groups in this order:
 
@@ -1336,11 +1336,11 @@ Implement groups in this order:
 5. Remote controls: external connection enabled state, EC port, EC auth metadata only when safe to expose.
 6. Statistics: graph update interval and display limits.
 
-- [ ] **Step 2: Add parser fixture tests per group**
+- [x] **Step 2: Add parser fixture tests per group**
 
 For every group, add a fixture-backed parser test in `ECResponseParserTests.swift`. Use `CEC_Prefs_Packet` tag IDs from `src/libs/ec/cpp/ECCodes.h`; do not infer tag IDs from labels.
 
-- [ ] **Step 3: Add UI sections**
+- [x] **Step 3: Add UI sections**
 
 Add grouped sections in `PreferencesWindowView.swift`. Each section must:
 
@@ -1350,7 +1350,7 @@ Add grouped sections in `PreferencesWindowView.swift`. Each section must:
 - write through only the changed group;
 - refresh after apply.
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run:
 
@@ -1378,11 +1378,11 @@ git commit -m "feat: expand remote preferences parity"
 - Create: `docs/superpowers/evidence/2026-07-05-amulegui-parity-qa.md`
 - Modify: `docs/superpowers/evidence/2026-07-05-amulegui-feature-parity-matrix.md`
 
-- [ ] **Step 1: Build or run upstream remote GUI**
+- [x] **Step 1: Build or run upstream remote GUI**
 
 Run the available upstream remote GUI build for this repo. If it is already available, record the command used. If not available, record the local reason in the QA file and compare against source-level menus and EC commands.
 
-- [ ] **Step 2: Create QA checklist**
+- [x] **Step 2: Create QA checklist**
 
 Create `docs/superpowers/evidence/2026-07-05-amulegui-parity-qa.md`:
 
@@ -1407,7 +1407,7 @@ Checks:
 - [ ] Preferences reload/apply supported remote groups without corrupting unrelated settings.
 ```
 
-- [ ] **Step 3: Update matrix statuses**
+- [x] **Step 3: Update matrix statuses**
 
 Update each row status in `2026-07-05-amulegui-feature-parity-matrix.md` to one of:
 
@@ -1430,7 +1430,7 @@ git commit -m "docs: record amulegui parity qa"
 **Files:**
 - No source changes expected.
 
-- [ ] **Step 1: Run SwiftEC verification**
+- [x] **Step 1: Run SwiftEC verification**
 
 Run:
 
@@ -1442,7 +1442,7 @@ swift test
 
 Expected: all tests pass and forbidden dependency check exits with status 0.
 
-- [ ] **Step 2: Run shared package verification**
+- [x] **Step 2: Run shared package verification**
 
 Run:
 
@@ -1453,7 +1453,7 @@ swift test
 
 Expected: all tests pass.
 
-- [ ] **Step 3: Run macOS app tests and strict build**
+- [x] **Step 3: Run macOS app tests and strict build**
 
 Run:
 
@@ -1465,7 +1465,7 @@ swift build -Xswiftc -warnings-as-errors
 
 Expected: both commands pass.
 
-- [ ] **Step 4: Run app bundle smoke**
+- [x] **Step 4: Run app bundle smoke**
 
 Run:
 
