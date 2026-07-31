@@ -11,12 +11,18 @@ public struct ECSourceStateStore: Sendable {
     }
 
     public mutating func applyIncrementalUpdate(_ packet: ECPacket, contextRequestFileID: Int?) {
-        let clientTags = packet.tags.flatMap(Self.clientTags(in:))
+        let clientContainers = packet.tags.filter(Self.isClientContainer)
+        let directClientTags = packet.tags.filter { $0.name == TagName.client && $0.intValue > 0 }
+        let clientTags = directClientTags + clientContainers.flatMap(Self.clientTags(in:))
         let safeContextRequestFileID = contextRequestFileID.flatMap { requestFileID in
             Self.canUseRequestContext(requestFileID, for: clientTags) ? requestFileID : nil
         }
         for tag in clientTags {
             applyClientDelta(tag, requestFileID: safeContextRequestFileID)
+        }
+        if !clientContainers.isEmpty {
+            let liveClientIDs = Set(clientTags.map(\.intValue).filter { $0 > 0 })
+            sourcesByClientID = sourcesByClientID.filter { liveClientIDs.contains($0.key) }
         }
     }
 
@@ -35,10 +41,7 @@ public struct ECSourceStateStore: Sendable {
         let clientID = tag.intValue
         guard clientID > 0 else { return }
 
-        if tag.children.isEmpty {
-            sourcesByClientID.removeValue(forKey: clientID)
-            return
-        }
+        if tag.children.isEmpty { return }
 
         let existing = sourcesByClientID[clientID]
         let explicitRequestFileID = tag.child(named: TagName.clientRequestFile)?.intValue
@@ -47,7 +50,7 @@ public struct ECSourceStateStore: Sendable {
             return
         }
 
-        let requestFileID = explicitRequestFileID ?? contextRequestFileID ?? existing?.requestFileID ?? 0
+        let requestFileID = explicitRequestFileID ?? existing?.requestFileID ?? contextRequestFileID ?? 0
         guard requestFileID > 0 else { return }
 
         let rank = tag.child(named: TagName.clientRemoteQueueRank)?.intValue ?? existing?.remoteQueueRank ?? 0
@@ -116,18 +119,24 @@ public struct ECSourceStateStore: Sendable {
 
     private static func clientTags(in tag: ECTag) -> [ECTag] {
         guard tag.name == TagName.client else { return [] }
-        let nested = tag.children.filter { $0.name == TagName.client }
-        return nested.isEmpty ? [tag] : nested
+        return tag.children.filter { $0.name == TagName.client }
+    }
+
+    private static func isClientContainer(_ tag: ECTag) -> Bool {
+        tag.name == TagName.client && tag.intValue == 0
     }
 
     private static func canUseRequestContext(_ requestFileID: Int, for tags: [ECTag]) -> Bool {
         guard requestFileID > 0 else { return false }
-        return tags.allSatisfy { tag in
+        var sawMatchingExplicitRequestFile = false
+        for tag in tags {
             guard let explicitRequestFileID = tag.child(named: TagName.clientRequestFile)?.intValue, explicitRequestFileID > 0 else {
-                return true
+                continue
             }
-            return explicitRequestFileID == requestFileID
+            guard explicitRequestFileID == requestFileID else { return false }
+            sawMatchingExplicitRequestFile = true
         }
+        return sawMatchingExplicitRequestFile
     }
 
     private static func softwareText(_ code: Int) -> String {

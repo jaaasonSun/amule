@@ -83,7 +83,7 @@ final class ECSourceStateStoreTests: XCTestCase {
         XCTAssertEqual(sources[0].uploadPartStatus, Data([0xcc, 0xdd]))
     }
 
-    func testClientWithoutChildrenRemovesCachedSource() {
+    func testClientWithoutChildrenPreservesCachedSource() {
         var store = ECSourceStateStore()
 
         store.applyIncrementalUpdate(ECPacket(opcode: 0x22, tags: [
@@ -95,6 +95,23 @@ final class ECSourceStateStoreTests: XCTestCase {
         store.applyIncrementalUpdate(ECPacket(opcode: 0x22, tags: [
             Self.client(id: 99, children: []),
         ]))
+
+        XCTAssertEqual(store.sources(for: 42).map(\.clientID), [99])
+        XCTAssertEqual(store.sources(for: 42).first?.clientName, "peer")
+    }
+
+    func testClientContainerRemovesCachedSourceAbsentFromCoreUpdate() {
+        var store = ECSourceStateStore()
+
+        store.applyIncrementalUpdate(ECPacket(opcode: 0x22, tags: [
+            Self.client(id: 99, children: [
+                .integer(name: 0x0620, value: 42),
+                ECTag(name: 0x0100, type: .string, value: .string("peer")),
+            ]),
+        ]))
+        store.applyIncrementalUpdate(ECPacket(opcode: 0x22, tags: [
+            Self.client(id: 0, children: []),
+        ]), contextRequestFileID: 42)
 
         XCTAssertEqual(store.sources(for: 42), [])
     }
@@ -138,7 +155,7 @@ final class ECSourceStateStoreTests: XCTestCase {
         XCTAssertEqual(store.sources(for: 77).first?.clientName, "peer")
     }
 
-    func testContextRequestFileIDAssociatesMissingRequestFileWhenPacketIsScoped() {
+    func testContextRequestFileIDDoesNotInventOwnerWhenEveryClientIsMissingRequestFile() {
         var store = ECSourceStateStore()
 
         store.applyIncrementalUpdate(ECPacket(opcode: 0x22, tags: [
@@ -147,7 +164,27 @@ final class ECSourceStateStoreTests: XCTestCase {
             ]),
         ]), contextRequestFileID: 42)
 
+        XCTAssertEqual(store.sources(for: 42), [])
+    }
+
+    func testMissingRequestFileDeltaKeepsExistingOwner() {
+        var store = ECSourceStateStore()
+
+        store.applyIncrementalUpdate(ECPacket(opcode: 0x22, tags: [
+            Self.client(id: 99, children: [
+                .integer(name: 0x0620, value: 42),
+                ECTag(name: 0x0100, type: .string, value: .string("peer")),
+            ]),
+        ]))
+        store.applyIncrementalUpdate(ECPacket(opcode: 0x22, tags: [
+            Self.client(id: 99, children: [
+                .integer(name: 0x060C, value: 3),
+            ]),
+        ]), contextRequestFileID: 77)
+
         XCTAssertEqual(store.sources(for: 42).map(\.clientID), [99])
+        XCTAssertEqual(store.sources(for: 42).first?.downloadState, 3)
+        XCTAssertEqual(store.sources(for: 77), [])
     }
 
     func testContextRequestFileIDDoesNotAssociateMissingRequestFileWhenPacketContainsOtherFile() {
