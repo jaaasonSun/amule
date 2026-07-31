@@ -10,6 +10,23 @@ struct DownloadRenameSuggestionRequest: Equatable {
     let suggestion: String
 }
 
+private struct RemoteSessionCoordinatorConfiguration: Equatable {
+    let host: String
+    let port: Int
+    let password: String
+
+    init(_ config: AMuleConnectionConfig) {
+        host = config.host
+        port = config.port
+        password = config.password
+    }
+}
+
+struct RemoteSessionCoordinatorLease: Sendable {
+    let coordinator: RemoteSessionCoordinator
+    let generation: UInt
+}
+
 func L3(_ key: String) -> String {
     NSLocalizedString(key, comment: "")
 }
@@ -20,11 +37,20 @@ func LF3(_ key: String, _ args: CVarArg...) -> String {
 
 @MainActor
 final class AppModel: ObservableObject {
-    @AppStorage("amule.host") var host: String = "127.0.0.1"
-    @AppStorage("amule.port") var port: Int = 4712
+    @AppStorage("amule.host") var host: String = "127.0.0.1" {
+        didSet {
+            invalidateRemoteSessionCoordinator()
+        }
+    }
+    @AppStorage("amule.port") var port: Int = 4712 {
+        didSet {
+            invalidateRemoteSessionCoordinator()
+        }
+    }
     @Published var password: String {
         didSet {
             persistPassword()
+            invalidateRemoteSessionCoordinator()
         }
     }
     @AppStorage("amule.prefs.connection.maxDownload") var savedConnectionMaxDownload: Int = 0
@@ -68,6 +94,8 @@ final class AppModel: ObservableObject {
     @Published var connectionSheetRequestID: Int = 0
     @Published var selectedDownloadID: String? = nil
     @Published var renameSuggestionRequestID: Int = 0
+    @Published var hudMessage = ""
+    @Published var showHUD = false
     @Published var bridgeSchemaVersion: Int?
     @Published var bridgeOps: Set<String> = []
     @Published var uploads: [BridgeUploadPayload] = []
@@ -138,6 +166,7 @@ final class AppModel: ObservableObject {
     @Published var ipFilterURLInput: String = ""
 
     var autoRefreshTask: Task<Void, Never>?
+    var hudDismissTask: Task<Void, Never>?
     var pendingRenameSuggestionRequest: DownloadRenameSuggestionRequest?
     var searchTask: Task<Void, Never>?
     var renameVerificationMaxAttempts = 3
@@ -147,6 +176,9 @@ final class AppModel: ObservableObject {
     let serverManagementService: ServerManagementService
     private let credentialStorage: CredentialStorage
     private let passwordStorageKey = "amule.password"
+    private var remoteSessionCoordinator: RemoteSessionCoordinator?
+    private var remoteSessionCoordinatorConfiguration: RemoteSessionCoordinatorConfiguration?
+    private var remoteSessionGeneration: UInt = 0
 
     var buildCommit: String {
         if let value = Bundle.main.object(forInfoDictionaryKey: "AMuleBuildCommit") as? String,
@@ -195,6 +227,38 @@ final class AppModel: ObservableObject {
 
     func isBridgeOpSupported(_ op: String) -> Bool {
         BridgeCapabilityGate.isSupported(op, by: bridgeOps)
+    }
+
+    func sessionCoordinator() -> RemoteSessionCoordinator {
+        currentSessionCoordinator().coordinator
+    }
+
+    func currentSessionCoordinator() -> RemoteSessionCoordinatorLease {
+        let currentConfig = config
+        let currentConfiguration = RemoteSessionCoordinatorConfiguration(currentConfig)
+        if let remoteSessionCoordinator,
+           remoteSessionCoordinatorConfiguration == currentConfiguration {
+            return RemoteSessionCoordinatorLease(
+                coordinator: remoteSessionCoordinator,
+                generation: remoteSessionGeneration
+            )
+        }
+
+        let coordinator = RemoteSessionCoordinator(bridge: bridge, config: currentConfig)
+        remoteSessionCoordinator = coordinator
+        remoteSessionCoordinatorConfiguration = currentConfiguration
+        remoteSessionGeneration &+= 1
+        return RemoteSessionCoordinatorLease(coordinator: coordinator, generation: remoteSessionGeneration)
+    }
+
+    func isCurrentSession(_ lease: RemoteSessionCoordinatorLease) -> Bool {
+        lease.generation == remoteSessionGeneration && remoteSessionCoordinator === lease.coordinator
+    }
+
+    private func invalidateRemoteSessionCoordinator() {
+        remoteSessionCoordinator = nil
+        remoteSessionCoordinatorConfiguration = nil
+        remoteSessionGeneration &+= 1
     }
 
     private func persistPassword() {

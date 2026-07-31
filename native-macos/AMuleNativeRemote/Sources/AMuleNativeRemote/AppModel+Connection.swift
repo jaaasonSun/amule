@@ -54,41 +54,61 @@ extension AppModel {
     }
 
     func refreshStatus(logOutput: Bool = true, suppressErrors: Bool = false) async {
+        let session = currentSessionCoordinator()
         do {
-            let (bridgeStatus, raw) = try await bridge.status(config: config)
-            await MainActor.run {
-                self.status = StatusSnapshot.fromBridge(bridgeStatus)
-                if logOutput {
-                    self.appendLog("$ status\n\(raw)")
-                }
-                self.isSessionConnected = self.status.looksConnected
+            guard let (bridgeStatus, raw) = try await session.coordinator.manualRefreshStatus(),
+                  isCurrentSession(session) else {
+                return
             }
+            applyStatusRefresh(bridgeStatus, raw: raw, logOutput: logOutput)
         } catch {
-            await MainActor.run {
-                if !suppressErrors {
-                    self.lastError = error.localizedDescription
-                }
-                self.isSessionConnected = false
-            }
+            guard isCurrentSession(session) else { return }
+            handleStatusRefreshError(error, suppressErrors: suppressErrors)
         }
     }
 
-    func startAutoRefresh() {
+    func mutationRefreshStatus(logOutput: Bool = true, suppressErrors: Bool = false) async {
+        let session = currentSessionCoordinator()
+        do {
+            guard let (bridgeStatus, raw) = try await session.coordinator.mutationRefreshStatus(),
+                  isCurrentSession(session) else {
+                return
+            }
+            applyStatusRefresh(bridgeStatus, raw: raw, logOutput: logOutput)
+        } catch {
+            guard isCurrentSession(session) else { return }
+            handleStatusRefreshError(error, suppressErrors: suppressErrors)
+        }
+    }
+
+    private func pollStatus(logOutput: Bool, suppressErrors: Bool) async {
+        let session = currentSessionCoordinator()
+        do {
+            guard let (bridgeStatus, raw) = try await session.coordinator.pollStatus(),
+                  isCurrentSession(session) else {
+                return
+            }
+            applyStatusRefresh(bridgeStatus, raw: raw, logOutput: logOutput)
+        } catch {
+            guard isCurrentSession(session) else { return }
+            handleStatusRefreshError(error, suppressErrors: suppressErrors)
+        }
+    }
+
+    func startAutoRefresh(intervalNanoseconds: UInt64 = 1_000_000_000) {
         autoRefreshTask?.cancel()
         autoRefreshTask = Task {
             var tick: Int = 0
             while !Task.isCancelled {
-                if self.isSessionConnected {
-                    await self.refreshStatus(logOutput: false, suppressErrors: true)
-                    if self.shouldAutoRefreshDownloads {
-                        try? await self.refreshDownloadsNow(logOutput: false, suppressErrors: true)
-                    }
-                    if tick % 5 == 0 {
-                        try? await self.refreshServersNow(logOutput: false, suppressErrors: true)
-                    }
+                await self.pollStatus(logOutput: false, suppressErrors: true)
+                if self.isSessionConnected, self.shouldAutoRefreshDownloads {
+                    try? await self.pollDownloadsNow(logOutput: false, suppressErrors: true)
+                }
+                if self.isSessionConnected, tick % 5 == 0 {
+                    try? await self.pollServersNow(logOutput: false, suppressErrors: true)
                 }
                 tick += 1
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                try? await Task.sleep(nanoseconds: intervalNanoseconds)
             }
         }
     }
@@ -181,6 +201,43 @@ extension AppModel {
         await self.refreshStatus(logOutput: false)
         try await self.refreshDownloadsNow()
         try await self.refreshServersNow(logOutput: false, suppressErrors: true)
+    }
+
+    private func applyStatusRefresh(_ bridgeStatus: BridgeStatusPayload, raw: String, logOutput: Bool) {
+        status = StatusSnapshot.fromBridge(bridgeStatus)
+        if logOutput {
+            appendLog("$ status\n\(raw)")
+        }
+        isSessionConnected = status.looksConnected
+    }
+
+    private func handleStatusRefreshError(_ error: Error, suppressErrors: Bool) {
+        if !suppressErrors {
+            lastError = error.localizedDescription
+        }
+        isSessionConnected = false
+    }
+
+    private func pollServersNow(logOutput: Bool, suppressErrors: Bool) async throws {
+        let session = currentSessionCoordinator()
+        do {
+            guard let (payload, raw) = try await session.coordinator.pollServers(),
+                  isCurrentSession(session) else {
+                return
+            }
+            let parsed = ServerItem.fromBridge(payload)
+            servers = parsed
+            lastServersRawOutput = raw
+            if logOutput {
+                appendLog("$ servers\n\(raw)")
+            }
+        } catch {
+            guard isCurrentSession(session) else { return }
+            if !suppressErrors {
+                lastError = error.localizedDescription
+            }
+            throw error
+        }
     }
 
     func appendLog(_ message: String) {
