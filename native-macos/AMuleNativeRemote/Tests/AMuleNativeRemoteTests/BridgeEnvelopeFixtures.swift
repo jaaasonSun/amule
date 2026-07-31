@@ -189,8 +189,13 @@ final class RecordingFakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
     var renameCalls: [(hash: String, name: String)] = []
     var clearCompletedCalls: [[Int]] = []
     var sourceCalls: [String] = []
+    var downloadsCallCount = 0
+    var statusCallCount = 0
     var lastSearchRequest: ECSearchRequest?
+    var onStatusCall: (@Sendable () async -> Void)?
+    var onDownloadsCall: (@Sendable () async -> Void)?
     var sourcesResult: Result<([BridgeDownloadSourcePayload], String), Error> = .success(([], #"{"ok":true,"sources":[]}"#))
+    private var queuedStatusResults: [Result<(BridgeStatusPayload, String), Error>]
     private var queuedDownloadsResults: [([BridgeDownloadPayload], String)]
 
     init(
@@ -198,6 +203,7 @@ final class RecordingFakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
         messageRaw: String = #"{"ok":true,"message":"ok"}"#,
         capabilitiesResult: (schemaVersion: Int?, capabilities: BridgeCapabilitiesPayload, raw: String)? = nil,
         statusResult: (BridgeStatusPayload, String)? = nil,
+        statusResults: [Result<(BridgeStatusPayload, String), Error>] = [],
         searchResult: (progress: Int, results: [BridgeSearchPayload], raw: String)? = nil
     ) {
         let base = FakeBridgeAdapter(capabilitiesResult: capabilitiesResult, statusResult: statusResult)
@@ -206,14 +212,26 @@ final class RecordingFakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
         self.searchResult = searchResult ?? base.searchResult
         self.messageRaw = messageRaw
         self.renameResult = .success(message: "ok", raw: messageRaw)
+        self.queuedStatusResults = statusResults
         self.queuedDownloadsResults = downloadsResults
     }
 
     func connect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func disconnect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func capabilities(config: AMuleConnectionConfig) async throws -> (schemaVersion: Int?, capabilities: BridgeCapabilitiesPayload, raw: String) { capabilitiesResult }
-    func status(config: AMuleConnectionConfig) async throws -> (BridgeStatusPayload, String) { statusResult }
+    func status(config: AMuleConnectionConfig) async throws -> (BridgeStatusPayload, String) {
+        statusCallCount += 1
+        if let onStatusCall {
+            await onStatusCall()
+        }
+        guard !queuedStatusResults.isEmpty else { return statusResult }
+        return try queuedStatusResults.removeFirst().get()
+    }
     func downloads(config: AMuleConnectionConfig) async throws -> ([BridgeDownloadPayload], String) {
+        downloadsCallCount += 1
+        if let onDownloadsCall {
+            await onDownloadsCall()
+        }
         guard !queuedDownloadsResults.isEmpty else { return ([], try BridgeEnvelopeFixtures.downloadEnvelope(downloads: [])) }
         return queuedDownloadsResults.removeFirst()
     }

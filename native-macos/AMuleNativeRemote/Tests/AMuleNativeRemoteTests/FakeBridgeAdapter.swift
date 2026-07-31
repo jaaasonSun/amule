@@ -20,6 +20,8 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
     var messageRaw: String = #"{"ok":true,"message":"ok"}"#
     var renameResult: RenameAcknowledgement = .success(message: "ok", raw: #"{"ok":true,"message":"ok"}"#)
     var invokedOperations: [String] = []
+    var pauseCallCount = 0
+    var onDownloadsCall: (@Sendable () async -> Void)?
     var lastSearchRequest: ECSearchRequest?
     var lastDownloadCategoryID: Int?
     var lastA4AFMode: ECOperations.A4AFSwapMode?
@@ -104,6 +106,9 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
     }
     func downloads(config: AMuleConnectionConfig) async throws -> ([BridgeDownloadPayload], String) {
         invokedOperations.append("downloads")
+        if let onDownloadsCall {
+            await onDownloadsCall()
+        }
         return downloadsResult
     }
     func search(request: ECSearchRequest, polls: Int, pollIntervalMs: Int, config: AMuleConnectionConfig) async throws -> (progress: Int, results: [BridgeSearchPayload], raw: String) {
@@ -117,7 +122,10 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
     func download(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func addLink(link: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func rename(hash: String, name: String, config: AMuleConnectionConfig) async throws -> RenameAcknowledgement { renameResult }
-    func pause(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func pause(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        pauseCallCount += 1
+        return ("ok", messageRaw)
+    }
     func resume(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func stop(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         invokedOperations.append("download-stop")
