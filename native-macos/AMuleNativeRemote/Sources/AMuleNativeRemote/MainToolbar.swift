@@ -19,29 +19,28 @@ struct MainToolbar: ToolbarContent {
     let clearCompleted: ([DownloadItem]) -> Void
 
     var body: some ToolbarContent {
-        ToolbarItem(placement: .automatic) {
-            Picker(selection: $selectedDownloadStatusFilter) {
+        ToolbarItem(placement: .navigation) {
+            Menu {
                 ForEach(ContentView.DownloadStatusFilter.allCases) { filter in
-                    Label(downloadStatusFilterLabel(for: filter), systemImage: filter.symbolName)
-                        .tag(filter)
+                    Button {
+                        selectedDownloadStatusFilter = filter
+                    } label: {
+                        HStack {
+                            Label(downloadStatusFilterLabel(for: filter), systemImage: filter.symbolName)
+                                .labelStyle(.titleAndIcon)
+                            if filter == selectedDownloadStatusFilter {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
                 }
             } label: {
-                Label(downloadStatusFilterLabel(for: selectedDownloadStatusFilter), systemImage: selectedDownloadStatusFilter.symbolName)
+                Label(downloadStatusFilterLabel(for: selectedDownloadStatusFilter), systemImage: selectedDownloadStatusFilter == .all ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+                    .labelStyle(.iconOnly)
             }
-            .pickerStyle(.menu)
             .help(L("Download Status Filter"))
             .accessibilityLabel(L("Download Status Filter"))
             .accessibilityValue(downloadStatusFilterLabel(for: selectedDownloadStatusFilter))
-        }
-
-        ToolbarItem(placement: .automatic) {
-            Button {
-                showSearchNetwork()
-            } label: {
-                Label(L("Search Network"), systemImage: "magnifyingglass")
-            }
-            .help(L("Search Network"))
-            .accessibilityLabel(L("Search Network"))
         }
 
         ToolbarItem(placement: .automatic) {
@@ -87,8 +86,28 @@ struct MainToolbar: ToolbarContent {
                 .accessibilityLabel(L("Remove Selected Downloads"))
                 .accessibilityHint(L("Remove Selected Downloads"))
                 .disabled(selectedDownloads.isEmpty || isBusy)
+
+                Button {
+                    clearCompleted(completedDownloads)
+                } label: {
+                    Label("Clear Completed", systemImage: "checkmark")
+                }
+                .help("Clear Completed Downloads")
+                .accessibilityLabel(L("Clear Completed"))
+                .accessibilityHint(L("Clear Completed Downloads"))
+                .disabled(completedDownloads.isEmpty || isBusy)
             }
             .controlGroupStyle(.navigation)
+        }
+
+        ToolbarItem(placement: .automatic) {
+            Button {
+                showSearchNetwork()
+            } label: {
+                Label(L("Search Network"), systemImage: "network")
+            }
+            .help(L("Search Network"))
+            .accessibilityLabel(L("Search Network"))
         }
 
         ToolbarItem(placement: .automatic) {
@@ -101,18 +120,6 @@ struct MainToolbar: ToolbarContent {
             .accessibilityLabel(L("Add Links"))
             .accessibilityHint(L("Show Add Links Panel"))
             .disabled(isBusy)
-        }
-
-        ToolbarItem(placement: .automatic) {
-            Button {
-                clearCompleted(completedDownloads)
-            } label: {
-                Label("Clear Completed", systemImage: "checkmark")
-            }
-            .help("Clear Completed Downloads")
-            .accessibilityLabel(L("Clear Completed"))
-            .accessibilityHint(L("Clear Completed Downloads"))
-            .disabled(completedDownloads.isEmpty || isBusy)
         }
     }
 

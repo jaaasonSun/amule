@@ -48,9 +48,14 @@ final class MacSearchToolbarTests: XCTestCase {
         XCTAssertTrue(toolbar.contains("let showSearchNetwork: () -> Void"), "MainToolbar should receive an explicit Search Network action from the downloads shell.")
         XCTAssertTrue(toolbar.contains("showSearchNetwork()"), "The downloads toolbar Search Network button should call the provided window-opening action.")
         XCTAssertTrue(
-            toolbar.contains("Label(L(\"Search Network\"), systemImage: \"magnifyingglass\")"),
-            "Search Network should be a visible localized toolbar label."
+            toolbar.contains("Label(L(\"Search Network\"), systemImage: \"network\")"),
+            "Search Network should use the literal SF Symbol named network."
         )
+        let removeIndex = try XCTUnwrap(toolbar.range(of: "requestRemoveDownloads(selectedDownloadIDs)")?.lowerBound)
+        let searchIndex = try XCTUnwrap(toolbar.range(of: "showSearchNetwork()")?.lowerBound)
+        let addLinksIndex = try XCTUnwrap(toolbar.range(of: "showAddLinks()")?.lowerBound)
+        XCTAssertLessThan(removeIndex, searchIndex, "Search Network should appear after the resume/pause/remove ControlGroup.")
+        XCTAssertLessThan(searchIndex, addLinksIndex, "Search Network should appear immediately before Add Links in the downloads toolbar order.")
         XCTAssertTrue(
             content.contains("showSearchNetwork: {\n                        openWindow(id: \"search-window\")\n                        NSApp.activate(ignoringOtherApps: true)\n                    }"),
             "The downloads toolbar Search Network action should open the stable Search window ID and activate the app."
@@ -62,6 +67,39 @@ final class MacSearchToolbarTests: XCTestCase {
             },
             "Search Network and Details/Info should not be intentionally bundled into the same ToolbarItemGroup."
         )
+    }
+
+    func testDownloadsTransferActionsShareOneNavigationControlGroupInOrder() throws {
+        let toolbar = try source("Sources/AMuleNativeRemote/MainToolbar.swift")
+        let transferItem = try toolbarItemSource(containing: "resumeDownloads(selectedDownloads)", in: toolbar)
+
+        XCTAssertTrue(transferItem.contains("ControlGroup {"), "Transfer actions should remain grouped as a native ControlGroup.")
+        XCTAssertTrue(transferItem.contains(".controlGroupStyle(.navigation)"), "Transfer actions should keep the navigation ControlGroup style.")
+        XCTAssertEqual(occurrenceCount(of: "clearCompleted(completedDownloads)", in: toolbar), 1, "Clear Completed should be present only once.")
+        XCTAssertEqual(occurrenceCount(of: "Label(\"Clear Completed\", systemImage: \"checkmark\")", in: toolbar), 1, "Clear Completed should not keep a standalone duplicate toolbar item.")
+
+        for requiredSource in [
+            "resumeDownloads(selectedDownloads)",
+            "pauseDownloads(selectedDownloads)",
+            "requestRemoveDownloads(selectedDownloadIDs)",
+            "clearCompleted(completedDownloads)",
+            "Label(\"Clear Completed\", systemImage: \"checkmark\")",
+            ".help(\"Clear Completed Downloads\")",
+            ".accessibilityLabel(L(\"Clear Completed\"))",
+            ".accessibilityHint(L(\"Clear Completed Downloads\"))",
+            ".disabled(completedDownloads.isEmpty || isBusy)"
+        ] {
+            XCTAssertTrue(transferItem.contains(requiredSource), "Transfer ControlGroup missing expected source: \(requiredSource)")
+        }
+
+        let startIndex = try XCTUnwrap(transferItem.range(of: "resumeDownloads(selectedDownloads)")?.lowerBound)
+        let pauseIndex = try XCTUnwrap(transferItem.range(of: "pauseDownloads(selectedDownloads)")?.lowerBound)
+        let removeIndex = try XCTUnwrap(transferItem.range(of: "requestRemoveDownloads(selectedDownloadIDs)")?.lowerBound)
+        let clearCompletedIndex = try XCTUnwrap(transferItem.range(of: "clearCompleted(completedDownloads)")?.lowerBound)
+
+        XCTAssertLessThan(startIndex, pauseIndex, "Transfer ControlGroup should order Start before Pause.")
+        XCTAssertLessThan(pauseIndex, removeIndex, "Transfer ControlGroup should order Pause before Remove.")
+        XCTAssertLessThan(removeIndex, clearCompletedIndex, "Transfer ControlGroup should order Clear Completed immediately after Remove.")
     }
 
     func testDownloadsFilterRemainsLocalAndSearchWindowKeepsRemoteSearchField() throws {
@@ -236,6 +274,25 @@ final class MacSearchToolbarTests: XCTestCase {
     private func source(_ relativePath: String) throws -> String {
         let url = packageRoot.appendingPathComponent(relativePath)
         return try String(contentsOf: url, encoding: .utf8)
+    }
+
+    private func toolbarItemSource(containing needle: String, in source: String) throws -> String {
+        let needleRange = try XCTUnwrap(source.range(of: needle), "Toolbar source should contain \(needle).")
+        var searchStart = source.startIndex
+        var itemStart: String.Index?
+
+        while let range = source.range(of: "ToolbarItem(placement:", range: searchStart..<needleRange.lowerBound) {
+            itemStart = range.lowerBound
+            searchStart = range.upperBound
+        }
+
+        let start = try XCTUnwrap(itemStart, "Expected \(needle) to live inside a ToolbarItem.")
+        let end = source[start...].range(of: "\n        }\n\n        ToolbarItem(placement:")?.lowerBound ?? source.endIndex
+        return String(source[start..<end])
+    }
+
+    private func occurrenceCount(of needle: String, in haystack: String) -> Int {
+        haystack.components(separatedBy: needle).count - 1
     }
 
     private func toolbarItemGroupSlices(in source: String) -> [String] {
