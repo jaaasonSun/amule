@@ -32,9 +32,10 @@ final class MacUIRedesignTests: XCTestCase {
         XCTAssertFalse(source.contains("DisclosureGroup(isExpanded: $showsAdvancedSearchOptions)"), "Advanced search should not be a content disclosure grid.")
     }
 
-    func testPreferencesUseTabbedSettingsAndOptionalSidebarSections() throws {
+    func testPreferencesUseTabbedSettingsAndOptionalWindowCommands() throws {
         let preferences = try source("Sources/AMuleNativeRemote/PreferencesWindowView.swift")
         let content = try source("Sources/AMuleNativeRemote/ContentView.swift")
+        let app = try source("Sources/AMuleNativeRemote/AMuleNativeRemoteApp.swift")
 
         XCTAssertTrue(preferences.contains("PreferenceTab"), "Settings should use a conventional macOS tabbed settings layout.")
         XCTAssertTrue(preferences.contains("PreferenceWindowConfigurator(selectedTab: $selectedTab)"), "Settings should configure the preferences window toolbar style.")
@@ -46,10 +47,23 @@ final class MacUIRedesignTests: XCTestCase {
         XCTAssertTrue(content.contains("@AppStorage(\"amule.ui.showCategoriesPage\")"))
         XCTAssertTrue(content.contains("@AppStorage(\"amule.ui.showFriendsPage\")"))
         XCTAssertTrue(content.contains("@AppStorage(\"amule.ui.showUploadsPage\")"))
-        XCTAssertTrue(content.contains("if showCategoriesPage"))
-        XCTAssertTrue(content.contains("if showFriendsPage"))
-        XCTAssertTrue(content.contains("if showUploadsPage"))
-        XCTAssertTrue(content.contains("normalizeSidebarSelectionForVisibleSections"))
+        for forbidden in ["NavigationSplitView", ".listStyle(.sidebar)", "SidebarSelection", "normalizeSidebarSelectionForVisibleSections"] {
+            XCTAssertFalse(content.contains(forbidden), "The main downloads shell should not depend on sidebar navigation state: \(forbidden)")
+        }
+
+        for gate in ["showUploadsPage", "showCategoriesPage", "showFriendsPage"] {
+            XCTAssertTrue(app.contains(gate), "Optional section access should be gated in menu/command definitions using \(gate).")
+        }
+
+        for command in [
+            #"openWindow(id: "uploads-window")"#,
+            #"openWindow(id: "categories-window")"#,
+            #"openWindow(id: "friends-window")"#,
+        ] {
+            XCTAssertTrue(app.contains(command), "Optional page commands should open dedicated windows: \(command)")
+        }
+
+        XCTAssertFalse(app.contains("SidebarCommands()"), "The command list should not expose the old sidebar commands block.")
     }
 
     func testPageActionsMoveToToolbarsAndStatsUsesNativeLayout() throws {
@@ -72,12 +86,13 @@ final class MacUIRedesignTests: XCTestCase {
     func testRedesignedMacSurfacesRender() throws {
         let model = redesignedPreviewModel()
         let evidenceRoot = repositoryRoot(from: packageRoot)
-            .appendingPathComponent(".omo/evidence/native-macos-ui-redesign-20260708")
+            .appendingPathComponent(".sisyphus/evidence/task-6-mac-ui-redesign")
 
-        try writeRenderedSurface(
-            SearchWindowView(embeddedInMainWindow: true, showsAdvancedSearchOptions: true).environmentObject(model),
+        try writeRenderedWindowSurface(
+            SearchWindowView(embeddedInMainWindow: false, showsAdvancedSearchOptions: true).environmentObject(model),
             size: CGSize(width: 920, height: 560),
-            to: evidenceRoot.appendingPathComponent("search-redesign.png")
+            to: evidenceRoot.appendingPathComponent("search-window-redesign.png"),
+            title: "Search"
         )
 
         try writeRenderedSurface(
@@ -89,10 +104,17 @@ final class MacUIRedesignTests: XCTestCase {
         try withHiddenOptionalPages {
             try writeRenderedSurface(
                 ContentView().environmentObject(model),
-                size: CGSize(width: 960, height: 620),
-                to: evidenceRoot.appendingPathComponent("sidebar-hidden-sections.png")
+                size: CGSize(width: 1040, height: 620),
+                to: evidenceRoot.appendingPathComponent("downloads-window-sidebar-free.png")
             )
         }
+
+        try writeRenderedWindowSurface(
+            ServersWindowView(embeddedInMainWindow: false).environmentObject(model),
+            size: CGSize(width: 1040, height: 620),
+            to: evidenceRoot.appendingPathComponent("servers-window-toolbar.png"),
+            title: "Servers"
+        )
 
         try writeRenderedSurface(
             SharedFilesWindowView(embeddedInMainWindow: true).environmentObject(model),
@@ -106,10 +128,11 @@ final class MacUIRedesignTests: XCTestCase {
             to: evidenceRoot.appendingPathComponent("uploads-toolbar.png")
         )
 
-        try writeRenderedSurface(
-            StatsWindowView(embeddedInMainWindow: true).environmentObject(model),
+        try writeRenderedWindowSurface(
+            StatsWindowView(embeddedInMainWindow: false).environmentObject(model),
             size: CGSize(width: 860, height: 760),
-            to: evidenceRoot.appendingPathComponent("statistics-native.png")
+            to: evidenceRoot.appendingPathComponent("statistics-window-native.png"),
+            title: "Statistics"
         )
     }
 
@@ -143,6 +166,9 @@ final class MacUIRedesignTests: XCTestCase {
         bridge.capabilityOps = Set([
             "search",
             "download",
+            "servers",
+            "server-connect",
+            "server-disconnect",
             "shared-files",
             "shared-files-reload",
             "uploads",
@@ -156,6 +182,10 @@ final class MacUIRedesignTests: XCTestCase {
         model.searchQuery = "ubuntu"
         model.searchResults = [
             SearchResult(index: 1, hash: "00112233445566778899AABBCCDDEEFF", name: "Ubuntu.iso", sizeBytes: 1_048_576, sources: 8, completeSources: 4, statusCode: 1, status: "New", parentID: 0, alreadyHave: false)
+        ]
+        model.servers = [
+            ServerItem(id: 1, name: "Razorback", description: "HighID test server", version: "17", address: "1.2.3.4:4661", ip: "1.2.3.4", port: 4661, users: 10_240, maxUsers: 20_000, files: 1_200_000, ping: 40, failed: 0, priority: 2, isStatic: true),
+            ServerItem(id: 2, name: "ExampleServer", description: "", version: "", address: "5.45.85.226:6584", ip: "5.45.85.226", port: 6584, users: 120, maxUsers: 0, files: 8_240, ping: 22, failed: 0, priority: 0, isStatic: false)
         ]
         model.sharedFiles = [
             BridgeSharedFilePayload(hash: "00112233445566778899AABBCCDDEEFF", name: "Ubuntu.iso", path: "/Incoming/Ubuntu.iso", size: 1_048_576, ed2kLink: "ed2k://|file|Ubuntu.iso|1048576|00112233445566778899AABBCCDDEEFF|/", priority: 5, requests: 2, requestsAll: 10, accepts: 1, acceptsAll: 8, xferred: 512, xferredAll: 2048, onQueue: 3, completeSources: 4, completeSourcesLow: 2, completeSourcesHigh: 6, comment: "Verified", rating: 4)

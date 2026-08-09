@@ -74,6 +74,32 @@ func localizedConnectionStatusText(for value: String) -> String {
     }
 }
 
+func localizedED2KConnectionStatusText(for value: String) -> String {
+    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty, trimmed != "-" else {
+        return L("Unknown")
+    }
+
+    if let serverDetails = trimmed.removingPrefix("Connected to ") {
+        let details = serverDetails.trimmingCharacters(in: .whitespacesAndNewlines)
+        return details.isEmpty ? L("Connected") : LF("Connected to %@", details)
+    }
+
+    if let serverDetails = trimmed.removingPrefix("Connecting to ") {
+        let details = serverDetails.trimmingCharacters(in: .whitespacesAndNewlines)
+        return details.isEmpty ? L("Connecting") : LF("Connecting to %@", details)
+    }
+
+    return localizedConnectionStatusText(for: trimmed)
+}
+
+private extension String {
+    func removingPrefix(_ prefix: String) -> String? {
+        guard hasPrefix(prefix) else { return nil }
+        return String(dropFirst(prefix.count))
+    }
+}
+
 func compactED2kBadgeValue(_ value: String) -> String {
     let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
     let prefixes = ["Connected to ", "Connecting to "]

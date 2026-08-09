@@ -1,9 +1,41 @@
 import XCTest
+import SwiftUI
 import SharedViews
 
 @testable import AMuleNativeRemote
 
 final class ContentViewFilterRegressionTests: XCTestCase {
+    @MainActor
+    func testSidebarFreeMainWindowRenderEvidence() throws {
+        let evidenceURL = repositoryRoot(from: packageRoot())
+            .appendingPathComponent(".sisyphus/evidence/task-3-sidebar-free-main.png")
+
+        try writeRenderedSurface(
+            ContentView().environmentObject(AppModel.previewWithDownloads()),
+            size: CGSize(width: 1040, height: 620),
+            to: evidenceURL
+        )
+    }
+
+    func testDownloadStatusFilterIsToolbarBasedAndKeepsAllBuckets() throws {
+        let content = try source("Sources/AMuleNativeRemote/ContentView.swift")
+        let toolbar = try source("Sources/AMuleNativeRemote/MainToolbar.swift")
+
+        XCTAssertTrue(content.contains("enum DownloadStatusFilter"), "The download status buckets should no longer be named after the old sidebar.")
+        XCTAssertTrue(content.contains("@State private var selectedDownloadStatusFilter = DownloadStatusFilter.all"))
+        XCTAssertTrue(content.contains("downloadStatusFilterCounts"), "ContentView should compute live counts for the toolbar status filter.")
+        XCTAssertTrue(content.contains("filteredDownloads(model.downloads, for: selectedDownloadStatusFilter)"), "Displayed downloads should be scoped by the toolbar status filter.")
+        XCTAssertFalse(content.contains("DownloadSidebarFilter"), "ContentView should not keep sidebar-era filter naming.")
+
+        XCTAssertTrue(toolbar.contains("Download Status Filter"), "The toolbar should expose a status filter control.")
+        XCTAssertTrue(toolbar.contains("Picker(L(\"Download Status Filter\"), selection: $selectedDownloadStatusFilter)"), "The toolbar status menu should indicate the selected bucket through a picker.")
+        XCTAssertTrue(toolbar.contains("downloadStatusFilterLabel(for: selectedDownloadStatusFilter)"), "The toolbar label should include the active status count.")
+
+        for bucket in ["all", "downloading", "pending", "paused", "completed"] {
+            XCTAssertTrue(content.contains("case \(bucket)"), "Missing status bucket: \(bucket)")
+        }
+    }
+
     func testCompletedDownloadIsIncludedInCompletedBucketAndAll() {
         let active = makeDownload(
             statusCode: 0,
@@ -133,5 +165,18 @@ final class ContentViewFilterRegressionTests: XCTestCase {
             alternativeNames: [],
             progressColors: []
         )
+    }
+
+    private func source(_ relativePath: String) throws -> String {
+        let url = packageRoot().appendingPathComponent(relativePath)
+        return try String(contentsOf: url, encoding: .utf8)
+    }
+
+    private func packageRoot() -> URL {
+        let testFile = URL(fileURLWithPath: #filePath)
+        return testFile
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
     }
 }

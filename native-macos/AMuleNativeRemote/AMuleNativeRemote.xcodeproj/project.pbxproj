@@ -27,6 +27,7 @@
 		B20000010000000000000016 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000016 /* ContentView.swift */; };
 		B20000010000000000000017 /* DiagnosticsWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000017 /* DiagnosticsWindowView.swift */; };
 		B20000010000000000000018 /* DownloadDetailsWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000018 /* DownloadDetailsWindowView.swift */; };
+		B20000010000000000000046 /* DownloadDetailsContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000046 /* DownloadDetailsContentView.swift */; };
 		B20000010000000000000019 /* DownloadsPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000019 /* DownloadsPanel.swift */; };
 		B20000010000000000000020 /* FriendsWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000020 /* FriendsWindowView.swift */; };
 		B20000010000000000000021 /* IOSNativeViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000021 /* IOSNativeViews.swift */; };
@@ -114,6 +115,7 @@
 		B20000000000000000000016 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B20000000000000000000017 /* DiagnosticsWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsWindowView.swift; sourceTree = "<group>"; };
 		B20000000000000000000018 /* DownloadDetailsWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadDetailsWindowView.swift; sourceTree = "<group>"; };
+		B20000000000000000000046 /* DownloadDetailsContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadDetailsContentView.swift; sourceTree = "<group>"; };
 		B20000000000000000000019 /* DownloadsPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsPanel.swift; sourceTree = "<group>"; };
 		B20000000000000000000020 /* FriendsWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsWindowView.swift; sourceTree = "<group>"; };
 		B20000000000000000000021 /* IOSNativeViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedUI/IOSNativeViews.swift; sourceTree = "<group>"; };
@@ -226,6 +228,7 @@
 				B20000000000000000000016 /* ContentView.swift */,
 				B20000000000000000000017 /* DiagnosticsWindowView.swift */,
 				B20000000000000000000018 /* DownloadDetailsWindowView.swift */,
+				B20000000000000000000046 /* DownloadDetailsContentView.swift */,
 				B20000000000000000000019 /* DownloadsPanel.swift */,
 				B20000000000000000000020 /* FriendsWindowView.swift */,
 				B20000000000000000000021 /* IOSNativeViews.swift */,
@@ -430,6 +433,7 @@
 				B20000010000000000000016 /* ContentView.swift in Sources */,
 				B20000010000000000000017 /* DiagnosticsWindowView.swift in Sources */,
 				B20000010000000000000018 /* DownloadDetailsWindowView.swift in Sources */,
+				B20000010000000000000046 /* DownloadDetailsContentView.swift in Sources */,
 				B20000010000000000000019 /* DownloadsPanel.swift in Sources */,
 				B20000010000000000000020 /* FriendsWindowView.swift in Sources */,
 				B20000010000000000000021 /* IOSNativeViews.swift in Sources */,

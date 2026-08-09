@@ -98,5 +98,18 @@ func writeRenderedWindowSurface<V: View>(
 }
 
 func repositoryRoot(from packageRoot: URL) -> URL {
-    packageRoot.deletingLastPathComponent().deletingLastPathComponent()
+    let fileManager = FileManager.default
+    var candidate = packageRoot.standardizedFileURL
+
+    while true {
+        if fileManager.fileExists(atPath: candidate.appendingPathComponent(".git").path) {
+            return candidate
+        }
+
+        let parent = candidate.deletingLastPathComponent()
+        if parent.path == candidate.path {
+            return packageRoot
+        }
+        candidate = parent
+    }
 }

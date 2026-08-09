@@ -26,6 +26,9 @@ public struct ConnectionStateIndicator: View {
             }
             connectionSymbol
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(ConnectionStateLocalizer.localizedText(for: state))
+        .accessibilityValue(ConnectionStateLocalizer.localizedText(for: state))
     }
 
     @ViewBuilder

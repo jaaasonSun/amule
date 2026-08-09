@@ -61,6 +61,16 @@ func statsGraphLegendLabel(_ series: String, unit: String) -> String {
     "\(series) (\(unit))"
 }
 
+func statsGraphXAxisLabel(index: Int, sampleCount: Int) -> String {
+    guard sampleCount > 1 else { return L("Newest") }
+    if index <= 0 { return L("Oldest") }
+    if index >= sampleCount - 1 { return L("Newest") }
+
+    let samplesAgo = sampleCount - 1 - index
+    if samplesAgo == 1 { return L("1 sample ago") }
+    return LF("%lld samples ago", Int64(samplesAgo))
+}
+
 private func statsFormatSpecifierRange(in label: String, startingAt start: String.Index) -> ClosedRange<String.Index>? {
     let specifiers = Set("diuoxXfFeEgGaAcCsSp@")
     let allowedBeforeSpecifier = Set("-+#0123456789.hlLqztj")
@@ -207,7 +217,7 @@ struct StatsWindowView: View {
         }
         return Chart(data) { point in
             LineMark(
-                x: .value(L("Sample"), point.index + 1),
+                x: .value(L("Elapsed sample"), point.index),
                 y: .value(unit, point.value)
             )
             .foregroundStyle(by: .value(L("Series"), point.series))
@@ -218,7 +228,7 @@ struct StatsWindowView: View {
             plotArea
                 .background(Color(nsColor: .textBackgroundColor))
         }
-        .chartXAxisLabel(L("Sample"))
+        .chartXAxisLabel(L("History (oldest to newest)"))
         .chartYAxisLabel(unit)
         .chartYAxis {
             AxisMarks(values: .automatic(desiredCount: 5)) { value in
@@ -235,7 +245,7 @@ struct StatsWindowView: View {
                 AxisGridLine()
                 AxisValueLabel {
                     if let intValue = value.as(Int.self) {
-                        Text("#\(intValue)")
+                        Text(statsGraphXAxisLabel(index: intValue, sampleCount: graphs.samples.count))
                     }
                 }
             }
@@ -251,7 +261,7 @@ struct StatsWindowView: View {
         }
         return Chart(data) { point in
             LineMark(
-                x: .value(L("Sample"), point.index + 1),
+                x: .value(L("Elapsed sample"), point.index),
                 y: .value(L("Count"), point.value)
             )
             .foregroundStyle(by: .value(L("Series"), point.series))
@@ -262,7 +272,7 @@ struct StatsWindowView: View {
             plotArea
                 .background(Color(nsColor: .textBackgroundColor))
         }
-        .chartXAxisLabel(L("Sample"))
+        .chartXAxisLabel(L("History (oldest to newest)"))
         .chartYAxisLabel(L("Count"))
         .chartYAxis {
             AxisMarks(values: .automatic(desiredCount: 5)) { value in
@@ -279,7 +289,7 @@ struct StatsWindowView: View {
                 AxisGridLine()
                 AxisValueLabel {
                     if let intValue = value.as(Int.self) {
-                        Text("#\(intValue)")
+                        Text(statsGraphXAxisLabel(index: intValue, sampleCount: graphs.samples.count))
                     }
                 }
             }

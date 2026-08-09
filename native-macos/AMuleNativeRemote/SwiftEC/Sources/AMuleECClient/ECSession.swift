@@ -65,6 +65,7 @@ public actor ECSession {
     private var transport: (any ECConnectionTransport)?
     private var pipeline: ECRequestPipeline?
     private var reconnectDelay: TimeInterval = 1
+    private var hasEstablishedTransport = false
 
     public init(configuration: Configuration) {
         self.configuration = configuration
@@ -95,6 +96,11 @@ public actor ECSession {
                 partialReadTimeout: configuration.partialReadTimeout,
                 compressionEnabled: configuration.compressionEnabled
             )
+            if hasEstablishedTransport {
+                reconnectGeneration &+= 1
+            } else {
+                hasEstablishedTransport = true
+            }
             state = .connected
             reconnectDelay = 1
         } catch {
@@ -174,7 +180,7 @@ public actor ECSession {
         } catch {
             state = .disconnected
             await disconnectTransport()
-            if configuration.automaticReconnect {
+            if configuration.automaticReconnect, !Task.isCancelled, !(error is CancellationError) {
                 try await reconnect()
             }
             throw error
@@ -192,7 +198,7 @@ public actor ECSession {
         } catch {
             state = .disconnected
             await disconnectTransport()
-            if configuration.automaticReconnect {
+            if configuration.automaticReconnect, !Task.isCancelled, !(error is CancellationError) {
                 try await reconnect()
             }
             throw error
@@ -229,7 +235,6 @@ public actor ECSession {
             try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             _ = try await connectAndAuthenticate()
         }
-        reconnectGeneration &+= 1
     }
 
     private func disconnectTransport() async {

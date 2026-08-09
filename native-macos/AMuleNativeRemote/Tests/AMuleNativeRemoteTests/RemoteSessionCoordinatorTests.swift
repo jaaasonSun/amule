@@ -68,7 +68,7 @@ final class RemoteSessionCoordinatorTests: XCTestCase {
             if bridge.statusCallCount >= 2 {
                 break
             }
-            await Task.yield()
+            try await Task.sleep(nanoseconds: 1_000_000)
         }
 
         XCTAssertGreaterThanOrEqual(bridge.statusCallCount, 2)
@@ -104,6 +104,42 @@ final class RemoteSessionCoordinatorTests: XCTestCase {
         await downloadsProbe.releaseBlockedCalls()
         _ = try await statusRefresh.value
         _ = try await downloadsRefresh.value
+    }
+
+    @MainActor
+    func testManualStatusRefreshQueuesSecondRoundTripBehindRunningPoll() async throws {
+        let statusProbe = RefreshCallProbe(blockedCallNumbers: [1])
+        let bridge = RecordingFakeBridgeAdapter(
+            statusResult: connectedStatusResult,
+            statusResults: [
+                .success((connectedStatusResult.0, "poll")),
+                .success((connectedStatusResult.0, "manual-follow-up")),
+            ]
+        )
+        bridge.onStatusCall = { await statusProbe.recordCall() }
+        let coordinator = makeCoordinator(bridge: bridge)
+
+        let pollRefresh = Task { try await coordinator.pollStatus() }
+        guard await statusProbe.waitForCalls(1) else {
+            XCTFail("The running status poll did not reach the bridge")
+            return
+        }
+
+        let manualRefresh = Task { try await coordinator.manualRefreshStatus() }
+        for _ in 0..<100 {
+            await Task.yield()
+        }
+        let callsWhilePollIsRunning = await statusProbe.callCount()
+        XCTAssertEqual(callsWhilePollIsRunning, 1)
+
+        await statusProbe.releaseBlockedCalls()
+        let pollSnapshot = try await pollRefresh.value
+        let manualSnapshot = try await manualRefresh.value
+
+        XCTAssertNil(pollSnapshot)
+        XCTAssertEqual(manualSnapshot?.1, "manual-follow-up")
+        let callsAfterManualFollowUp = await statusProbe.callCount()
+        XCTAssertEqual(callsAfterManualFollowUp, 2)
     }
 
     @MainActor
@@ -349,7 +385,7 @@ private actor RefreshCallProbe {
             if calls >= expectedCalls {
                 return true
             }
-            await Task.yield()
+            try? await Task.sleep(nanoseconds: 1_000_000)
         }
         return calls >= expectedCalls
     }

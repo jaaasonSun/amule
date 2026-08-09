@@ -344,6 +344,77 @@ final class AMuleECBridgeAdapterTests: XCTestCase {
         XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x0D, 0x52])
     }
 
+    func testAdapterResetsModelStateWhenCancelledSessionReauthenticates() async throws {
+        let probe = InterleavingProbe(blockedReceiveNumbers: [5])
+        let firstMock = AdapterMockTransport(replies: [
+            Self.salt,
+            Self.authOK,
+            ECPacket(opcode: 0x1F, tags: [
+                try ECDownloadPacketFixtures.partFile(
+                    ecid: 42,
+                    hash: Self.hash,
+                    name: "before-cancellation.iso",
+                    sourceNameEntries: [ECDownloadPacketFixtures.sourceNameEntry(id: 9, name: "stale-alt.iso", count: 4)]
+                ),
+            ]),
+            ECPacket(opcode: 0x22, tags: [
+                try ECDownloadPacketFixtures.sparsePartFile(ecid: 42, hash: Self.hash, name: "before-cancellation.iso"),
+            ]),
+        ])
+        await firstMock.setReceiveHook { receiveNumber in
+            await probe.recordReceive(receiveNumber)
+        }
+        let secondMock = AdapterMockTransport(replies: [
+            Self.salt,
+            Self.authOK,
+            ECPacket(opcode: 0x1F, tags: [
+                try ECDownloadPacketFixtures.partFile(ecid: 42, hash: Self.hash, name: "after-cancellation.iso"),
+            ]),
+            ECPacket(opcode: 0x22, tags: [
+                try ECDownloadPacketFixtures.sparsePartFile(ecid: 42, hash: Self.hash, name: "after-cancellation.iso"),
+            ]),
+        ])
+        let transports = TransportSequenceFactory([firstMock, secondMock])
+        let session = ECSession(
+            configuration: .init(
+                host: "127.0.0.1",
+                port: 4712,
+                password: "secret",
+                automaticReconnect: true,
+                maximumReconnectDelay: 0
+            ),
+            transportFactory: { transports.next() }
+        )
+        let adapter = SwiftECBridgeAdapter(session: session)
+        let config = AMuleConnectionConfig(password: "secret")
+
+        let initialDownloads = try await adapter.downloads(config: config)
+        XCTAssertEqual(initialDownloads.0.first?.alternativeNames, [
+            ECDownload.AlternativeName(name: "stale-alt.iso", count: 4),
+        ])
+
+        let status = Task { try await adapter.status(config: config) }
+        guard await probe.waitForReceive(5) else {
+            status.cancel()
+            XCTFail("The controlled status receive did not suspend")
+            return
+        }
+        status.cancel()
+        do {
+            _ = try await status.value
+            XCTFail("Expected the suspended status request to be cancelled")
+        } catch is CancellationError {
+        }
+
+        let downloads = try await adapter.downloads(config: config)
+        await probe.releaseBlockedReceives()
+
+        XCTAssertEqual(downloads.0.first?.name, "after-cancellation.iso")
+        XCTAssertEqual(downloads.0.first?.alternativeNames ?? [], [])
+        let sentOpcodes = await secondMock.sentOpcodes()
+        XCTAssertEqual(sentOpcodes, [0x02, 0x50, 0x0D, 0x52])
+    }
+
     func testReconnectCannotInterleaveWithStatefulDownloadsMerge() async throws {
         let probe = InterleavingProbe(blockedReceiveNumbers: [4])
         let firstMock = AdapterMockTransport(replies: [

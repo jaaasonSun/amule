@@ -43,7 +43,7 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
     public func disconnect(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         let modelState = modelState
         let sessionCache = sessionCache
-        await operationGate.run {
+        try await operationGate.run {
             await modelState.reset()
             await sessionCache.disconnect(config: config)
         }
@@ -545,15 +545,25 @@ public struct SwiftECBridgeAdapter: BridgeProtocol, Sendable {
     }
 }
 
-private actor ECBridgeOperationGate {
+actor ECBridgeOperationGate {
+    private struct Waiter {
+        let id: UUID
+        let continuation: CheckedContinuation<Void, Error>
+    }
+
     private var isRunning = false
-    private var waiters: [CheckedContinuation<Void, Never>] = []
+    private var waiters: [Waiter] = []
+
+    var queuedOperationCount: Int {
+        waiters.count
+    }
 
     func run<T: Sendable>(
         _ operation: @escaping @Sendable () async throws -> T
-    ) async rethrows -> T {
-        await acquire()
+    ) async throws -> T {
+        try await acquire()
         do {
+            try Task.checkCancellation()
             let result = try await operation()
             release()
             return result
@@ -563,10 +573,18 @@ private actor ECBridgeOperationGate {
         }
     }
 
-    private func acquire() async {
+    private func acquire() async throws {
+        try Task.checkCancellation()
         guard !isRunning else {
-            await withCheckedContinuation { continuation in
-                waiters.append(continuation)
+            let id = UUID()
+            try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation { continuation in
+                    waiters.append(Waiter(id: id, continuation: continuation))
+                }
+            } onCancel: {
+                Task {
+                    await self.cancelWaiter(id: id)
+                }
             }
             return
         }
@@ -579,7 +597,13 @@ private actor ECBridgeOperationGate {
             return
         }
         waiters.removeFirst()
-        next.resume()
+        next.continuation.resume()
+    }
+
+    private func cancelWaiter(id: UUID) {
+        guard let index = waiters.firstIndex(where: { $0.id == id }) else { return }
+        let waiter = waiters.remove(at: index)
+        waiter.continuation.resume(throwing: CancellationError())
     }
 }
 

@@ -67,6 +67,9 @@ struct ServersWindowView: View {
                     Label(L2("Add"), systemImage: "plus")
                 }
                 .help(L2("Add Server"))
+                .keyboardShortcut("a", modifiers: [.command, .option])
+                .accessibilityLabel(L2("Add Server"))
+                .accessibilityHint(L2("Add Server"))
                 .disabled(model.isBusy)
 
                 Button {
@@ -75,66 +78,12 @@ struct ServersWindowView: View {
                     Label(L2("Refresh"), systemImage: "arrow.clockwise")
                 }
                 .help(L2("Refresh Servers"))
+                .keyboardShortcut("r", modifiers: [.command, .option])
+                .accessibilityLabel(L2("Refresh Servers"))
+                .accessibilityHint(L2("Refresh Servers"))
                 .disabled(model.isBusy)
-
-                Button {
-                    if let selectedServer {
-                        model.removeServer(selectedServer)
-                    }
-                } label: {
-                    Label(L2("Remove"), systemImage: "trash")
-                }
-                .help(L2("Remove Selected Server"))
-                .disabled(model.isBusy || selectedServer == nil)
             }
             .controlGroupStyle(.navigation)
-        }
-
-        ToolbarItem(placement: .primaryAction) {
-            Button {
-                showingImportServerMetSheet = true
-            } label: {
-                Label(L2("Import .met"), systemImage: "arrow.down.circle")
-            }
-            .help(L2("Import server list from URL"))
-            .disabled(model.isBusy)
-        }
-
-        ToolbarItem(placement: .primaryAction) {
-            Menu {
-                Button {
-                    model.startKad()
-                } label: {
-                    Label(L2("Start Kad"), systemImage: "play.fill")
-                }
-                .disabled(model.isBusy || !model.isBridgeOpSupported("kad-start"))
-
-                Button {
-                    model.stopKad()
-                } label: {
-                    Label(L2("Stop Kad"), systemImage: "stop.fill")
-                }
-                .disabled(model.isBusy || !model.isBridgeOpSupported("kad-stop"))
-
-                Divider()
-
-                Button {
-                    showingKadBootstrapSheet = true
-                } label: {
-                    Label(L2("Bootstrap..."), systemImage: "point.3.filled.connected.trianglepath.dotted")
-                }
-                .disabled(model.isBusy || !model.isBridgeOpSupported("kad-bootstrap"))
-
-                Button {
-                    showingKadNodesSheet = true
-                } label: {
-                    Label(L2("Update nodes.dat..."), systemImage: "arrow.down.circle")
-                }
-                .disabled(model.isBusy || !model.isBridgeOpSupported("kad-update-from-url"))
-            } label: {
-                Label(L2("Kad"), systemImage: "point.3.filled.connected.trianglepath.dotted")
-            }
-            .help(L2("Kad controls"))
         }
 
         ToolbarItem(placement: .primaryAction) {
@@ -145,6 +94,9 @@ struct ServersWindowView: View {
                     Label(L2("Connect"), systemImage: "link")
                 }
                 .help(L2("Connect Selected Server"))
+                .keyboardShortcut(.defaultAction)
+                .accessibilityLabel(L2("Connect Selected Server"))
+                .accessibilityHint(L2("Connect Selected Server"))
                 .disabled(model.isBusy || selectedServer == nil)
 
                 Button {
@@ -153,6 +105,9 @@ struct ServersWindowView: View {
                     Label(L2("Disconnect"), systemImage: "minus.circle")
                 }
                 .help(L2("Disconnect Current Server"))
+                .keyboardShortcut("d", modifiers: [.command, .shift])
+                .accessibilityLabel(L2("Disconnect Current Server"))
+                .accessibilityHint(L2("Disconnect Current Server"))
                 .disabled(model.isBusy)
             }
             .controlGroupStyle(.navigation)
@@ -161,15 +116,69 @@ struct ServersWindowView: View {
         ToolbarItem(placement: .primaryAction) {
             Menu {
                 Button {
+                    showingImportServerMetSheet = true
+                } label: {
+                    Label(L2("Import .met"), systemImage: "arrow.down.circle")
+                }
+                .disabled(model.isBusy)
+
+                Button(role: .destructive) {
+                    if let selectedServer {
+                        model.removeServer(selectedServer)
+                    }
+                } label: {
+                    Label(L2("Remove"), systemImage: "trash")
+                }
+                .disabled(model.isBusy || selectedServer == nil)
+
+                Divider()
+
+                Menu(L2("Kad")) {
+                    Button {
+                        model.startKad()
+                    } label: {
+                        Label(L2("Start Kad"), systemImage: "play.fill")
+                    }
+                    .disabled(model.isBusy || !model.isBridgeOpSupported("kad-start"))
+
+                    Button {
+                        model.stopKad()
+                    } label: {
+                        Label(L2("Stop Kad"), systemImage: "stop.fill")
+                    }
+                    .disabled(model.isBusy || !model.isBridgeOpSupported("kad-stop"))
+
+                    Divider()
+
+                    Button {
+                        showingKadBootstrapSheet = true
+                    } label: {
+                        Label(L2("Bootstrap..."), systemImage: "point.3.filled.connected.trianglepath.dotted")
+                    }
+                    .disabled(model.isBusy || !model.isBridgeOpSupported("kad-bootstrap"))
+
+                    Button {
+                        showingKadNodesSheet = true
+                    } label: {
+                        Label(L2("Update nodes.dat..."), systemImage: "arrow.down.circle")
+                    }
+                    .disabled(model.isBusy || !model.isBridgeOpSupported("kad-update-from-url"))
+                }
+
+                Divider()
+
+                Button(role: .destructive) {
                     showShutdownConfirmation = true
                 } label: {
                     Label(L2("Shut Down Daemon"), systemImage: "power")
                 }
                 .disabled(model.isBusy || !model.isBridgeOpSupported("shutdown"))
             } label: {
-                Label(L2("Server"), systemImage: "server.rack")
+                Label(L2("Manage"), systemImage: "ellipsis.circle")
             }
-            .help(L2("Server administration"))
+            .help(L2("Manage Servers"))
+            .accessibilityLabel(L2("Server Administration"))
+            .accessibilityHint(L2("Manage Servers"))
         }
     }
 
@@ -308,6 +317,10 @@ private struct ServersFooterView: View {
             }
             Spacer()
             ServerConnectionStatusView(statusText: ed2kStatusText)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(L("eD2k connection status"))
+                .accessibilityValue(ed2kStatusText)
+                .accessibilityHint(L("Shows the current eD2k server connection."))
             Text(kadStatusText)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -499,6 +512,7 @@ private struct AddServerSheetView: View {
                     dismiss()
                 }
                 .buttonStyle(.bordered)
+                .keyboardShortcut(.cancelAction)
 
                 Spacer()
 
@@ -506,11 +520,13 @@ private struct AddServerSheetView: View {
                     onAdd(trimmedAddress, trimmedName)
                 }
                 .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
                 .disabled(isBusy || trimmedAddress.isEmpty)
             }
         }
         .padding(16)
         .frame(width: 440)
+        .onExitCommand(perform: dismiss.callAsFunction)
     }
 }
 

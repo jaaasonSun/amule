@@ -43,5 +43,7 @@
 	<false/>
 	<key>NSHighResolutionCapable</key>
 	<true/>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>aMule Remote connects to your aMule daemon on the local network.</string>
 </dict>
 </plist>

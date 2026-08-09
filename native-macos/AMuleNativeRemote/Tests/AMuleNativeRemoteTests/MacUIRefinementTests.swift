@@ -38,26 +38,20 @@ final class MacUIRefinementTests: XCTestCase {
     func testUploadsPageCanBeHiddenFromInterfaceSettings() throws {
         let content = try source("Sources/AMuleNativeRemote/ContentView.swift")
         let preferences = try source("Sources/AMuleNativeRemote/PreferencesWindowView.swift")
+        let app = try source("Sources/AMuleNativeRemote/AMuleNativeRemoteApp.swift")
 
         XCTAssertTrue(content.contains("@AppStorage(\"amule.ui.showUploadsPage\")"))
-        XCTAssertTrue(content.contains("if showUploadsPage"))
-        XCTAssertTrue(content.contains("normalizedSidebarSelectionForVisibility"), "Hiding Uploads while selected should fall back to Downloads.")
-        XCTAssertTrue(content.contains(".onChange(of: showUploadsPage)"))
+        XCTAssertFalse(content.contains("normalizedSidebarSelectionForVisibleSections"), "Uploads visibility should no longer be repaired by sidebar selection fallback.")
+        XCTAssertFalse(content.contains("normalizedSidebarSelectionForVisibility"), "Uploads visibility should no longer be repaired by sidebar selection fallback.")
+        XCTAssertFalse(content.contains("SidebarSelection.uploads"), "The main window should not own an uploads sidebar destination.")
 
         XCTAssertTrue(preferences.contains("@AppStorage(\"amule.ui.showUploadsPage\")"))
         XCTAssertTrue(preferences.contains("Show Uploads page"))
-        XCTAssertTrue(preferences.contains(".frame(width: 700"), "Settings should use a narrower macOS preferences window.")
-    }
+        XCTAssertTrue(preferences.contains("idealWidth: 700"), "Settings should keep the narrower macOS preferences window as its ideal size.")
 
-    func testHiddenUploadsSelectionFallsBackToDownloads() {
-        let normalized = ContentView.normalizedSidebarSelectionForVisibility(
-            .uploads,
-            showCategoriesPage: true,
-            showFriendsPage: true,
-            showUploadsPage: false
-        )
-
-        XCTAssertEqual(normalized, .downloads(.all))
+        XCTAssertTrue(app.contains("showUploadsPage"), "Uploads visibility should be gated in the app command definitions.")
+        XCTAssertTrue(app.contains(#"openWindow(id: "uploads-window")"#), "Uploads should open a dedicated window from the menu or commands.")
+        XCTAssertFalse(app.contains("SidebarCommands()"), "Uploads visibility should not depend on sidebar command scaffolding.")
     }
 
     func testAdvancedSearchDoesNotUseResizableInspector() throws {
@@ -91,6 +85,8 @@ final class MacUIRefinementTests: XCTestCase {
             "Sources/AMuleNativeRemote/StatsWindowView.swift",
             "Sources/AMuleNativeRemote/SearchWindowView.swift",
             "Sources/AMuleNativeRemote/ContentView.swift",
+            "Sources/AMuleNativeRemote/MainToolbar.swift",
+            "Sources/AMuleNativeRemote/AMuleNativeRemoteApp.swift",
             "Sources/AMuleNativeRemote/PreferencesWindowView.swift"
         ]
         let sources = try files.map { try source($0) }
@@ -116,12 +112,13 @@ final class MacUIRefinementTests: XCTestCase {
     func testRefinedMacSurfacesRender() throws {
         let model = refinedPreviewModel()
         let evidenceRoot = repositoryRoot(from: packageRoot)
-            .appendingPathComponent(".omo/evidence/native-macos-ui-refine-20260709")
+            .appendingPathComponent(".sisyphus/evidence/task-6-mac-ui-refinement")
 
-        try writeRenderedSurface(
-            StatsWindowView(embeddedInMainWindow: true).environmentObject(model),
+        try writeRenderedWindowSurface(
+            StatsWindowView(embeddedInMainWindow: false).environmentObject(model),
             size: CGSize(width: 860, height: 680),
-            to: evidenceRoot.appendingPathComponent("statistics-refined.png")
+            to: evidenceRoot.appendingPathComponent("statistics-window-refined.png"),
+            title: "Statistics"
         )
 
         try writeRenderedWindowSurface(
@@ -133,21 +130,23 @@ final class MacUIRefinementTests: XCTestCase {
         try withHiddenUploads {
             try writeRenderedSurface(
                 ContentView().environmentObject(model),
-                size: CGSize(width: 960, height: 620),
-                to: evidenceRoot.appendingPathComponent("sidebar-uploads-hidden.png")
+                size: CGSize(width: 1040, height: 620),
+                to: evidenceRoot.appendingPathComponent("downloads-window-uploads-hidden-sidebar-free.png")
             )
         }
 
-        try writeRenderedSurface(
-            SearchWindowView(embeddedInMainWindow: true, showsAdvancedSearchOptions: false).environmentObject(model),
+        try writeRenderedWindowSurface(
+            SearchWindowView(embeddedInMainWindow: false, showsAdvancedSearchOptions: false).environmentObject(model),
             size: CGSize(width: 920, height: 560),
-            to: evidenceRoot.appendingPathComponent("search-advanced-collapsed.png")
+            to: evidenceRoot.appendingPathComponent("search-window-advanced-collapsed.png"),
+            title: "Search"
         )
 
-        try writeRenderedSurface(
-            SearchWindowView(embeddedInMainWindow: true, showsAdvancedSearchOptions: true).environmentObject(model),
+        try writeRenderedWindowSurface(
+            SearchWindowView(embeddedInMainWindow: false, showsAdvancedSearchOptions: true).environmentObject(model),
             size: CGSize(width: 920, height: 560),
-            to: evidenceRoot.appendingPathComponent("search-advanced-expanded.png")
+            to: evidenceRoot.appendingPathComponent("search-window-advanced-expanded.png"),
+            title: "Search"
         )
     }
 

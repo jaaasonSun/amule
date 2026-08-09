@@ -99,7 +99,14 @@ struct PreferencesWindowView: View {
 
     var body: some View {
         selectedSection
-        .frame(width: 700, height: 560)
+        .frame(
+            minWidth: 620,
+            idealWidth: 700,
+            maxWidth: .infinity,
+            minHeight: 520,
+            idealHeight: 560,
+            maxHeight: .infinity
+        )
         .scenePadding()
         .background {
             Color(nsColor: .windowBackgroundColor)
@@ -365,18 +372,18 @@ struct PreferencesWindowView: View {
     private var maintenanceSection: some View {
         Form {
             Section {
-                HStack(spacing: 12) {
-                    Text(L("Prefix to remove"))
-                    Spacer(minLength: 24)
-                    TextField(L("Prefix to remove"), text: $filenameCleanupPrefixDraft)
-                        .textFieldStyle(.roundedBorder)
-                        .labelsHidden()
-                        .frame(width: 240)
-                    Button(L("Add")) {
-                        addFilenameCleanupPrefix()
+                LabeledContent(L("Prefix to remove")) {
+                    HStack(spacing: 8) {
+                        TextField(L("Prefix to remove"), text: $filenameCleanupPrefixDraft)
+                            .textFieldStyle(.roundedBorder)
+                            .labelsHidden()
+                            .frame(minWidth: 160, idealWidth: 240, maxWidth: 320)
+                        Button(L("Add")) {
+                            addFilenameCleanupPrefix()
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(filenameCleanupPrefixDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
-                    .buttonStyle(.bordered)
-                    .disabled(filenameCleanupPrefixDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
 
                 if filenameCleanupPrefixes.isEmpty {
@@ -403,13 +410,11 @@ struct PreferencesWindowView: View {
             }
 
             Section {
-                HStack(spacing: 12) {
-                    Text(L("IP filter URL"))
-                    Spacer(minLength: 24)
+                LabeledContent(L("IP filter URL")) {
                     TextField("https://example.com/ipfilter.dat", text: $model.ipFilterURLInput)
                         .textFieldStyle(.roundedBorder)
                         .labelsHidden()
-                        .frame(width: 280)
+                        .frame(minWidth: 180, idealWidth: 280, maxWidth: 360)
                         .disabled(model.isBusy || !model.isBridgeOpSupported("ipfilter-update"))
                 }
 
@@ -436,14 +441,12 @@ struct PreferencesWindowView: View {
     // MARK: - Helpers
 
     private func limitField(title: String, text: Binding<String>, value: Int, placeholder: String) -> some View {
-        HStack(spacing: 12) {
-            Text(L(title))
-            Spacer(minLength: 24)
+        LabeledContent(L(title)) {
             HStack {
                 TextField(placeholder, text: text)
                     .textFieldStyle(.roundedBorder)
                     .labelsHidden()
-                    .frame(width: 100)
+                    .frame(minWidth: 80, idealWidth: 100, maxWidth: 120)
                 Text(L("KiB/s"))
                     .foregroundStyle(.secondary)
                 Text(LF("Current: %d", value))
@@ -454,13 +457,11 @@ struct PreferencesWindowView: View {
     }
 
     private func preferenceTextField(_ title: String, text: Binding<String>, placeholder: String) -> some View {
-        HStack(spacing: 12) {
-            Text(L(title))
-            Spacer(minLength: 24)
+        LabeledContent(L(title)) {
             TextField(placeholder, text: text)
                 .textFieldStyle(.roundedBorder)
                 .labelsHidden()
-                .frame(width: 280)
+                .frame(minWidth: 180, idealWidth: 280, maxWidth: 360)
         }
     }
 

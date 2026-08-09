@@ -1,42 +1,65 @@
 import XCTest
 
 final class MacNativeNavigationTests: XCTestCase {
-    func testMainWindowNavigationOwnsRemoteClientSections() throws {
+    func testMainWindowIsDownloadsOnlyAndRejectsSidebarNavigationContract() throws {
         let content = try source("Sources/AMuleNativeRemote/ContentView.swift")
 
-        for section in [
-            ".downloads",
-            ".search",
-            ".servers",
-            ".sharedFiles",
-            ".uploads",
-            ".categories",
-            ".statistics",
-            ".friends",
+        for required in [
+            "DownloadsPanel(",
+            "MainWindowStatusFooter(",
+            "GlobalErrorBanner(",
         ] {
-            XCTAssertTrue(content.contains(section), "ContentView should expose \(section) as a main-window navigation destination.")
+            XCTAssertTrue(content.contains(required), "ContentView should keep \(required) in the downloads-first main window shell.")
         }
 
-        XCTAssertTrue(content.contains("NavigationSplitView"))
-        XCTAssertTrue(content.contains(".listStyle(.sidebar)"))
+        for forbidden in [
+            "NavigationSplitView",
+            ".listStyle(.sidebar)",
+            "SidebarSelection",
+            "sidebarSelectionBinding",
+            "normalizeSidebarSelectionForVisibleSections",
+        ] {
+            XCTAssertFalse(content.contains(forbidden), "ContentView should not use the old sidebar navigation contract: \(forbidden)")
+        }
     }
 
-    func testTopLevelRemoteClientSectionsAreNotSeparateToolWindows() throws {
+    func testRemoteClientSectionsOpenStandaloneWindowsAndMenuGatedOptionalCommands() throws {
         let app = try source("Sources/AMuleNativeRemote/AMuleNativeRemoteApp.swift")
 
-        for forbiddenScene in [
-            #"WindowGroup("Uploads""#,
-            #"WindowGroup("Shared Files""#,
-            #"WindowGroup("Categories""#,
-            #"WindowGroup("Friends""#,
-            #"WindowGroup("Messages""#,
-            #"WindowGroup("Statistics""#,
-            #"WindowGroup("Preferences""#,
-            #"WindowGroup("eD2k""#,
-            #"WindowGroup("Search""#,
+        for requiredScene in [
+            #"Window("Search", id: "search-window")"#,
+            #"Window("Servers""#,
+            #"Window("Shared Files""#,
+            #"Window("Statistics""#,
         ] {
-            XCTAssertFalse(app.contains(forbiddenScene), "\(forbiddenScene) should not be modeled as a separate top-level tool window.")
+            XCTAssertTrue(app.contains(requiredScene), "\(requiredScene) should be declared as a standalone window scene.")
         }
+
+        for optionalWindow in [
+            (gate: "showUploadsPage", title: "Uploads", id: "uploads-window", view: "UploadsWindowView"),
+            (gate: "showCategoriesPage", title: "Categories", id: "categories-window", view: "CategoriesWindowView"),
+            (gate: "showFriendsPage", title: "Friends", id: "friends-window", view: "FriendsWindowView"),
+        ] {
+            let sceneSource = try XCTUnwrap(windowSceneBlock(title: optionalWindow.title, in: app))
+            XCTAssertTrue(sceneSource.contains(#"Window("\#(optionalWindow.title)", id: "\#(optionalWindow.id)")"#), "Optional \(optionalWindow.title) should preserve the stable \(optionalWindow.id) ID when enabled.")
+            XCTAssertTrue(sceneSource.contains("\(optionalWindow.view)(embeddedInMainWindow: false)"), "Optional \(optionalWindow.title) should keep the standalone content when enabled.")
+            XCTAssertTrue(sceneSource.contains(".commandsRemoved()"), "Optional \(optionalWindow.title) should be removed from SwiftUI's automatic Window scene list; the gated custom command is the visible access point when enabled.")
+
+            let commandSnippet = """
+                        if \(optionalWindow.gate) {
+                            Button(L("\(optionalWindow.title)")) {
+                                openWindow(id: "\(optionalWindow.id)")
+            """
+            XCTAssertTrue(
+                app.contains(commandSnippet),
+                "Optional \(optionalWindow.title) custom command should stay gated and open the stable \(optionalWindow.id) ID when enabled."
+            )
+        }
+
+        XCTAssertTrue(app.contains(#"Button(L("Search Network"))"#), "Search Network should remain a visible localized command.")
+        XCTAssertTrue(app.contains(#"openWindow(id: "search-window")"#), "Search Network commands should open the stable Search window ID.")
+        XCTAssertTrue(app.contains("NSApp.activate(ignoringOtherApps: true)"), "Window-opening commands should activate the app.")
+        XCTAssertFalse(app.contains("SidebarCommands()"), "The macOS command set should not keep the old sidebar command block.")
     }
 
     func testPreferencesUseNativeSettingsScene() throws {
@@ -56,5 +79,16 @@ final class MacNativeNavigationTests: XCTestCase {
             .deletingLastPathComponent()
         let url = packageRoot.appendingPathComponent(relativePath)
         return try String(contentsOf: url, encoding: .utf8)
+    }
+
+    private func windowSceneBlock(title: String, in source: String) -> String? {
+        guard let start = source.range(of: "Window(\"\(title)\"") else {
+            return nil
+        }
+        let rest = source[start.upperBound...]
+        let end = rest.range(of: "\n\n        Window")?.lowerBound
+            ?? rest.range(of: "\n\n        Settings")?.lowerBound
+            ?? source.endIndex
+        return String(source[start.lowerBound..<end])
     }
 }

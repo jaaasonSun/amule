@@ -100,6 +100,8 @@ extension AppModel {
         autoRefreshTask = Task {
             var tick: Int = 0
             while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: intervalNanoseconds)
+                guard !Task.isCancelled else { break }
                 await self.pollStatus(logOutput: false, suppressErrors: true)
                 if self.isSessionConnected, self.shouldAutoRefreshDownloads {
                     try? await self.pollDownloadsNow(logOutput: false, suppressErrors: true)
@@ -108,7 +110,6 @@ extension AppModel {
                     try? await self.pollServersNow(logOutput: false, suppressErrors: true)
                 }
                 tick += 1
-                try? await Task.sleep(nanoseconds: intervalNanoseconds)
             }
         }
     }

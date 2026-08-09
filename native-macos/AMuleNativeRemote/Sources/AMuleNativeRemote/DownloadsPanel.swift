@@ -1,10 +1,120 @@
 import SwiftUI
+import Foundation
 import SharedViews
 import SharedModels
 import SharedServices
 
 enum DownloadTableColumnPersistence {
     static let columnCustomizationDefaultsKey = "AMuleNativeRemote.DownloadsTable.columnCustomization"
+}
+
+enum DownloadTableSortPersistence {
+    static let sortOrderDefaultsKey = "AMuleNativeRemote.DownloadsTable.sortOrder"
+
+    enum Criterion: String, Codable {
+        case name
+        case progress
+        case speed
+        case sources
+
+        init?(comparator: KeyPathComparator<DownloadItem>) {
+            if comparator.keyPath == \DownloadItem.name {
+                self = .name
+            } else if comparator.keyPath == \DownloadItem.progressSortValue {
+                self = .progress
+            } else if comparator.keyPath == \DownloadItem.speedSortValue {
+                self = .speed
+            } else if comparator.keyPath == \DownloadItem.sourceTotal {
+                self = .sources
+            } else {
+                return nil
+            }
+        }
+
+        func comparator(order: SortOrder) -> KeyPathComparator<DownloadItem> {
+            switch self {
+            case .name:
+                return KeyPathComparator(\DownloadItem.name, order: order)
+            case .progress:
+                return KeyPathComparator(\DownloadItem.progressSortValue, order: order)
+            case .speed:
+                return KeyPathComparator(\DownloadItem.speedSortValue, order: order)
+            case .sources:
+                return KeyPathComparator(\DownloadItem.sourceTotal, order: order)
+            }
+        }
+    }
+
+    enum Direction: String, Codable {
+        case forward
+        case reverse
+
+        init(_ order: SortOrder) {
+            switch order {
+            case .forward:
+                self = .forward
+            case .reverse:
+                self = .reverse
+            }
+        }
+
+        var sortOrder: SortOrder {
+            switch self {
+            case .forward:
+                return .forward
+            case .reverse:
+                return .reverse
+            }
+        }
+    }
+
+    struct Entry: Codable, Equatable {
+        let criterion: Criterion
+        let direction: Direction
+
+        init(criterion: Criterion, direction: Direction) {
+            self.criterion = criterion
+            self.direction = direction
+        }
+
+        init?(comparator: KeyPathComparator<DownloadItem>) {
+            guard let criterion = Criterion(comparator: comparator) else { return nil }
+            self.init(criterion: criterion, direction: Direction(comparator.order))
+        }
+
+        var comparator: KeyPathComparator<DownloadItem> {
+            criterion.comparator(order: direction.sortOrder)
+        }
+    }
+
+    static let defaultEntries = [Entry(criterion: .name, direction: .forward)]
+    static let defaultRawValue = encode(defaultEntries)
+
+    static func comparators(from rawValue: String) -> [KeyPathComparator<DownloadItem>] {
+        decode(rawValue).map(\.comparator)
+    }
+
+    static func rawValue(for comparators: [KeyPathComparator<DownloadItem>]) -> String {
+        let entries = comparators.compactMap(Entry.init(comparator:))
+        return encode(entries.isEmpty ? defaultEntries : entries)
+    }
+
+    static func decode(_ rawValue: String) -> [Entry] {
+        guard let data = rawValue.data(using: .utf8),
+              let entries = try? JSONDecoder().decode([Entry].self, from: data),
+              !entries.isEmpty else {
+            return defaultEntries
+        }
+        return entries
+    }
+
+    private static func encode(_ entries: [Entry]) -> String {
+        guard let data = try? JSONEncoder().encode(entries),
+              let rawValue = String(data: data, encoding: .utf8) else {
+            return "[{\"criterion\":\"name\",\"direction\":\"forward\"}]"
+        }
+        return rawValue
+    }
 }
 
 struct DownloadTableColumnLayout {
@@ -69,6 +179,8 @@ struct DownloadsPanel: View {
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(.secondary)
                             .frame(width: 12)
+                            .accessibilityLabel(L("Download status"))
+                            .accessibilityValue(item.status)
                         Text(item.name)
                             .lineLimit(1)
                             .truncationMode(.middle)
@@ -115,6 +227,9 @@ struct DownloadsPanel: View {
                         .foregroundStyle(.secondary)
                 }
                 .contextMenu { downloadContextMenu(item) }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(L("Download progress"))
+                .accessibilityValue(LF("Progress: %@", item.progressText))
             }
             .width(
                 min: DownloadTableColumnLayout.progress.minWidth,
@@ -263,6 +378,7 @@ struct DownloadsPanel: View {
             .frame(maxWidth: .infinity, alignment: alignment)
             .padding(.horizontal, 6)
             .padding(.vertical, 3)
+            .accessibilityHint(L("Use the context menu for download actions."))
             .background {
                 if showsProgressBackground {
                     DownloadRowSegmentBackground(

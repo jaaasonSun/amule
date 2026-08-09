@@ -5,6 +5,18 @@ import AMuleECBridgeAdapter
 
 final class AutoRefreshRecoveryTests: XCTestCase {
     @MainActor
+    func testAutoRefreshWaitsForIntervalBeforeFirstStatusPoll() async throws {
+        let bridge = RecordingFakeBridgeAdapter()
+        let model = AppModel(bridge: bridge)
+
+        model.startAutoRefresh(intervalNanoseconds: 100_000_000)
+        try await Task.sleep(nanoseconds: 10_000_000)
+        model.stopAutoRefresh()
+
+        XCTAssertEqual(bridge.statusCallCount, 0)
+    }
+
+    @MainActor
     func testAutoRefreshContinuesAfterTransientStatusFailure() async throws {
         let json = try BridgeEnvelopeFixtures.downloadEnvelope(downloads: [
             BridgeEnvelopeFixtures.activePart(),

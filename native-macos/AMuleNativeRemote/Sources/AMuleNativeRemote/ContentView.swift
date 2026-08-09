@@ -12,8 +12,10 @@ struct ContentView: View {
     @AppStorage("amule.ui.showCategoriesPage") private var showCategoriesPage = true
     @AppStorage("amule.ui.showFriendsPage") private var showFriendsPage = true
     @AppStorage("amule.ui.showUploadsPage") private var showUploadsPage = true
+    @AppStorage(DownloadTableSortPersistence.sortOrderDefaultsKey)
+    private var downloadSortOrderRaw = DownloadTableSortPersistence.defaultRawValue
 
-    enum DownloadSidebarFilter: String, CaseIterable, Identifiable {
+    enum DownloadStatusFilter: String, CaseIterable, Identifiable {
         case all = "All"
         case downloading = "Downloading"
         case pending = "Pending"
@@ -34,26 +36,14 @@ struct ContentView: View {
         }
     }
 
-    enum SidebarSelection: Hashable {
-        case downloads(DownloadSidebarFilter)
-        case search
-        case servers
-        case sharedFiles
-        case uploads
-        case categories
-        case friends
-        case statistics
-    }
-
     @State private var showLoginSheet = false
     @State private var showAddLinksSheet = false
     @State private var showKadSheet = false
     @State private var addLinksDraft = ""
     @State private var kadNodesURL = "http://upd.emule-security.org/nodes.dat"
     @State private var isRefreshingKadStatus = false
-    @State private var selectedSidebarSelection: SidebarSelection = .downloads(.all)
+    @State private var selectedDownloadStatusFilter = DownloadStatusFilter.all
 
-    @State private var downloadSortOrder = [KeyPathComparator(\DownloadItem.name, order: .forward)]
     @State private var downloadNameFilterQuery = ""
     @State private var displayedDownloads: [DownloadItem] = []
     @State private var selectedDownloadIDs: Set<DownloadItem.ID> = []
@@ -62,21 +52,6 @@ struct ContentView: View {
 
     var body: some View {
         presentedBody
-    }
-
-    private var sidebarSelectionBinding: Binding<SidebarSelection?> {
-        Binding<SidebarSelection?>(
-            get: { selectedSidebarSelection },
-            set: { newValue in
-                guard let newValue else { return }
-                var tx = Transaction()
-                tx.animation = nil
-                tx.disablesAnimations = true
-                withTransaction(tx) {
-                    selectedSidebarSelection = newValue
-                }
-            }
-        )
     }
 
     private var selectedDownload: DownloadItem? {
@@ -102,151 +77,69 @@ struct ContentView: View {
         FilenameCleanupPreferences.decode(filenameCleanupPrefixesRaw)
     }
 
-    private var activeSidebarFilter: DownloadSidebarFilter {
-        if case .downloads(let filter) = selectedSidebarSelection {
-            return filter
-        }
-        return .all
-    }
-
-    private var downloadsPageToolbarTitle: String {
-        switch activeSidebarFilter {
-        case .all:
-            return L("Downloads")
-        default:
-            return activeSidebarFilter.localizedTitle
-        }
-    }
-
     private var windowTitleText: String {
-        switch selectedSidebarSelection {
-        case .downloads:
-            return downloadsPageToolbarTitle
-        case .search:
-            return L("Search")
-        case .servers:
-            return L("Servers")
-        case .sharedFiles:
-            return L("Shared Files")
-        case .uploads:
-            return L("Uploads")
-        case .categories:
-            return L("Categories")
-        case .friends:
-            return L("Friends")
-        case .statistics:
-            return L("Statistics")
-        }
+        L("Downloads")
     }
 
     private var baseBody: some View {
         VStack(spacing: 0) {
-            NavigationSplitView {
-                List(selection: sidebarSelectionBinding) {
-                    Section(L("Downloads")) {
-                        ForEach(DownloadSidebarFilter.allCases) { filter in
-                            Label(filter.localizedTitle, systemImage: filter.symbolName)
-                                .badge(downloadFilterCount(for: filter))
-                                .tag(SidebarSelection.downloads(filter))
-                        }
-                    }
-
-                    Section(L("Remote")) {
-                        Label(L("Search"), systemImage: "magnifyingglass")
-                            .lineLimit(1)
-                            .badge(searchSidebarBadgeText)
-                            .tag(SidebarSelection.search)
-
-                        Label(L("Servers"), systemImage: "server.rack")
-                            .lineLimit(1)
-                            .badge(model.servers.count)
-                            .tag(SidebarSelection.servers)
-
-                        Label(L("Shared Files"), systemImage: "folder")
-                            .lineLimit(1)
-                            .badge(model.sharedFiles.count)
-                            .tag(SidebarSelection.sharedFiles)
-
-                        if showUploadsPage {
-                            Label(L("Uploads"), systemImage: "arrow.up")
-                                .lineLimit(1)
-                                .badge(model.uploads.count)
-                                .tag(SidebarSelection.uploads)
-                        }
-
-                        if showCategoriesPage {
-                            Label(L("Categories"), systemImage: "tag")
-                                .lineLimit(1)
-                                .badge(model.categories.count)
-                                .tag(SidebarSelection.categories)
-                        }
-
-                        if showFriendsPage {
-                            Label(L("Friends"), systemImage: "person.2")
-                                .lineLimit(1)
-                                .badge(model.friends.count)
-                                .tag(SidebarSelection.friends)
-                        }
-
-                        Label(L("Statistics"), systemImage: "chart.xyaxis.line")
-                            .lineLimit(1)
-                            .tag(SidebarSelection.statistics)
-                    }
-                }
-                .listStyle(.sidebar)
-                .navigationSplitViewColumnWidth(min: 170, ideal: 210, max: 260)
-            } detail: {
-                VStack(spacing: 0) {
-                    Group {
-                        switch selectedSidebarSelection {
-                        case .downloads:
-                            downloadsPanel
-                        case .search:
-                            SearchPanel()
-                        case .servers:
-                            ServersWindowView(embeddedInMainWindow: true)
-                        case .sharedFiles:
-                            SharedFilesWindowView(embeddedInMainWindow: true)
-                        case .uploads:
-                            UploadsWindowView(embeddedInMainWindow: true)
-                        case .categories:
-                            CategoriesWindowView(embeddedInMainWindow: true)
-                        case .friends:
-                            FriendsWindowView(embeddedInMainWindow: true)
-                        case .statistics:
-                            StatsWindowView(embeddedInMainWindow: true)
-                        }
-                    }
-                    .padding(.top, 0)
-                    if !model.lastError.isEmpty {
-                        Divider()
-                        Text(model.lastError)
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                    }
-                }
+            downloadsPanel
+                .padding(.top, 0)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .layoutPriority(1)
+
+            if !model.lastError.isEmpty {
+                Divider()
+                GlobalErrorBanner(
+                    message: model.lastError,
+                    activePaneTitle: windowTitleText,
+                    dismiss: { model.lastError = "" }
+                )
             }
-            .navigationTitle(windowTitleText)
+
+            Divider()
+            MainWindowStatusFooter(
+                summary: NetworkStatusSummary(status: model.status),
+                status: model.status,
+                isSessionConnected: model.isSessionConnected,
+                openConnectionSettings: {
+                    model.requestConnectionSheet()
+                },
+                openED2KServersWindow: {
+                    openWindow(id: "servers-window")
+                    NSApp.activate(ignoringOtherApps: true)
+                },
+                openKadServersWindow: {
+                    openWindow(id: "servers-window")
+                    NSApp.activate(ignoringOtherApps: true)
+                },
+                openDownloadStatisticsWindow: {
+                    openWindow(id: "statistics-window")
+                    NSApp.activate(ignoringOtherApps: true)
+                },
+                openUploadStatisticsWindow: {
+                    openWindow(id: "statistics-window")
+                    NSApp.activate(ignoringOtherApps: true)
+                }
+            )
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .navigationTitle(windowTitleText)
     }
 
     private var downloadsPanel: some View {
         DownloadsPanel(
             displayedDownloads: displayedDownloads,
             selectedDownloadIDs: $selectedDownloadIDs,
-            sortOrder: $downloadSortOrder,
+            sortOrder: downloadSortOrderBinding,
             nameFilterQuery: $downloadNameFilterQuery,
             alwaysShowSuggestedFilename: alwaysShowSuggestedFilename,
             filenameCleanupPrefixes: filenameCleanupPrefixes,
             canRenameDownload: canRenameDownload,
-            showDetails: { openDownloadDetailsWindow(for: $0, refreshSources: false) },
+            showDetails: { openDownloadDetailsWindow(for: $0) },
             useSuggestedFilename: { item, suggestion in
                 model.requestRenameSuggestion(item, suggestion: suggestion)
-                openDownloadDetailsWindow(for: item, refreshSources: false)
+                openDownloadDetailsWindow(for: item)
             },
             copyED2KLink: model.copyDownloadLinkToClipboard,
             pauseDownload: model.pauseDownload,
@@ -268,6 +161,17 @@ struct ContentView: View {
         )
     }
 
+    private var downloadSortOrder: [KeyPathComparator<DownloadItem>] {
+        DownloadTableSortPersistence.comparators(from: downloadSortOrderRaw)
+    }
+
+    private var downloadSortOrderBinding: Binding<[KeyPathComparator<DownloadItem>]> {
+        Binding(
+            get: { downloadSortOrder },
+            set: { downloadSortOrderRaw = DownloadTableSortPersistence.rawValue(for: $0) }
+        )
+    }
+
     private var lifecycleBody: some View {
         baseBody
             .frame(minWidth: 760, minHeight: 420)
@@ -279,8 +183,8 @@ struct ContentView: View {
             }
             .task {
                 await model.refreshBridgeCapabilitiesAndPreloadCategories(logOutput: false, suppressErrors: true)
-                model.startAutoRefresh()
                 await model.refreshStatus(logOutput: false, suppressErrors: true)
+                model.startAutoRefresh()
                 model.refreshDownloads()
                 model.refreshServers()
                 refreshDisplayedDownloads()
@@ -298,17 +202,25 @@ struct ContentView: View {
                 }
             }
             .onChange(of: model.downloads) { refreshDisplayedDownloads() }
-            .onChange(of: downloadSortOrder) { refreshDisplayedDownloads() }
+            .onChange(of: downloadSortOrderRaw) { refreshDisplayedDownloads() }
             .onChange(of: downloadNameFilterQuery) { refreshDisplayedDownloads() }
-            .onChange(of: selectedSidebarSelection) { refreshDisplayedDownloads() }
-            .onChange(of: showCategoriesPage) { normalizeSidebarSelectionForVisibleSections() }
-            .onChange(of: showFriendsPage) { normalizeSidebarSelectionForVisibleSections() }
-            .onChange(of: showUploadsPage) { normalizeSidebarSelectionForVisibleSections() }
+            .onChange(of: selectedDownloadStatusFilter) { refreshDisplayedDownloads() }
             .onChange(of: selectedDownloadIDs) {
-                model.selectedDownloadID = selectedDownload?.id
                 if let selectedDownload {
-                    model.refreshDownloadSources(for: selectedDownload)
+                    model.selectedDownloadID = selectedDownload.id
+                } else {
+                    model.selectedDownloadID = nil
                 }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .amulePauseSelectedDownloads)) { _ in
+                model.pauseDownloads(selectedDownloads)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .amuleResumeSelectedDownloads)) { _ in
+                model.resumeDownloads(selectedDownloads)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .amuleRemoveSelectedDownloads)) { _ in
+                pendingRemoveDownloadIDs = selectedDownloadIDs
+                showRemoveConfirmation = !pendingRemoveDownloadIDs.isEmpty
             }
             .onChange(of: model.addLinksPanelRequestID) { showAddLinksSheet = true }
             .onChange(of: model.connectionSheetRequestID) { showLoginSheet = true }
@@ -319,7 +231,7 @@ struct ContentView: View {
 
     private var presentedBody: some View {
         observedBody
-            .animation(.none, value: selectedSidebarSelection)
+            .animation(.none, value: selectedDownloadStatusFilter)
             .sheet(isPresented: $showLoginSheet) {
                 presentationSheet(ConnectionSheet(isPresented: $showLoginSheet))
             }
@@ -330,24 +242,28 @@ struct ContentView: View {
                 presentationSheet(KadSheet(isPresented: $showKadSheet, nodesURL: $kadNodesURL, isRefreshingStatus: $isRefreshingKadStatus))
             }
             .toolbar {
-                if case .downloads = selectedSidebarSelection {
-                    MainToolbar(
-                        selectedDownload: selectedDownload,
-                        selectedDownloads: selectedDownloads,
-                        selectedDownloadIDs: selectedDownloadIDs,
-                        completedDownloads: completedDownloads,
-                        isBusy: model.isBusy,
-                        showDetails: presentSelectedDownloadDetails,
-                        resumeDownloads: model.resumeDownloads,
-                        pauseDownloads: model.pauseDownloads,
-                        requestRemoveDownloads: { ids in
-                            pendingRemoveDownloadIDs = ids
-                            showRemoveConfirmation = !pendingRemoveDownloadIDs.isEmpty
-                        },
-                        showAddLinks: { showAddLinksSheet = true },
-                        clearCompleted: model.clearCompletedDownloads
-                    )
-                }
+                MainToolbar(
+                    selectedDownloadStatusFilter: $selectedDownloadStatusFilter,
+                    downloadStatusFilterCounts: downloadStatusFilterCounts,
+                    selectedDownload: selectedDownload,
+                    selectedDownloads: selectedDownloads,
+                    selectedDownloadIDs: selectedDownloadIDs,
+                    completedDownloads: completedDownloads,
+                    isBusy: model.isBusy,
+                    showDetails: presentSelectedDownloadDetails,
+                    resumeDownloads: model.resumeDownloads,
+                    pauseDownloads: model.pauseDownloads,
+                    requestRemoveDownloads: { ids in
+                        pendingRemoveDownloadIDs = ids
+                        showRemoveConfirmation = !pendingRemoveDownloadIDs.isEmpty
+                    },
+                    showAddLinks: { showAddLinksSheet = true },
+                    showSearchNetwork: {
+                        openWindow(id: "search-window")
+                        NSApp.activate(ignoringOtherApps: true)
+                    },
+                    clearCompleted: model.clearCompletedDownloads
+                )
             }
             .alert(L("Remove Selected Downloads?"), isPresented: $showRemoveConfirmation) {
                 Button(L("Cancel"), role: .cancel) {}
@@ -369,12 +285,13 @@ struct ContentView: View {
         content
     }
 
-    private var searchSidebarBadgeText: String {
-        if model.isSearchInProgress { return "…" }
-        return String(model.searchResults.count)
+    private var downloadStatusFilterCounts: [DownloadStatusFilter: Int] {
+        Dictionary(uniqueKeysWithValues: DownloadStatusFilter.allCases.map { filter in
+            (filter, downloadFilterCount(for: filter))
+        })
     }
 
-    private func downloadFilterCount(for filter: DownloadSidebarFilter) -> Int {
+    private func downloadFilterCount(for filter: DownloadStatusFilter) -> Int {
         switch filter {
         case .all: return model.downloads.count
         case .downloading: return model.downloads.filter(DownloadClassification.isDownloading).count
@@ -384,7 +301,7 @@ struct ContentView: View {
         }
     }
 
-    private func filteredDownloads(_ items: [DownloadItem], for filter: DownloadSidebarFilter) -> [DownloadItem] {
+    private func filteredDownloads(_ items: [DownloadItem], for filter: DownloadStatusFilter) -> [DownloadItem] {
         switch filter {
         case .all: return items
         case .downloading: return items.filter(DownloadClassification.isDownloading)
@@ -395,13 +312,17 @@ struct ContentView: View {
     }
 
     private func refreshDisplayedDownloads() {
-        let scoped = filteredDownloads(model.downloads, for: activeSidebarFilter)
+        let scoped = filteredDownloads(model.downloads, for: selectedDownloadStatusFilter)
         let filtered = filterDownloadsByName(scoped, query: downloadNameFilterQuery)
         displayedDownloads = filtered.sorted(using: downloadSortOrder)
         selectedDownloadIDs = selectedDownloadIDs.filter { id in
             displayedDownloads.contains(where: { $0.id == id })
         }
-        model.selectedDownloadID = selectedDownload?.id
+        if let selectedDownload {
+            model.selectedDownloadID = selectedDownload.id
+        } else {
+            model.selectedDownloadID = nil
+        }
     }
 
     private func filterDownloadsByName(_ items: [DownloadItem], query: String) -> [DownloadItem] {
@@ -464,46 +385,15 @@ struct ContentView: View {
     }
 
     private func presentSelectedDownloadDetails() {
-        openDownloadDetailsWindow(for: selectedDownload, refreshSources: true)
+        openDownloadDetailsWindow(for: selectedDownload)
     }
 
-    private func normalizeSidebarSelectionForVisibleSections() {
-        let normalized = Self.normalizedSidebarSelectionForVisibility(
-            selectedSidebarSelection,
-            showCategoriesPage: showCategoriesPage,
-            showFriendsPage: showFriendsPage,
-            showUploadsPage: showUploadsPage
-        )
-        if normalized != selectedSidebarSelection {
-            selectedSidebarSelection = normalized
-        }
-    }
-
-    static func normalizedSidebarSelectionForVisibility(
-        _ selection: SidebarSelection,
-        showCategoriesPage: Bool,
-        showFriendsPage: Bool,
-        showUploadsPage: Bool
-    ) -> SidebarSelection {
-        switch selection {
-        case .categories where !showCategoriesPage,
-             .friends where !showFriendsPage,
-             .uploads where !showUploadsPage:
-            return .downloads(.all)
-        default:
-            return selection
-        }
-    }
-
-    private func openDownloadDetailsWindow(for item: DownloadItem?, refreshSources: Bool) {
+    private func openDownloadDetailsWindow(for item: DownloadItem?) {
         if let item {
             selectedDownloadIDs = [item.id]
             model.selectedDownloadID = item.id
-            if refreshSources {
-                model.refreshDownloadSources(for: item)
-            }
         } else {
-            model.selectedDownloadID = selectedDownload?.id
+            model.selectedDownloadID = nil
         }
         openWindow(id: "download-details-window")
         NSApp.activate(ignoringOtherApps: true)
@@ -511,6 +401,189 @@ struct ContentView: View {
 
     private func canRenameDownload(_ item: DownloadItem) -> Bool {
         !item.isCompletedLike
+    }
+}
+
+private struct GlobalErrorBanner: View {
+    let message: String
+    let activePaneTitle: String
+    let dismiss: () -> Void
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(activePaneTitle)
+                    .font(.caption.weight(.semibold))
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 12)
+
+            Button(L("Dismiss")) {
+                dismiss()
+            }
+            .controlSize(.small)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(activePaneTitle)
+        .accessibilityValue(message)
+        .accessibilityHint(L("Dismiss"))
+        .onExitCommand(perform: dismiss)
+    }
+}
+
+private struct MainWindowStatusFooter: View {
+    let summary: NetworkStatusSummary
+    let status: StatusSnapshot
+    let isSessionConnected: Bool
+    let openConnectionSettings: () -> Void
+    let openED2KServersWindow: () -> Void
+    let openKadServersWindow: () -> Void
+    let openDownloadStatisticsWindow: () -> Void
+    let openUploadStatisticsWindow: () -> Void
+
+    private var sessionStatusText: String {
+        isSessionConnected || status.connected ? L("Connected") : L("Disconnected")
+    }
+
+    private var ed2kStatusText: String {
+        localizedED2KConnectionStatusText(for: summary.ed2k)
+    }
+
+    private var kadStatusText: String {
+        localizedConnectionStatusText(for: summary.kad)
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            FooterControlButton(
+                action: openConnectionSettings,
+                accessibilityLabel: L("Open Connection Settings"),
+                accessibilityValue: sessionStatusText,
+                accessibilityHint: L("Opens the connection settings sheet.")
+            ) {
+                statusSegment(title: L("Connection:"), value: sessionStatusText)
+            }
+            footerDivider
+            FooterControlButton(
+                action: openED2KServersWindow,
+                accessibilityLabel: L("Open Servers"),
+                accessibilityValue: ed2kStatusText,
+                accessibilityHint: L("Opens the Servers window.")
+            ) {
+                statusSegment(title: L("eD2K:"), value: ed2kStatusText)
+            }
+            footerDivider
+            FooterControlButton(
+                action: openKadServersWindow,
+                accessibilityLabel: L("Open Servers"),
+                accessibilityValue: kadStatusText,
+                accessibilityHint: L("Opens the Servers window.")
+            ) {
+                statusSegment(title: L("Kad:"), value: kadStatusText)
+            }
+
+            Spacer(minLength: 12)
+
+            FooterControlButton(
+                action: openDownloadStatisticsWindow,
+                accessibilityLabel: L("Open Statistics"),
+                accessibilityValue: status.downloadSpeed,
+                accessibilityHint: L("Opens the Statistics window.")
+            ) {
+                MetricChipView(title: L("Download"), value: status.downloadSpeed)
+            }
+            FooterControlButton(
+                action: openUploadStatisticsWindow,
+                accessibilityLabel: L("Open Statistics"),
+                accessibilityValue: status.uploadSpeed,
+                accessibilityHint: L("Opens the Statistics window.")
+            ) {
+                MetricChipView(title: L("Upload"), value: status.uploadSpeed)
+            }
+        }
+        .controlSize(.small)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(Color(nsColor: .controlBackgroundColor))
+    }
+
+    private var footerDivider: some View {
+        Divider()
+            .frame(height: 14)
+    }
+
+    private func statusSegment(title: String, value: String) -> some View {
+        HStack(spacing: 5) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text(value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? L("Unknown") : value)
+                .font(.caption)
+                .lineLimit(1)
+                .truncationMode(.middle)
+        }
+    }
+}
+
+private struct FooterControlButton<Label: View>: View {
+    let action: () -> Void
+    let accessibilityLabel: String
+    let accessibilityValue: String
+    let accessibilityHint: String
+    @ViewBuilder let label: () -> Label
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            label()
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .contentShape(Capsule())
+        }
+        .buttonStyle(FooterControlButtonStyle(isHovering: isHovering))
+        .onHover { isHovering = $0 }
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityValue(normalizedAccessibilityValue)
+        .accessibilityHint(accessibilityHint)
+    }
+
+    private var normalizedAccessibilityValue: String {
+        let trimmed = accessibilityValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? L("Unknown") : trimmed
+    }
+}
+
+private struct FooterControlButtonStyle: ButtonStyle {
+    let isHovering: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background {
+                Capsule()
+                    .fill(backgroundStyle(isPressed: configuration.isPressed))
+            }
+            .foregroundStyle(configuration.isPressed ? .primary : .secondary)
+    }
+
+    private func backgroundStyle(isPressed: Bool) -> Color {
+        if isPressed {
+            return Color(nsColor: .selectedControlColor).opacity(0.22)
+        }
+        if isHovering {
+            return Color(nsColor: .separatorColor).opacity(0.22)
+        }
+        return .clear
     }
 }
 

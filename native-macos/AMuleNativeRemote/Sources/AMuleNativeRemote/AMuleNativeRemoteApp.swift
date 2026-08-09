@@ -3,6 +3,12 @@ import AppKit
 import SharedModels
 import SharedServices
 
+extension Notification.Name {
+    static let amulePauseSelectedDownloads = Notification.Name("amule.pauseSelectedDownloads")
+    static let amuleResumeSelectedDownloads = Notification.Name("amule.resumeSelectedDownloads")
+    static let amuleRemoveSelectedDownloads = Notification.Name("amule.removeSelectedDownloads")
+}
+
 @main
 struct AMuleNativeRemoteApp: App {
     @NSApplicationDelegateAdaptor private var deepLinkDelegate: MacOSDeepLinkHandler
@@ -39,6 +45,51 @@ struct AMuleNativeRemoteApp: App {
         }
         .windowStyle(.automatic)
 
+        Window("Search", id: "search-window") {
+            SearchWindowView(embeddedInMainWindow: false)
+                .environmentObject(model)
+        }
+        .windowStyle(.automatic)
+
+        Window("Servers", id: "servers-window") {
+            ServersWindowView(embeddedInMainWindow: false)
+                .environmentObject(model)
+        }
+        .windowStyle(.automatic)
+
+        Window("Shared Files", id: "shared-files-window") {
+            SharedFilesWindowView(embeddedInMainWindow: false)
+                .environmentObject(model)
+        }
+        .windowStyle(.automatic)
+
+        Window("Statistics", id: "statistics-window") {
+            StatsWindowView(embeddedInMainWindow: false)
+                .environmentObject(model)
+        }
+        .windowStyle(.automatic)
+
+        Window("Uploads", id: "uploads-window") {
+            UploadsWindowView(embeddedInMainWindow: false)
+                .environmentObject(model)
+        }
+        .windowStyle(.automatic)
+        .commandsRemoved()
+
+        Window("Categories", id: "categories-window") {
+            CategoriesWindowView(embeddedInMainWindow: false)
+                .environmentObject(model)
+        }
+        .windowStyle(.automatic)
+        .commandsRemoved()
+
+        Window("Friends", id: "friends-window") {
+            FriendsWindowView(embeddedInMainWindow: false)
+                .environmentObject(model)
+        }
+        .windowStyle(.automatic)
+        .commandsRemoved()
+
         Settings {
             PreferencesWindowView()
                 .environmentObject(model)
@@ -49,22 +100,25 @@ struct AMuleNativeRemoteApp: App {
 private struct AppMenuCommands: Commands {
     @ObservedObject var model: AppModel
     @Environment(\.openWindow) private var openWindow
+    @AppStorage("amule.ui.showUploadsPage") private var showUploadsPage = true
+    @AppStorage("amule.ui.showCategoriesPage") private var showCategoriesPage = true
+    @AppStorage("amule.ui.showFriendsPage") private var showFriendsPage = true
 
     var body: some Commands {
         CommandGroup(after: .appInfo) {
-            Button("Refresh Status") {
+            Button(L("Refresh Status")) {
                 Task { await model.refreshStatus() }
             }
             .keyboardShortcut("r", modifiers: [.command])
 
-            Button("Connection Settings…") {
+            Button(L("Connection Settings…")) {
                 model.requestConnectionSheet()
             }
             .keyboardShortcut("k", modifiers: [.command])
         }
 
         CommandGroup(replacing: .newItem) {
-            Button("Add Links…") {
+            Button(L("Add Links…")) {
                 openWindow(id: "downloads-window")
                 model.requestAddLinksPanel()
                 NSApp.activate(ignoringOtherApps: true)
@@ -72,7 +126,87 @@ private struct AppMenuCommands: Commands {
             .keyboardShortcut("n", modifiers: [.command])
         }
 
+        CommandMenu(L("Downloads")) {
+            Button(L("Show Details")) {
+                openWindow(id: "download-details-window")
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            .keyboardShortcut(.defaultAction)
+            .disabled(model.selectedDownloadID == nil)
+
+            Divider()
+
+            Button(L("Pause Selected Downloads")) {
+                NotificationCenter.default.post(name: .amulePauseSelectedDownloads, object: nil)
+            }
+            .disabled(model.selectedDownloadID == nil || model.isBusy)
+
+            Button(L("Resume Selected Downloads")) {
+                NotificationCenter.default.post(name: .amuleResumeSelectedDownloads, object: nil)
+            }
+            .disabled(model.selectedDownloadID == nil || model.isBusy)
+
+            Button(L("Remove Selected Downloads")) {
+                NotificationCenter.default.post(name: .amuleRemoveSelectedDownloads, object: nil)
+            }
+            .keyboardShortcut(.delete)
+            .disabled(model.selectedDownloadID == nil || model.isBusy)
+        }
+
         CommandGroup(after: .windowList) {
+            Button(L("Downloads")) {
+                openWindow(id: "downloads-window")
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            .keyboardShortcut("1", modifiers: [.command])
+
+            Button(L("Search Network")) {
+                openWindow(id: "search-window")
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            .keyboardShortcut("2", modifiers: [.command])
+
+            Button(L("Servers")) {
+                openWindow(id: "servers-window")
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            .keyboardShortcut("3", modifiers: [.command])
+
+            Button(L("Shared Files")) {
+                openWindow(id: "shared-files-window")
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            .keyboardShortcut("4", modifiers: [.command])
+
+            Button(L("Statistics")) {
+                openWindow(id: "statistics-window")
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            .keyboardShortcut("5", modifiers: [.command])
+
+            if showUploadsPage {
+                Button(L("Uploads")) {
+                    openWindow(id: "uploads-window")
+                    NSApp.activate(ignoringOtherApps: true)
+                }
+            }
+
+            if showCategoriesPage {
+                Button(L("Categories")) {
+                    openWindow(id: "categories-window")
+                    NSApp.activate(ignoringOtherApps: true)
+                }
+            }
+
+            if showFriendsPage {
+                Button(L("Friends")) {
+                    openWindow(id: "friends-window")
+                    NSApp.activate(ignoringOtherApps: true)
+                }
+            }
+
+            Divider()
+
             Button("Diagnostics") {
                 openWindow(id: "diagnostics-window")
                 NSApp.activate(ignoringOtherApps: true)
@@ -89,6 +223,5 @@ private struct AppMenuCommands: Commands {
         }
 
         ToolbarCommands()
-        SidebarCommands()
     }
 }

@@ -41,6 +41,45 @@ final class MacSearchToolbarTests: XCTestCase {
         XCTAssertFalse(source.contains("Label(L(\"Search for\")"), "The old in-content search label should be gone.")
     }
 
+    func testDownloadsToolbarSearchNetworkButtonOpensStandaloneSearchWindow() throws {
+        let toolbar = try source("Sources/AMuleNativeRemote/MainToolbar.swift")
+        let content = try source("Sources/AMuleNativeRemote/ContentView.swift")
+
+        XCTAssertTrue(toolbar.contains("let showSearchNetwork: () -> Void"), "MainToolbar should receive an explicit Search Network action from the downloads shell.")
+        XCTAssertTrue(toolbar.contains("showSearchNetwork()"), "The downloads toolbar Search Network button should call the provided window-opening action.")
+        XCTAssertTrue(
+            toolbar.contains("Label(L(\"Search Network\"), systemImage: \"magnifyingglass\")"),
+            "Search Network should be a visible localized toolbar label."
+        )
+        XCTAssertTrue(
+            content.contains("showSearchNetwork: {\n                        openWindow(id: \"search-window\")\n                        NSApp.activate(ignoringOtherApps: true)\n                    }"),
+            "The downloads toolbar Search Network action should open the stable Search window ID and activate the app."
+        )
+    }
+
+    func testDownloadsFilterRemainsLocalAndSearchWindowKeepsRemoteSearchField() throws {
+        let content = try source("Sources/AMuleNativeRemote/ContentView.swift")
+        let toolbar = try source("Sources/AMuleNativeRemote/MainToolbar.swift")
+        let downloads = try source("Sources/AMuleNativeRemote/DownloadsPanel.swift")
+        let search = try source("Sources/AMuleNativeRemote/SearchWindowView.swift")
+
+        XCTAssertTrue(
+            downloads.contains(".searchable(text: $nameFilterQuery, placement: .toolbar, prompt: L(\"Filter Downloads\"))"),
+            "Downloads should keep a local name filter rather than the remote search query."
+        )
+        for (name, source) in [
+            ("ContentView", content),
+            ("MainToolbar", toolbar),
+            ("DownloadsPanel", downloads)
+        ] {
+            XCTAssertFalse(source.contains("model.searchQuery"), "\(name) must not bind downloads toolbar UI to the remote search query.")
+        }
+        XCTAssertTrue(
+            search.contains(".searchable(text: $model.searchQuery, placement: .toolbar, prompt: L(\"File name or keywords\"))"),
+            "The standalone Search window should retain the remote search field."
+        )
+    }
+
     func testAdvancedButtonTogglesInspector() throws {
         let source = try source("Sources/AMuleNativeRemote/SearchWindowView.swift")
 
@@ -72,8 +111,11 @@ final class MacSearchToolbarTests: XCTestCase {
     }
 
     func testSearchToolbarVisibleStringsAreLocalized() throws {
-        let searchSource = try source("Sources/AMuleNativeRemote/SearchWindowView.swift")
-        let requiredKeys = Set(localizedKeys(in: searchSource)).subtracting([
+        let sources = try [
+            "Sources/AMuleNativeRemote/SearchWindowView.swift",
+            "Sources/AMuleNativeRemote/MainToolbar.swift"
+        ].map { try source($0) }
+        let requiredKeys = Set(sources.flatMap(localizedKeys)).subtracting([
             "0",
             "1"
         ])
@@ -88,9 +130,19 @@ final class MacSearchToolbarTests: XCTestCase {
         XCTAssertTrue(missingZHCN.isEmpty, "Missing zh_CN localization keys: \(missingZHCN.joined(separator: ", "))")
     }
 
+    func testDownloadsSearchNetworkToolbarStringIsLocalized() throws {
+        let zhHans = try source("Resources/zh-Hans.lproj/Localizable.strings")
+        let zhCN = try source("Resources/zh_CN.lproj/Localizable.strings")
+
+        for key in ["Search Network", "Open Search Network"] {
+            XCTAssertTrue(zhHans.contains("\"\(key)\" ="), "zh-Hans missing localization key: \(key)")
+            XCTAssertTrue(zhCN.contains("\"\(key)\" ="), "zh_CN missing localization key: \(key)")
+        }
+    }
+
     func testSearchToolbarSurfacesRender() throws {
         let evidenceRoot = repositoryRoot(from: packageRoot)
-            .appendingPathComponent(".omo/evidence/search-toolbar-native-20260709")
+            .appendingPathComponent(".sisyphus/evidence/task-6-search-toolbar")
 
         try writeRenderedSurface(
             SearchWindowView(embeddedInMainWindow: true, showsAdvancedSearchOptions: false)
@@ -110,7 +162,7 @@ final class MacSearchToolbarTests: XCTestCase {
             SearchWindowView(embeddedInMainWindow: false, showsAdvancedSearchOptions: true)
                 .environmentObject(searchPreviewModel()),
             size: CGSize(width: 940, height: 580),
-            to: evidenceRoot.appendingPathComponent("search-toolbar-window.png"),
+            to: evidenceRoot.appendingPathComponent("search-window-toolbar.png"),
             title: "Search"
         )
     }

@@ -21,6 +21,7 @@ struct SearchWindowView: View {
     @State private var displayedSearchResults: [SearchResult] = []
     @State private var selectedSearchResultIDs: Set<SearchResult.ID> = []
     @State private var showsAdvancedSearchOptions = false
+    @State private var hasSubmittedSearch = false
 
     private var selectedSearchResults: [SearchResult] {
         displayedSearchResults.filter { selectedSearchResultIDs.contains($0.id) }
@@ -52,6 +53,34 @@ struct SearchWindowView: View {
         model.isBridgeOpSupported("search")
     }
 
+    private var trimmedSearchQuery: String {
+        model.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var shouldShowSearchStateOverlay: Bool {
+        displayedSearchResults.isEmpty && model.lastError.isEmpty
+    }
+
+    private var searchState: SearchStateOverlay.State {
+        if isSearchInProgressForUI {
+            return .loading(progress: model.searchProgress)
+        }
+
+        if trimmedSearchQuery.isEmpty || !hasCompletedEmptySearch {
+            return .initial
+        }
+
+        return .noResults
+    }
+
+    private var hasCompletedEmptySearch: Bool {
+        !trimmedSearchQuery.isEmpty && !isSearchInProgressForUI && (
+            hasSubmittedSearch ||
+            model.searchProgress >= 100 ||
+            !model.lastSearchRawOutput.isEmpty
+        )
+    }
+
     var body: some View {
         if embeddedInMainWindow {
             baseSearchContent
@@ -63,14 +92,18 @@ struct SearchWindowView: View {
 
     private var baseSearchContent: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                SearchResultsOutlineView(
-                    nodes: searchTree,
-                    selection: $selectedSearchResultIDs,
-                    sortDescriptors: $searchSortDescriptors,
-                    autosaveName: searchOutlineAutosaveName
+            if !model.lastError.isEmpty {
+                SearchErrorBanner(
+                    message: model.lastError,
+                    canRetry: !trimmedSearchQuery.isEmpty && isSearchSupported && !isSearchInProgressForUI,
+                    retry: retrySearch,
+                    dismiss: dismissSearchError
                 )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                Divider()
+            }
+
+            HStack(spacing: 0) {
+                searchResultsSurface
                 .layoutPriority(1)
 
                 if showsAdvancedSearchOptions {
@@ -96,6 +129,9 @@ struct SearchWindowView: View {
                     Label(L("Download"), systemImage: "arrow.down.circle")
                 }
                 .help(L("Download Selected"))
+                .accessibilityLabel(L("Download Selected"))
+                .accessibilityHint(L("Download Selected"))
+                .keyboardShortcut(.defaultAction)
                 .disabled(!canDownloadSelectedSearchResults || !model.isBridgeOpSupported("download"))
 
                 Button {
@@ -104,6 +140,9 @@ struct SearchWindowView: View {
                     Label(L("Stop"), systemImage: "stop.fill")
                 }
                 .help(L("Stop Search"))
+                .accessibilityLabel(L("Stop Search"))
+                .accessibilityHint(L("Stop Search"))
+                .keyboardShortcut(.cancelAction)
                 .disabled(!isSearchInProgressForUI || !isSearchSupported)
 
                 Button {
@@ -117,8 +156,7 @@ struct SearchWindowView: View {
         }
         .searchable(text: $model.searchQuery, placement: .toolbar, prompt: L("File name or keywords"))
         .onSubmit(of: .search) {
-            guard isSearchSupported else { return }
-            model.performSearch()
+            submitSearch()
         }
         .task {
             refreshDisplayedSearchResults()
@@ -126,15 +164,56 @@ struct SearchWindowView: View {
         .onChange(of: model.searchResults) {
             refreshDisplayedSearchResults()
         }
+        .onChange(of: model.searchQuery) { _, newValue in
+            if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                hasSubmittedSearch = false
+            }
+        }
         .onChange(of: model.searchOptions) {
             refreshDisplayedSearchResults()
         }
     }
 
+    @ViewBuilder
+    private var searchResultsSurface: some View {
+        if shouldShowSearchStateOverlay {
+            SearchStateOverlay(state: searchState)
+                .padding(28)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(nsColor: .windowBackgroundColor))
+        } else {
+            SearchResultsOutlineView(
+                nodes: searchTree,
+                selection: $selectedSearchResultIDs,
+                sortDescriptors: $searchSortDescriptors,
+                autosaveName: searchOutlineAutosaveName
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
     private func refreshDisplayedSearchResults() {
         displayedSearchResults = model.searchOptions.filteredResults(model.searchResults)
+        if !model.searchResults.isEmpty {
+            hasSubmittedSearch = true
+        }
         let validIDs = Set(displayedSearchResults.map(\.id))
         selectedSearchResultIDs = selectedSearchResultIDs.intersection(validIDs)
+    }
+
+    private func submitSearch() {
+        guard isSearchSupported else { return }
+        hasSubmittedSearch = true
+        model.performSearch()
+    }
+
+    private func retrySearch() {
+        hasSubmittedSearch = true
+        model.performSearch()
+    }
+
+    private func dismissSearchError() {
+        model.lastError = ""
     }
 
     private func setSearchScope(_ scope: String) {
@@ -239,6 +318,108 @@ struct SearchWindowView: View {
         case .hash:
             return lhs.hash.localizedCaseInsensitiveCompare(rhs.hash)
         }
+    }
+}
+
+private struct SearchStateOverlay: View {
+    enum State: Equatable {
+        case initial
+        case loading(progress: Int)
+        case noResults
+    }
+
+    let state: State
+
+    var body: some View {
+        switch state {
+        case .initial:
+            EmptyStateView(
+                icon: "magnifyingglass",
+                title: L("Search by file name"),
+                subtitle: L("Enter a query in the toolbar search field.")
+            )
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(L("Search state"))
+            .accessibilityValue(L("Search ready"))
+            .accessibilityHint(L("Enter a query in the toolbar search field."))
+        case .loading(let progress):
+            VStack(spacing: 10) {
+                ProgressView()
+                    .controlSize(.small)
+                    .accessibilityLabel(L("Search progress"))
+                    .accessibilityValue(LF("%d%% complete", progress))
+                Text(L("Searching remote index…"))
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text(LF("%d%% complete", progress))
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.tertiary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(L("Search state"))
+            .accessibilityValue(L("Searching remote index"))
+            .accessibilityHint(L("Search progress"))
+        case .noResults:
+            EmptyStateView(
+                icon: "doc.text.magnifyingglass",
+                title: L("No search results"),
+                subtitle: L("Try a broader query or fewer constraints.")
+            )
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(L("Search state"))
+            .accessibilityValue(L("No search results"))
+            .accessibilityHint(L("Try a broader query or fewer constraints."))
+        }
+    }
+}
+
+private struct SearchErrorBanner: View {
+    let message: String
+    let canRetry: Bool
+    let retry: () -> Void
+    let dismiss: () -> Void
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L("Search failed"))
+                    .font(.caption.weight(.semibold))
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 12)
+
+            Button(L("Retry")) {
+                retry()
+            }
+            .controlSize(.small)
+            .accessibilityLabel(L("Retry"))
+            .accessibilityHint(L("Retry"))
+            .disabled(!canRetry)
+
+            Button(L("Dismiss")) {
+                dismiss()
+            }
+            .controlSize(.small)
+            .keyboardShortcut(.cancelAction)
+            .accessibilityLabel(L("Dismiss"))
+            .accessibilityHint(L("Dismiss"))
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(L("Search error"))
+        .accessibilityValue(message)
+        .accessibilityHint(L("Use Retry to search again or Dismiss to close this error."))
+        .onExitCommand(perform: dismiss)
     }
 }
 
