@@ -55,6 +55,13 @@ final class MacSearchToolbarTests: XCTestCase {
             content.contains("showSearchNetwork: {\n                        openWindow(id: \"search-window\")\n                        NSApp.activate(ignoringOtherApps: true)\n                    }"),
             "The downloads toolbar Search Network action should open the stable Search window ID and activate the app."
         )
+        XCTAssertFalse(
+            toolbarItemGroupSlices(in: toolbar).contains { group in
+                (group.contains("Search Network") || group.contains("showSearchNetwork()")) &&
+                (group.contains("Details") || group.contains("Show Download Details") || group.contains("showDetails()") || group.contains("info"))
+            },
+            "Search Network and Details/Info should not be intentionally bundled into the same ToolbarItemGroup."
+        )
     }
 
     func testDownloadsFilterRemainsLocalAndSearchWindowKeepsRemoteSearchField() throws {
@@ -229,5 +236,38 @@ final class MacSearchToolbarTests: XCTestCase {
     private func source(_ relativePath: String) throws -> String {
         let url = packageRoot.appendingPathComponent(relativePath)
         return try String(contentsOf: url, encoding: .utf8)
+    }
+
+    private func toolbarItemGroupSlices(in source: String) -> [String] {
+        var slices: [String] = []
+        var searchStart = source.startIndex
+
+        while let keywordRange = source.range(of: "ToolbarItemGroup", range: searchStart..<source.endIndex) {
+            guard let openBrace = source[keywordRange.upperBound...].firstIndex(of: "{") else { break }
+
+            var depth = 0
+            var endIndex: String.Index?
+            var index = openBrace
+
+            while index < source.endIndex {
+                let character = source[index]
+                if character == "{" {
+                    depth += 1
+                } else if character == "}" {
+                    depth -= 1
+                    if depth == 0 {
+                        endIndex = source.index(after: index)
+                        break
+                    }
+                }
+                index = source.index(after: index)
+            }
+
+            guard let sliceEnd = endIndex else { break }
+            slices.append(String(source[keywordRange.lowerBound..<sliceEnd]))
+            searchStart = sliceEnd
+        }
+
+        return slices
     }
 }

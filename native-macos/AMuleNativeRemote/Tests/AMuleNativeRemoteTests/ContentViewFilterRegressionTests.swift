@@ -28,8 +28,16 @@ final class ContentViewFilterRegressionTests: XCTestCase {
         XCTAssertFalse(content.contains("DownloadSidebarFilter"), "ContentView should not keep sidebar-era filter naming.")
 
         XCTAssertTrue(toolbar.contains("Download Status Filter"), "The toolbar should expose a status filter control.")
-        XCTAssertTrue(toolbar.contains("Picker(L(\"Download Status Filter\"), selection: $selectedDownloadStatusFilter)"), "The toolbar status menu should indicate the selected bucket through a picker.")
+        XCTAssertFalse(toolbar.contains("Picker(L(\"Download Status Filter\"), selection: $selectedDownloadStatusFilter)"), "The toolbar status control should not use a nested picker that creates an intermediate submenu row.")
         XCTAssertTrue(toolbar.contains("downloadStatusFilterLabel(for: selectedDownloadStatusFilter)"), "The toolbar label should include the active status count.")
+        XCTAssertTrue(toolbar.contains("downloadStatusFilterLabel(for: filter)"), "Each status choice should still render through the count label helper or an equivalent presentation.")
+        XCTAssertTrue(toolbar.contains(".help(L(\"Download Status Filter\"))"))
+        XCTAssertTrue(toolbar.contains(".accessibilityLabel(L(\"Download Status Filter\"))"))
+        XCTAssertTrue(toolbar.contains(".accessibilityValue(downloadStatusFilterLabel(for: selectedDownloadStatusFilter))"))
+
+        for label in ["case all = \"All\"", "case downloading = \"Downloading\"", "case pending = \"Pending\"", "case paused = \"Paused\"", "case completed = \"Completed\""] {
+            XCTAssertTrue(content.contains(label), "Missing status choice: \(label)")
+        }
 
         for bucket in ["all", "downloading", "pending", "paused", "completed"] {
             XCTAssertTrue(content.contains("case \(bucket)"), "Missing status bucket: \(bucket)")

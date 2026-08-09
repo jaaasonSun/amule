@@ -20,16 +20,15 @@ struct MainToolbar: ToolbarContent {
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .automatic) {
-            Menu {
-                Picker(L("Download Status Filter"), selection: $selectedDownloadStatusFilter) {
-                    ForEach(ContentView.DownloadStatusFilter.allCases) { filter in
-                        Label(downloadStatusFilterLabel(for: filter), systemImage: filter.symbolName)
-                            .tag(filter)
-                    }
+            Picker(selection: $selectedDownloadStatusFilter) {
+                ForEach(ContentView.DownloadStatusFilter.allCases) { filter in
+                    Label(downloadStatusFilterLabel(for: filter), systemImage: filter.symbolName)
+                        .tag(filter)
                 }
             } label: {
                 Label(downloadStatusFilterLabel(for: selectedDownloadStatusFilter), systemImage: selectedDownloadStatusFilter.symbolName)
             }
+            .pickerStyle(.menu)
             .help(L("Download Status Filter"))
             .accessibilityLabel(L("Download Status Filter"))
             .accessibilityValue(downloadStatusFilterLabel(for: selectedDownloadStatusFilter))
