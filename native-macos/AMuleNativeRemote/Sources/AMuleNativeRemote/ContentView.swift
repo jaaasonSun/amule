@@ -78,7 +78,10 @@ struct ContentView: View {
     }
 
     private var windowTitleText: String {
-        L("Downloads")
+        if selectedDownloadStatusFilter == .all {
+            return L("Downloads")
+        }
+        return "\(L("Downloads")) — \(selectedDownloadStatusFilter.localizedTitle)"
     }
 
     private var baseBody: some View {
@@ -463,6 +466,14 @@ private struct MainWindowStatusFooter: View {
         localizedConnectionStatusText(for: summary.kad)
     }
 
+    private var sessionState: SharedViews.ConnectionState {
+        isSessionConnected || status.connected ? .connected : .disconnected
+    }
+
+    private var kadState: SharedViews.ConnectionState {
+        ConnectionStateParser.parse(summary.kad)
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             FooterControlButton(
@@ -471,7 +482,8 @@ private struct MainWindowStatusFooter: View {
                 accessibilityValue: sessionStatusText,
                 accessibilityHint: L("Opens the connection settings sheet.")
             ) {
-                statusSegment(title: L("Connection:"), value: sessionStatusText)
+                Label("aMule", systemImage: ConnectionStateSymbol.symbolName(for: sessionState))
+                    .labelStyle(.titleAndIcon)
             }
             footerDivider
             FooterControlButton(
@@ -480,7 +492,7 @@ private struct MainWindowStatusFooter: View {
                 accessibilityValue: ed2kStatusText,
                 accessibilityHint: L("Opens the Servers window.")
             ) {
-                statusSegment(title: L("eD2K:"), value: ed2kStatusText)
+                statusSegment(title: L("eD2K:"), value: compactED2kBadgeValue(summary.ed2k))
             }
             footerDivider
             FooterControlButton(
@@ -489,7 +501,8 @@ private struct MainWindowStatusFooter: View {
                 accessibilityValue: kadStatusText,
                 accessibilityHint: L("Opens the Servers window.")
             ) {
-                statusSegment(title: L("Kad:"), value: kadStatusText)
+                Label("Kad", systemImage: ConnectionStateSymbol.symbolName(for: kadState))
+                    .labelStyle(.titleAndIcon)
             }
 
             Spacer(minLength: 12)

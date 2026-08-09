@@ -26,22 +26,22 @@ final class MacUIPolishTests: XCTestCase {
             .appendingPathComponent(".sisyphus/evidence/task-5-p3-polish")
     }
 
-    func testMainWindowExposesPersistentTextualStatusFooter() throws {
+    func testMainWindowFooterUsesConciseNetworkStatusSemantics() throws {
         let source = try source("Sources/AMuleNativeRemote/ContentView.swift")
         let footer = try mainFooterSource(in: source)
 
         XCTAssertTrue(source.contains("MainWindowStatusFooter"), "ContentView should install a named persistent status/footer surface.")
         XCTAssertTrue(source.contains("NetworkStatusSummary(status: model.status)"), "The footer should use the existing NetworkStatusSummary wrapper.")
-        XCTAssertTrue(source.contains("Connection:"), "The footer should expose textual session connection status.")
-        XCTAssertTrue(source.contains("eD2K:"), "The footer should expose textual eD2K status.")
-        XCTAssertTrue(source.contains("Kad:"), "The footer should expose textual Kad status.")
-        XCTAssertTrue(footer.contains("localizedED2KConnectionStatusText(for: summary.ed2k)"), "The footer should localize raw eD2K state text before rendering it.")
-        XCTAssertTrue(footer.contains("localizedConnectionStatusText(for: summary.kad)"), "The footer should localize Kad with generic state wording.")
-        XCTAssertFalse(footer.contains("ConnectionState" + "Indicator"), "The footer should be text-only, with no status indicator chip.")
-        XCTAssertFalse(footer.contains("ConnectionState" + "Dot"), "The footer should not use a status dot.")
-        XCTAssertFalse(footer.contains("Image("), "The footer should not use redundant status symbols.")
-        XCTAssertFalse(footer.contains("systemImage"), "The footer should not use symbol-backed labels for status.")
-        XCTAssertFalse(footer.contains("checkmark"), "The footer should not show a checkmark status glyph.")
+        XCTAssertEqual(occurrenceCount(of: "FooterControlButton(", in: footer), 5, "The footer should keep five native controls: aMule, eD2K, Kad, Download speed, and Upload speed.")
+        XCTAssertTrue(footer.contains("ConnectionStateSymbol.symbolName(for:"), "Network footer visuals should use the canonical connection state symbols.")
+        XCTAssertTrue(footer.contains("ConnectionStateParser.parse(summary.kad)"), "Kad state should be parsed from the daemon summary before choosing a symbol.")
+        XCTAssertTrue(footer.contains("compactED2kBadgeValue(summary.ed2k)"), "The visual eD2K value should use the canonical compact formatter so server endpoints and ID suffixes are not shown in the footer.")
+        XCTAssertTrue(footer.contains("Label(\"aMule\"") || footer.contains("Text(\"aMule\")"), "The session connection visual should be identified as aMule.")
+        XCTAssertTrue(footer.contains("Label(\"Kad\"") || footer.contains("Text(\"Kad\")"), "The Kad visual should be identified as Kad.")
+        XCTAssertTrue(footer.contains("accessibilityValue: sessionStatusText"), "The aMule session control should expose an explicit accessibility value.")
+        XCTAssertTrue(footer.contains("accessibilityValue: kadStatusText"), "The Kad control should expose the full localized accessibility value.")
+        XCTAssertTrue(footer.contains("localizedConnectionStatusText(for: summary.kad)"), "The Kad accessibility value should use the full localized state text.")
+        XCTAssertFalse(footer.contains("Connection:"), "The visual footer should not render redundant 'Connection: Connected' text while keeping action and accessibility labels.")
 
         try writeRenderedSurface(
             ContentView().environmentObject(polishPreviewModel()),
@@ -63,15 +63,11 @@ final class MacUIPolishTests: XCTestCase {
         XCTAssertTrue(source.contains("Divider()\n            MainWindowStatusFooter"), "A divider should separate pane/error content from the footer.")
     }
 
-    func testFooterConnectionStatusTextIsFullyLocalized() {
-        XCTAssertEqual(
-            localizedED2KConnectionStatusText(for: "Connected to Razorback [1.2.3.4:4661] HighID"),
-            LF("Connected to %@", "Razorback [1.2.3.4:4661] HighID")
-        )
-        XCTAssertEqual(
-            localizedED2KConnectionStatusText(for: "Connecting to DonkeyServer [5.6.7.8:4661] LowID"),
-            LF("Connecting to %@", "DonkeyServer [5.6.7.8:4661] LowID")
-        )
+    func testFooterConnectionStatusValuesUseCanonicalFormatters() {
+        XCTAssertEqual(compactED2kBadgeValue("Connected to Razorback [1.2.3.4:4661] HighID"), "Razorback")
+        XCTAssertEqual(compactED2kBadgeValue("Connecting to DonkeyServer [5.6.7.8:4661] LowID"), "DonkeyServer")
+        XCTAssertEqual(compactED2kBadgeValue("Connected"), compactConnectionState("Connected"))
+        XCTAssertEqual(compactED2kBadgeValue("Disconnected"), compactConnectionState("Disconnected"))
         XCTAssertEqual(localizedED2KConnectionStatusText(for: "Connected"), L("Connected"))
         XCTAssertEqual(localizedED2KConnectionStatusText(for: "Disconnected"), L("Disconnected"))
         XCTAssertEqual(localizedED2KConnectionStatusText(for: "Connecting"), L("Connecting"))
@@ -176,7 +172,7 @@ final class MacUIPolishTests: XCTestCase {
 
         let log = """
         Task 5 P3 polish evidence
-        main-status-footer.png: persistent footer renders Connection/eD2K/Kad text.
+        main-status-footer.png: persistent footer renders concise aMule and Kad state symbols plus compact eD2K server status.
         stats-chart-axis.png: x-axis uses \(L("History (oldest to newest)")); labels include \(statsGraphXAxisLabel(index: 0, sampleCount: 4)), \(statsGraphXAxisLabel(index: 2, sampleCount: 4)), \(statsGraphXAxisLabel(index: 3, sampleCount: 4)).
         settings evidence: rendered representative tabs at narrow/current/wide sizes with classic preference toolbar tabs.
         """
@@ -256,6 +252,10 @@ final class MacUIPolishTests: XCTestCase {
         let start = try XCTUnwrap(source.range(of: "private struct MainWindowStatusFooter")?.lowerBound)
         let end = try XCTUnwrap(source.range(of: "#if DEBUG", range: start..<source.endIndex)?.lowerBound)
         return String(source[start..<end])
+    }
+
+    private func occurrenceCount(of needle: String, in haystack: String) -> Int {
+        haystack.components(separatedBy: needle).count - 1
     }
 
     private func containsLocalizationKey(_ key: String, in table: String) -> Bool {
