@@ -974,6 +974,7 @@ final class IOSRemoteSessionCoordinatorTests: XCTestCase {
 
         XCTFail(message, file: file, line: line)
     }
+
 }
 
 final class IOSRecordingRenameBridge: BridgeProtocol, @unchecked Sendable {
@@ -1004,6 +1005,7 @@ final class IOSRecordingRenameBridge: BridgeProtocol, @unchecked Sendable {
     private(set) var serverAddCallCount = 0
     private(set) var serverRemoveCallCount = 0
     private(set) var serverUpdateCallCount = 0
+    var addLinkErrors: [Error] = []
     var onStatusCall: (@Sendable () async -> Void)?
     var onConnectCall: (@Sendable () async -> Void)?
     var onDisconnectCall: (@Sendable () async -> Void)?
@@ -1023,7 +1025,7 @@ final class IOSRecordingRenameBridge: BridgeProtocol, @unchecked Sendable {
     private var queuedSourceResults: [Result<[BridgeDownloadSourcePayload], IOSSnapshotFailure>]
     private var queuedTransferLimitsResults: [Result<BridgeConnectionPrefsPayload, IOSSnapshotFailure>]
 
-    fileprivate init(
+    init(
         downloadsResults: [[BridgeDownloadPayload]],
         statusResults: [BridgeStatusPayload] = [],
         serversResults: [[BridgeServerPayload]] = [],
@@ -1108,6 +1110,9 @@ final class IOSRecordingRenameBridge: BridgeProtocol, @unchecked Sendable {
         addLinkCallCount += 1
         if let onMutationCall {
             await onMutationCall()
+        }
+        if !addLinkErrors.isEmpty {
+            throw addLinkErrors.removeFirst()
         }
         return ("ok", "{}")
     }
@@ -1266,7 +1271,7 @@ final class IOSRecordingRenameBridge: BridgeProtocol, @unchecked Sendable {
     func statsGraphs(width: Int, scale: Int, last: Double?, config: AMuleConnectionConfig) async throws -> (BridgeStatsGraphsPayload, String) { (ECStatsGraphs(last: 0, samples: []), "{}") }
 }
 
-private struct IOSSnapshotFailure: LocalizedError {
+struct IOSSnapshotFailure: LocalizedError {
     var errorDescription: String? { "Snapshot failed" }
 }
 
@@ -1331,7 +1336,7 @@ private actor IOSRefreshCallProbe {
     }
 }
 
-private extension BridgeDownloadPayload {
+extension BridgeDownloadPayload {
     static func download(name: String) -> BridgeDownloadPayload {
         BridgeDownloadPayload(
             ecid: 1,

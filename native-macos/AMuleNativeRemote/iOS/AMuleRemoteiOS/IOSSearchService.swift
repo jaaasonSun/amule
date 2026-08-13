@@ -8,29 +8,41 @@ import SharedViews
 @MainActor
 struct IOSSearchService {
     func addLinks(_ rawInput: String, model: IOSAppModel) {
-        guard let importPlan = LinkImportPlan(rawInput: rawInput) else {
-            model.lastError = L("No valid links found.")
+        let diagnostics = LinkImportDiagnostics.analyze(rawInput: rawInput)
+        let presentation = LinkImportDiagnosticsFormatter.format(diagnostics: diagnostics)
+        let validLinks = diagnostics.validNormalizedLinks
+        let diagnosticDetails = presentation.detailLines
+            .filter { !$0.hasPrefix("Added ") }
+            .joined(separator: "\n")
+
+        guard !validLinks.isEmpty else {
+            model.lastError = diagnosticDetails.isEmpty ? (presentation.summaryText.isEmpty ? L("No valid links found.") : presentation.summaryText) : diagnosticDetails
             return
         }
 
         model.isBusy = true
         model.lastError = ""
-        model.downloadFeedback = LF("%lld link(s) queued for import", Int64(importPlan.count))
+        model.downloadFeedback = presentation.summaryText
         let config = model.config
         let bridge = model.bridgeClient
         let session = model.currentSessionCoordinator()
         Task {
             var successCount = 0
             var failureCount = 0
-            for normalized in importPlan.normalizedLinks {
+            var lastFailureReason: String?
+
+            for normalized in validLinks {
                 do {
                     let _ = try await bridge.addLink(link: normalized, config: config)
                     successCount += 1
                 } catch {
                     failureCount += 1
+                    lastFailureReason = await MainActor.run {
+                        model.localNetworkErrorPresenter.userFacingMessage(for: error)
+                    }
                     await MainActor.run {
                         guard model.isCurrentSession(session) else { return }
-                        model.lastError = model.localNetworkErrorPresenter.userFacingMessage(for: error)
+                        model.lastError = lastFailureReason ?? model.lastError
                     }
                 }
             }
@@ -46,6 +58,11 @@ struct IOSSearchService {
                     model.downloadFeedback = IOSAppModel.linkImportFeedback(
                         LinkImportOutcome(successCount: successCount, failureCount: failureCount)
                     )
+                    if failureCount > 0 {
+                        model.lastError = lastFailureReason ?? LF("%lld link(s) failed", Int64(failureCount))
+                    } else if !diagnosticDetails.isEmpty {
+                        model.lastError = diagnosticDetails
+                    }
                     model.isBusy = false
                 }
             } catch {
@@ -54,6 +71,11 @@ struct IOSSearchService {
                     model.downloadFeedback = IOSAppModel.linkImportFeedback(
                         LinkImportOutcome(successCount: successCount, failureCount: failureCount)
                     )
+                    if failureCount > 0 {
+                        model.lastError = lastFailureReason ?? LF("%lld link(s) failed", Int64(failureCount))
+                    } else if !diagnosticDetails.isEmpty {
+                        model.lastError = diagnosticDetails
+                    }
                     model.isBusy = false
                 }
             }
