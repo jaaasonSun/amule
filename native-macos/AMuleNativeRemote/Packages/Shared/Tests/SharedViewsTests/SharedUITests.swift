@@ -739,6 +739,103 @@ final class LinkImportSupportTests: XCTestCase {
     }
 }
 
+final class LinkImportDiagnosticsFormatterTests: XCTestCase {
+    func testDiagnosticsClassifySampleInput() {
+        let diagnostics = LinkImportDiagnostics.analyze(
+            rawInput: """
+            not a link
+            ed2k://|file|Example.txt|123|0123456789ABCDEF0123456789ABCDEF|/
+            magnet:?xt=urn:ed2k:BADHASH
+            """
+        )
+
+        XCTAssertEqual(diagnostics.items.map(\.kind), [
+            .ignoredUnsupportedLine,
+            .validNormalizedLink,
+            .malformedHash
+        ])
+        XCTAssertEqual(diagnostics.validNormalizedLinks, [
+            "ed2k://|file|Example.txt|123|0123456789ABCDEF0123456789ABCDEF|/"
+        ])
+    }
+
+    func testDiagnosticsTreatEncodedAndDecodedEd2kAsDuplicates() {
+        let diagnostics = LinkImportDiagnostics.analyze(
+            rawInput: """
+            ed2k://|file|Example.txt|123|0123456789ABCDEF0123456789ABCDEF|/
+            ed2k://%7Cfile%7CExample.txt%7C123%7C0123456789ABCDEF0123456789ABCDEF%7C/
+            """
+        )
+
+        XCTAssertEqual(diagnostics.items.map(\.kind), [
+            .validNormalizedLink,
+            .duplicateNormalizedLink
+        ])
+        XCTAssertEqual(diagnostics.items.last?.line, "ed2k://|file|Example.txt|123|0123456789ABCDEF0123456789ABCDEF|/")
+    }
+
+    func testDirectEd2kMalformedHashIsClassified() {
+        let diagnostics = LinkImportDiagnostics.analyze(
+            rawInput: "ed2k://|file|broken.bin|1|not-a-hash|/"
+        )
+
+        XCTAssertEqual(diagnostics.items.map(\.kind), [.malformedHash])
+    }
+
+    func testDiagnosticsFormatterProducesCompactSummaryAndDetails() {
+        let diagnostics = LinkImportDiagnostics(items: [
+            .init(kind: .validNormalizedLink, line: "ed2k://|file|Example.txt|123|0123456789ABCDEF0123456789ABCDEF|/", detail: nil),
+            .init(kind: .ignoredUnsupportedLine, line: "not a link", detail: nil),
+            .init(kind: .duplicateNormalizedLink, line: "ed2k://|file|Example.txt|123|0123456789ABCDEF0123456789ABCDEF|/", detail: nil),
+            .init(kind: .malformedHash, line: "magnet:?xt=urn:ed2k:BADHASH", detail: nil),
+            .init(kind: .alreadyPresentOrSkipped, line: "ed2k://|file|Example.txt|123|0123456789ABCDEF0123456789ABCDEF|/", detail: "already present"),
+            .init(kind: .acceptedButNotVisible, line: "magnet:?xt=urn:ed2k:0123456789ABCDEF0123456789ABCDEF", detail: "accepted but not visible"),
+            .init(kind: .unverifiable, line: "ed2k://|file|Example.txt|123|0123456789ABCDEF0123456789ABCDEF|/", detail: "unverifiable"),
+            .init(kind: .failedLink, line: "magnet:?xt=urn:ed2k:0123456789ABCDEF0123456789ABCDEF", detail: "failed")
+        ])
+
+        let formatted = LinkImportDiagnosticsFormatter.format(diagnostics: diagnostics)
+
+        XCTAssertEqual(formatted.summaryText, "1 valid, 1 ignored, 1 duplicate, 1 malformed, 1 skipped, 1 invisible, 1 unverifiable, 1 failed")
+        XCTAssertEqual(formatted.detailLines, [
+            "Added 1 link.",
+            "Ignored 1 unsupported line.",
+            "1 duplicate link skipped.",
+            "1 link has an invalid ED2K hash.",
+            "1 already present or skipped.",
+            "1 accepted but not visible.",
+            "1 unverifiable.",
+            "1 failed."
+        ])
+    }
+
+    func testFormatterKeepsReasonLinesWhenOnlyUnverifiableIsFallback() {
+        let formatted = LinkImportDiagnosticsFormatter.format(diagnostics: .init(items: [
+            .init(kind: .ignoredUnsupportedLine, line: "not a link", detail: nil),
+            .init(kind: .malformedHash, line: "ed2k://|file|broken.bin|1|not-a-hash|/", detail: nil),
+            .init(kind: .duplicateNormalizedLink, line: "ed2k://|file|Example.txt|123|0123456789ABCDEF0123456789ABCDEF|/", detail: nil),
+            .init(kind: .unverifiable, line: "magnet:?xt=urn:ed2k:0123456789ABCDEF0123456789ABCDEF", detail: nil)
+        ]))
+
+        XCTAssertEqual(formatted.summaryText, "1 ignored, 1 duplicate, 1 malformed, 1 unverifiable")
+        XCTAssertEqual(formatted.detailLines, [
+            "Ignored 1 unsupported line.",
+            "1 duplicate link skipped.",
+            "1 link has an invalid ED2K hash.",
+            "This result could not be verified."
+        ])
+    }
+
+    func testFormatterUsesEvidenceBasedFallbackWhenNothingResolved() {
+        let formatted = LinkImportDiagnosticsFormatter.format(diagnostics: .init(items: [
+            .init(kind: .unverifiable, line: "magnet:?xt=urn:ed2k:0123456789ABCDEF0123456789ABCDEF", detail: nil)
+        ]))
+
+        XCTAssertEqual(formatted.summaryText, "1 unverifiable")
+        XCTAssertEqual(formatted.detailLines, ["This result could not be verified."])
+    }
+}
+
 @MainActor
 final class PendingIncomingLinkInboxTests: XCTestCase {
     func testInboxDedupesQueuesAndDrains() {

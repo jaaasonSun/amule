@@ -82,6 +82,177 @@ public enum LinkImportSupport {
     }
 }
 
+public enum LinkImportDiagnosticKind: String, Equatable, Sendable {
+    case validNormalizedLink
+    case ignoredUnsupportedLine
+    case duplicateNormalizedLink
+    case malformedHash
+    case failedLink
+    case alreadyPresentOrSkipped
+    case acceptedButNotVisible
+    case unverifiable
+}
+
+public struct LinkImportDiagnosticItem: Equatable, Sendable {
+    public let kind: LinkImportDiagnosticKind
+    public let line: String
+    public let detail: String?
+
+    public init(kind: LinkImportDiagnosticKind, line: String, detail: String?) {
+        self.kind = kind
+        self.line = line
+        self.detail = detail
+    }
+}
+
+public struct LinkImportDiagnostics: Equatable, Sendable {
+    public let items: [LinkImportDiagnosticItem]
+
+    public init(items: [LinkImportDiagnosticItem]) {
+        self.items = items
+    }
+
+    public var validNormalizedLinks: [String] {
+        items.compactMap { $0.kind == .validNormalizedLink ? $0.line : nil }
+    }
+
+    public static func analyze(rawInput: String) -> LinkImportDiagnostics {
+        var items: [LinkImportDiagnosticItem] = []
+        var seen = Set<String>()
+
+        for rawLine in rawInput.components(separatedBy: .newlines) {
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !line.isEmpty else { continue }
+
+            let lower = line.lowercased()
+            guard lower.hasPrefix("ed2k://") || lower.hasPrefix("magnet:?") else {
+                items.append(.init(kind: .ignoredUnsupportedLine, line: line, detail: nil))
+                continue
+            }
+
+            let normalized = LinkImportSupport.normalizeLink(line)
+            let hash = LinkImportSupport.extractEd2kHash(from: normalized)
+            let normalizedKey = normalized.lowercased()
+
+            if lower.hasPrefix("magnet:?") {
+                if normalized.lowercased().contains("urn:ed2k:") && hash == nil {
+                    items.append(.init(kind: .malformedHash, line: line, detail: "invalid ED2K hash"))
+                    continue
+                }
+                if hash == nil {
+                    items.append(.init(kind: .unverifiable, line: line, detail: "could not verify link"))
+                    continue
+                }
+            } else if normalized.lowercased().contains("|h=") && hash == nil {
+                items.append(.init(kind: .malformedHash, line: line, detail: "invalid ED2K hash"))
+                continue
+            } else if isMalformedEd2kFileLink(normalized) && hash == nil {
+                items.append(.init(kind: .malformedHash, line: line, detail: "invalid ED2K hash"))
+                continue
+            }
+
+            if !seen.insert(normalizedKey).inserted {
+                items.append(.init(kind: .duplicateNormalizedLink, line: normalized, detail: nil))
+                continue
+            }
+
+            items.append(.init(kind: .validNormalizedLink, line: normalized, detail: nil))
+        }
+
+        return LinkImportDiagnostics(items: items)
+    }
+
+    private static func isMalformedEd2kFileLink(_ link: String) -> Bool {
+        let lower = link.lowercased()
+        guard lower.hasPrefix("ed2k://") else { return false }
+        let decoded = link.removingPercentEncoding ?? link
+        let parts = decoded.split(separator: "|")
+        guard parts.count >= 5 else { return false }
+        guard parts.first?.lowercased().hasPrefix("ed2k://") == true else { return false }
+        return !LinkImportSupport.isValidEd2kHash(String(parts[4]))
+    }
+}
+
+public struct LinkImportDiagnosticsPresentation: Equatable, Sendable {
+    public let summaryText: String
+    public let detailLines: [String]
+
+    public init(summaryText: String, detailLines: [String]) {
+        self.summaryText = summaryText
+        self.detailLines = detailLines
+    }
+}
+
+public enum LinkImportDiagnosticsFormatter {
+    public static func format(diagnostics: LinkImportDiagnostics) -> LinkImportDiagnosticsPresentation {
+        let counts = diagnostics.items.reduce(into: [LinkImportDiagnosticKind: Int]()) { partial, item in
+            partial[item.kind, default: 0] += 1
+        }
+
+        let summaryParts: [String] = [
+            counts[.validNormalizedLink, default: 0].mapCount("valid"),
+            counts[.ignoredUnsupportedLine, default: 0].mapCount("ignored"),
+            counts[.duplicateNormalizedLink, default: 0].mapCount("duplicate"),
+            counts[.malformedHash, default: 0].mapCount("malformed"),
+            counts[.alreadyPresentOrSkipped, default: 0].mapCount("skipped"),
+            counts[.acceptedButNotVisible, default: 0].mapCount("invisible"),
+            counts[.unverifiable, default: 0].mapCount("unverifiable"),
+            counts[.failedLink, default: 0].mapCount("failed")
+        ].compactMap { $0 }
+
+        let summaryText = summaryParts.isEmpty ? "No importable links" : summaryParts.joined(separator: ", ")
+
+        var detailLines: [String] = []
+        if let added = counts[.validNormalizedLink], added > 0 {
+            detailLines.append(added == 1 ? "Added 1 link." : "Added \(added) links.")
+        }
+        if let ignored = counts[.ignoredUnsupportedLine], ignored > 0 {
+            detailLines.append(ignored == 1 ? "Ignored 1 unsupported line." : "Ignored \(ignored) unsupported lines.")
+        }
+        if let duplicates = counts[.duplicateNormalizedLink], duplicates > 0 {
+            detailLines.append(duplicates == 1 ? "1 duplicate link skipped." : "\(duplicates) duplicate links skipped.")
+        }
+        if let malformed = counts[.malformedHash], malformed > 0 {
+            detailLines.append(malformed == 1 ? "1 link has an invalid ED2K hash." : "\(malformed) links have invalid ED2K hashes.")
+        }
+        if let skipped = counts[.alreadyPresentOrSkipped], skipped > 0 {
+            detailLines.append(skipped == 1 ? "1 already present or skipped." : "\(skipped) already present or skipped.")
+        }
+        if let invisible = counts[.acceptedButNotVisible], invisible > 0 {
+            detailLines.append(invisible == 1 ? "1 accepted but not visible." : "\(invisible) accepted but not visible.")
+        }
+        let hasAnyVerifiedResult = counts[.validNormalizedLink, default: 0] > 0
+            || counts[.alreadyPresentOrSkipped, default: 0] > 0
+            || counts[.acceptedButNotVisible, default: 0] > 0
+            || counts[.failedLink, default: 0] > 0
+
+        if let unverifiable = counts[.unverifiable], unverifiable > 0 {
+            if !hasAnyVerifiedResult {
+                detailLines.append("This result could not be verified.")
+            } else {
+                detailLines.append(unverifiable == 1 ? "1 unverifiable." : "\(unverifiable) unverifiable.")
+            }
+        }
+
+        if let failed = counts[.failedLink], failed > 0 {
+            detailLines.append(failed == 1 ? "1 failed." : "\(failed) failed.")
+        }
+
+        if detailLines.isEmpty, counts[.unverifiable, default: 0] > 0, !hasAnyVerifiedResult {
+            detailLines.append("This result could not be verified.")
+        }
+
+        return LinkImportDiagnosticsPresentation(summaryText: summaryText, detailLines: detailLines)
+    }
+}
+
+private extension Int {
+    func mapCount(_ label: String) -> String? {
+        guard self > 0 else { return nil }
+        return self == 1 ? "1 \(label)" : "\(self) \(label)"
+    }
+}
+
 public struct LinkImportPlan: Equatable, Sendable {
     public let links: [String]
     public let normalizedLinks: [String]
