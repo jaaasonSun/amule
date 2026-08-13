@@ -7,10 +7,12 @@ final class MacNativeNavigationTests: XCTestCase {
         for required in [
             "DownloadsPanel(",
             "MainWindowStatusFooter(",
-            "GlobalErrorBanner(",
+            ".alert(\"aMule Remote Error\", isPresented: errorAlertBinding)",
         ] {
             XCTAssertTrue(content.contains(required), "ContentView should keep \(required) in the downloads-first main window shell.")
         }
+
+        XCTAssertFalse(content.contains("GlobalErrorBanner("), "ContentView should present global errors with a native alert, not the old footer-adjacent banner.")
 
         for forbidden in [
             "NavigationSplitView",

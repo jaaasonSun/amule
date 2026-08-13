@@ -91,15 +91,6 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .layoutPriority(1)
 
-            if !model.lastError.isEmpty {
-                Divider()
-                GlobalErrorBanner(
-                    message: model.lastError,
-                    activePaneTitle: windowTitleText,
-                    dismiss: { model.lastError = "" }
-                )
-            }
-
             Divider()
             MainWindowStatusFooter(
                 summary: NetworkStatusSummary(status: model.status),
@@ -274,6 +265,13 @@ struct ContentView: View {
             } message: {
                 Text(LF("This will remove %lld selected download(s). This action cannot be undone.", Int64(pendingRemoveDownloadIDs.count)))
             }
+            .alert("aMule Remote Error", isPresented: errorAlertBinding) {
+                Button("OK") {
+                    model.lastError = ""
+                }
+            } message: {
+                Text(model.lastError)
+            }
             .overlay {
                 if model.showHUD {
                     AddLinksHUD(message: model.hudMessage)
@@ -281,6 +279,17 @@ struct ContentView: View {
                         .allowsHitTesting(false)
                 }
             }
+    }
+
+    private var errorAlertBinding: Binding<Bool> {
+        Binding(
+            get: { !model.lastError.isEmpty },
+            set: { isPresented in
+                if !isPresented {
+                    model.lastError = ""
+                }
+            }
+        )
     }
 
     @ViewBuilder

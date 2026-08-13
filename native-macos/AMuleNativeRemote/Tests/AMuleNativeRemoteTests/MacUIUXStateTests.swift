@@ -79,13 +79,15 @@ final class MacUIUXStateTests: XCTestCase {
         )
     }
 
-    func testContentViewGlobalErrorIsContextualDismissibleAndNavigationNative() throws {
+    func testContentViewGlobalErrorUsesNativeAlertAndNavigationRemainsNative() throws {
         let contentSource = try source("Sources/AMuleNativeRemote/ContentView.swift")
 
         XCTAssertTrue(contentSource.contains("DownloadsPanel("), "The main macOS window must stay focused on the downloads shell.")
-        XCTAssertTrue(contentSource.contains("GlobalErrorBanner"), "Global errors should keep the contextual banner treatment.")
-        XCTAssertTrue(contentSource.contains("activePaneTitle: windowTitleText"), "Global errors should identify the active pane.")
-        XCTAssertTrue(contentSource.contains("Button(L(\"Dismiss\"))"), "Global error presentation should be dismissible.")
+        XCTAssertFalse(contentSource.contains("GlobalErrorBanner("), "Global errors should use a native alert instead of the old footer-adjacent banner.")
+        XCTAssertTrue(contentSource.contains(".alert(\"aMule Remote Error\", isPresented: errorAlertBinding)"), "Global errors should use a native alert title matching the iOS SwiftUI localization style.")
+        XCTAssertTrue(contentSource.contains("Text(model.lastError)"), "The native alert should present the current error message.")
+        XCTAssertTrue(contentSource.contains("private var errorAlertBinding: Binding<Bool>"), "The native alert should use a binding so system dismissal can clear the error.")
+        XCTAssertTrue(contentSource.contains("model.lastError = \"\""), "Alert dismissal should clear the current error.")
         XCTAssertTrue(contentSource.contains("MainWindowStatusFooter("), "The downloads shell should keep its native footer controls.")
         for forbidden in ["NavigationSplitView", ".listStyle(.sidebar)", "SidebarSelection", "normalizeSidebarSelectionForVisibleSections"] {
             XCTAssertFalse(contentSource.contains(forbidden), "The downloads shell should not use the old sidebar navigation contract: \(forbidden)")
