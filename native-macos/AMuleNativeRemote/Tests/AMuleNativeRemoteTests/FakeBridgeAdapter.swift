@@ -19,6 +19,7 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
     var searchResult: (progress: Int, results: [BridgeSearchPayload], raw: String) = (0, [], #"{"ok":true,"progress":0,"results":[]}"#)
     var messageRaw: String = #"{"ok":true,"message":"ok"}"#
     var renameResult: RenameAcknowledgement = .success(message: "ok", raw: #"{"ok":true,"message":"ok"}"#)
+    var addLinkResult: Result<(message: String, raw: String), Error> = .success(("ok", #"{"ok":true,"message":"ok"}"#))
     var invokedOperations: [String] = []
     var pauseCallCount = 0
     var onDownloadsCall: (@Sendable () async -> Void)?
@@ -120,7 +121,10 @@ final class FakeBridgeAdapter: BridgeProtocol, @unchecked Sendable {
     }
     func searchStop(config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
     func download(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
-    func addLink(link: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) { ("ok", messageRaw) }
+    func addLink(link: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
+        invokedOperations.append("add-link")
+        return try addLinkResult.get()
+    }
     func rename(hash: String, name: String, config: AMuleConnectionConfig) async throws -> RenameAcknowledgement { renameResult }
     func pause(hash: String, config: AMuleConnectionConfig) async throws -> (message: String, raw: String) {
         pauseCallCount += 1
