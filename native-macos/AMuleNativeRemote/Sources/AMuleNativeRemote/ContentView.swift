@@ -475,7 +475,7 @@ private struct MainWindowStatusFooter: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 3) {
             FooterControlButton(
                 action: openConnectionSettings,
                 accessibilityLabel: L("Open Connection Settings"),
@@ -505,7 +505,7 @@ private struct MainWindowStatusFooter: View {
                     .labelStyle(.titleAndIcon)
             }
 
-            Spacer(minLength: 12)
+            Spacer()
 
             FooterControlButton(
                 action: openDownloadStatisticsWindow,
@@ -515,6 +515,7 @@ private struct MainWindowStatusFooter: View {
             ) {
                 MetricChipView(title: L("Download"), value: status.downloadSpeed)
             }
+            footerDivider
             FooterControlButton(
                 action: openUploadStatisticsWindow,
                 accessibilityLabel: L("Open Statistics"),
@@ -525,8 +526,8 @@ private struct MainWindowStatusFooter: View {
             }
         }
         .controlSize(.small)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
         .background(Color(nsColor: .controlBackgroundColor))
     }
 
@@ -591,10 +592,10 @@ private struct FooterControlButtonStyle: ButtonStyle {
 
     private func backgroundStyle(isPressed: Bool) -> Color {
         if isPressed {
-            return Color(nsColor: .selectedControlColor).opacity(0.22)
+            return Color(nsColor: .selectedControlColor).opacity(0.5)
         }
         if isHovering {
-            return Color(nsColor: .separatorColor).opacity(0.22)
+            return Color(nsColor: .separatorColor).opacity(0.5)
         }
         return .clear
     }
