@@ -216,13 +216,11 @@ public struct DownloadItem: Identifiable, Hashable {
     }
 
     public var speedSortValue: Int {
-        if speedBytes > 0 {
-            return 2_000_000_000 + max(0, speedBytes)
-        }
-        if isCompletedLike {
-            return 1_000_000_000
-        }
-        return 0
+        return isCompletedLike ? 1_000_000_000_000 : max(0, speedBytes)
+    }
+    
+    public var srcSortValue: Int {
+        return isCompletedLike ? 1_000_000_000_000 : sourceTotal
     }
 
     public var progressText: String {
@@ -230,6 +228,9 @@ public struct DownloadItem: Identifiable, Hashable {
     }
 
     public var sourcesText: String {
+        if isCompletedLike {
+            return ""
+        }
         var text = sourceCurrent == sourceTotal ? "\(sourceTotal)" : "\(sourceCurrent)/\(sourceTotal)"
         if sourceA4AF > 0 {
             text += "+\(sourceA4AF)"

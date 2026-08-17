@@ -24,7 +24,7 @@ enum DownloadTableSortPersistence {
                 self = .progress
             } else if comparator.keyPath == \DownloadItem.speedSortValue {
                 self = .speed
-            } else if comparator.keyPath == \DownloadItem.sourceTotal {
+            } else if comparator.keyPath == \DownloadItem.srcSortValue {
                 self = .sources
             } else {
                 return nil
@@ -40,7 +40,7 @@ enum DownloadTableSortPersistence {
             case .speed:
                 return KeyPathComparator(\DownloadItem.speedSortValue, order: order)
             case .sources:
-                return KeyPathComparator(\DownloadItem.sourceTotal, order: order)
+                return KeyPathComparator(\DownloadItem.srcSortValue, order: order)
             }
         }
     }
@@ -256,7 +256,7 @@ struct DownloadsPanel: View {
             )
             .customizationID("speed")
 
-            TableColumn("Src", sortUsing: KeyPathComparator(\DownloadItem.sourceTotal, order: .reverse)) { item in
+            TableColumn("Src", sortUsing: KeyPathComparator(\DownloadItem.srcSortValue, order: .reverse)) { item in
                 downloadTableCell(
                     item,
                     alignment: .trailing,
