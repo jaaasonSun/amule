@@ -38,7 +38,7 @@ final class DownloadTableColumnLayoutTests: XCTestCase {
             KeyPathComparator(\DownloadItem.speedSortValue, order: .reverse),
             KeyPathComparator(\DownloadItem.name, order: .forward),
             KeyPathComparator(\DownloadItem.progressSortValue, order: .reverse),
-            KeyPathComparator(\DownloadItem.sourceTotal, order: .forward)
+            KeyPathComparator(\DownloadItem.srcSortValue, order: .forward)
         ]
 
         let rawValue = DownloadTableSortPersistence.rawValue(for: comparators)
